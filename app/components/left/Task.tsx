@@ -52,6 +52,7 @@ export function Task({
   const showEditSelectionCheckbox =
     mode === "edit" && (!isSettingDependencies || task.id !== selectedTaskId);
   const tags = Array.from(task.tags ?? []);
+  const hasDescription = task.description.trim().length > 0;
 
   const { ref, handleRef, isDragSource, isDragging } = useSortable({
     id: task.id,
@@ -134,14 +135,25 @@ export function Task({
       {!showTaskModeCheckbox && !showEditSelectionCheckbox && (
         <span className="w-4" />
       )}
-      <p
-        className={`min-w-0 flex-1 truncate text-sm font-medium ${
-          mode === "task" && taskState.completed ? "line-through" : ""
-        }`}
-      >
-        {task.title || "Untitled Task"}
-        {mode === "task" && taskState.explicitlyHidden ? " (Hidden)" : ""}
-      </p>
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <p
+          className={`min-w-0 flex-1 truncate text-sm font-medium ${
+            mode === "task" && taskState.completed ? "line-through" : ""
+          }`}
+        >
+          {task.title || "Untitled Task"}
+          {mode === "task" && taskState.explicitlyHidden ? " (Hidden)" : ""}
+        </p>
+        {hasDescription && (
+          <span
+            className="shrink-0 text-zinc-500 dark:text-zinc-400"
+            title="Has description"
+            aria-label="Has description"
+          >
+            ✎
+          </span>
+        )}
+      </div>
       {tags.length > 0 && (
         <div className="ml-auto flex max-w-[50%] items-center justify-end gap-1 overflow-hidden">
           {tags.map((tag) => (
