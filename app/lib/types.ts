@@ -2,15 +2,14 @@ export type TaskId = string;
 
 export type ChecklistTaskDefinition = {
   id: TaskId;
-  order: number;
-  category: string;
   title: string;
   description: string;
   dependencies: TaskId[];
 };
 
 export type ChecklistDefinition = {
-  tasks: ChecklistTaskDefinition[];
+  categories: string[];
+  tasksByCategory: Record<string, ChecklistTaskDefinition[]>;
 };
 
 export type ChecklistTaskState = {

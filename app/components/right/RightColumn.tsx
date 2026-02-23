@@ -12,6 +12,7 @@ import type {
 type RightColumnProps = {
   mode: ChecklistMode;
   selectedTask: ChecklistTaskDefinition | null;
+  selectedTaskCategory: string;
   isLoaded: boolean;
   errorMessage: string | null;
   state: ChecklistState;
@@ -24,16 +25,20 @@ type RightColumnProps = {
   ) => void;
   onUpdateTaskState: (
     taskId: TaskId,
-    updater: (taskState: ChecklistState["tasks"][TaskId]) => ChecklistState["tasks"][TaskId],
+    updater: (
+      taskState: ChecklistState["tasks"][TaskId],
+    ) => ChecklistState["tasks"][TaskId],
   ) => void;
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
+  onChangeSelectedTaskCategory: (category: string) => void;
 };
 
 export function RightColumn({
   mode,
   selectedTask,
+  selectedTaskCategory,
   isLoaded,
   errorMessage,
   state,
@@ -45,15 +50,22 @@ export function RightColumn({
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
+  onChangeSelectedTaskCategory,
 }: RightColumnProps) {
   return (
     <>
       <RightHeader mode={mode} selectedTask={selectedTask} />
 
-      {!isLoaded && <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading checklist...</p>}
+      {!isLoaded && (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Loading checklist...
+        </p>
+      )}
 
       {isLoaded && !selectedTask && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Select a task to view details.</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Select a task to view details.
+        </p>
       )}
 
       {isLoaded && selectedTask && (
@@ -61,6 +73,7 @@ export function RightColumn({
           <TaskDetails
             mode={mode}
             selectedTask={selectedTask}
+            selectedTaskCategory={selectedTaskCategory}
             state={state}
             taskMap={taskMap}
             isSettingDependencies={isSettingDependencies}
@@ -70,6 +83,7 @@ export function RightColumn({
             onStartSetDependencies={onStartSetDependencies}
             onConfirmSetDependencies={onConfirmSetDependencies}
             onClearSelectedTaskDependencies={onClearSelectedTaskDependencies}
+            onChangeSelectedTaskCategory={onChangeSelectedTaskCategory}
           />
         </div>
       )}

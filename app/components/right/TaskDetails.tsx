@@ -13,6 +13,7 @@ import type {
 type TaskDetailsProps = {
   mode: ChecklistMode;
   selectedTask: ChecklistTaskDefinition;
+  selectedTaskCategory: string;
   state: ChecklistState;
   taskMap: Map<TaskId, ChecklistTaskDefinition>;
   isSettingDependencies: boolean;
@@ -23,16 +24,20 @@ type TaskDetailsProps = {
   ) => void;
   onUpdateTaskState: (
     taskId: TaskId,
-    updater: (taskState: ChecklistState["tasks"][TaskId]) => ChecklistState["tasks"][TaskId],
+    updater: (
+      taskState: ChecklistState["tasks"][TaskId],
+    ) => ChecklistState["tasks"][TaskId],
   ) => void;
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
+  onChangeSelectedTaskCategory: (category: string) => void;
 };
 
 export function TaskDetails({
   mode,
   selectedTask,
+  selectedTaskCategory,
   state,
   taskMap,
   isSettingDependencies,
@@ -42,6 +47,7 @@ export function TaskDetails({
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
+  onChangeSelectedTaskCategory,
 }: TaskDetailsProps) {
   if (mode === "edit") {
     return (
@@ -74,12 +80,11 @@ export function TaskDetails({
           <label className="block text-sm">
             <span className="mb-1 block font-medium">Category</span>
             <input
-              value={selectedTask.category}
+              value={selectedTaskCategory}
               onChange={(event) =>
-                onUpdateTask(selectedTask.id, (task) => ({
-                  ...task,
-                  category: event.target.value.trim() ? event.target.value : DEFAULT_CATEGORY,
-                }))
+                onChangeSelectedTaskCategory(
+                  event.target.value.trim() || DEFAULT_CATEGORY,
+                )
               }
               className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
             />
@@ -95,7 +100,11 @@ export function TaskDetails({
               <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
                 {selectedTask.dependencies.map((dependencyId) => {
                   const dependencyTask = taskMap.get(dependencyId);
-                  return <li key={dependencyId}>{dependencyTask?.title || dependencyId}</li>;
+                  return (
+                    <li key={dependencyId}>
+                      {dependencyTask?.title || dependencyId}
+                    </li>
+                  );
                 })}
               </ul>
             )}
@@ -160,13 +169,15 @@ export function TaskDetails({
           {selectedTask.description || "No description."}
         </ReactMarkdown>
       </article>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">Category: {selectedTask.category}</p>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">Order: {selectedTask.order}</p>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        Category: {selectedTaskCategory}
+      </p>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Completed: {state.tasks[selectedTask.id]?.completed ? "Yes" : "No"}
       </p>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Explicitly hidden: {state.tasks[selectedTask.id]?.explicitlyHidden ? "Yes" : "No"}
+        Explicitly hidden:{" "}
+        {state.tasks[selectedTask.id]?.explicitlyHidden ? "Yes" : "No"}
       </p>
       <div>
         <button

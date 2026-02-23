@@ -9,7 +9,10 @@ import type {
 export const DEFAULT_CATEGORY = "Tasks";
 
 export const createEmptyDefinition = (): ChecklistDefinition => ({
-  tasks: [],
+  categories: [DEFAULT_CATEGORY],
+  tasksByCategory: {
+    [DEFAULT_CATEGORY]: [],
+  },
 });
 
 export const createEmptyState = (): ChecklistState => ({
@@ -21,14 +24,16 @@ export const defaultTaskState = (): ChecklistTaskState => ({
   explicitlyHidden: false,
 });
 
-export const sortTasks = (tasks: ChecklistTaskDefinition[]): ChecklistTaskDefinition[] => {
-  return [...tasks].sort((a, b) => {
-    if (a.order !== b.order) {
-      return a.order - b.order;
-    }
+export const flattenDefinitionTasks = (
+  definition: ChecklistDefinition,
+): ChecklistTaskDefinition[] => {
+  const flattened: ChecklistTaskDefinition[] = [];
 
-    return a.title.localeCompare(b.title);
-  });
+  for (const category of definition.categories) {
+    flattened.push(...(definition.tasksByCategory[category] ?? []));
+  }
+
+  return flattened;
 };
 
 export const ensureStateForDefinition = (
@@ -36,15 +41,16 @@ export const ensureStateForDefinition = (
   state: ChecklistState,
 ): ChecklistState => {
   const nextTasks = { ...state.tasks };
+  const allTasks = flattenDefinitionTasks(definition);
 
-  for (const task of definition.tasks) {
+  for (const task of allTasks) {
     if (!nextTasks[task.id]) {
       nextTasks[task.id] = defaultTaskState();
     }
   }
 
   for (const taskId of Object.keys(nextTasks)) {
-    if (!definition.tasks.some((task) => task.id === taskId)) {
+    if (!allTasks.some((task) => task.id === taskId)) {
       delete nextTasks[taskId];
     }
   }
@@ -112,65 +118,165 @@ export const wouldCreateCycle = (
   taskId: TaskId,
   nextDependencies: TaskId[],
 ): boolean => {
-  const patchedTasks = definition.tasks.map((task) => {
-    if (task.id !== taskId) {
-      return task;
-    }
-
-    return {
-      ...task,
-      dependencies: [...nextDependencies],
-    };
-  });
+  const patchedTasks = flattenDefinitionTasks(definition).map((task) =>
+    task.id === taskId
+      ? {
+          ...task,
+          dependencies: [...nextDependencies],
+        }
+      : task,
+  );
 
   return detectCycle(patchedTasks);
 };
 
 export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
-  const tasks = Array.isArray((raw as ChecklistDefinition | undefined)?.tasks)
-    ? (raw as ChecklistDefinition).tasks
-    : [];
+  const typedRaw = raw as
+    | ChecklistDefinition
+    | {
+        tasks?: Array<
+          Partial<ChecklistTaskDefinition> & {
+            category?: unknown;
+            order?: unknown;
+          }
+        >;
+      }
+    | undefined;
 
-  const normalizedTasks = tasks.map((task, index) => {
-    const typedTask = task as Partial<ChecklistTaskDefinition>;
+  const hasLegacyTasks =
+    Boolean(typedRaw && typeof typedRaw === "object" && "tasks" in typedRaw) &&
+    Array.isArray((typedRaw as { tasks?: unknown }).tasks);
 
-    return {
-      id: String(typedTask.id ?? crypto.randomUUID()),
-      order: Number.isFinite(typedTask.order) ? Number(typedTask.order) : index,
-      category:
-        typeof typedTask.category === "string" && typedTask.category.trim().length > 0
-          ? typedTask.category
-          : DEFAULT_CATEGORY,
-      title: typeof typedTask.title === "string" ? typedTask.title : "",
-      description: typeof typedTask.description === "string" ? typedTask.description : "",
-      dependencies: Array.isArray(typedTask.dependencies)
-        ? typedTask.dependencies.map((dependency) => String(dependency))
-        : [],
+  let categories: string[];
+  let tasksByCategoryRaw: Record<string, unknown>;
+
+  if (hasLegacyTasks) {
+    const grouped: Record<string, Array<Partial<ChecklistTaskDefinition>>> = {};
+
+    for (const task of (
+      typedRaw as {
+        tasks?: Array<
+          Partial<ChecklistTaskDefinition> & { category?: unknown }
+        >;
+      }
+    ).tasks ?? []) {
+      const categoryName =
+        typeof (task as { category?: unknown }).category === "string" &&
+        String((task as { category?: unknown }).category).trim().length > 0
+          ? String((task as { category?: unknown }).category)
+          : DEFAULT_CATEGORY;
+
+      if (!grouped[categoryName]) {
+        grouped[categoryName] = [];
+      }
+
+      grouped[categoryName].push(task);
+    }
+
+    categories = Object.keys(grouped);
+    tasksByCategoryRaw = grouped;
+  } else {
+    const rawObject = typedRaw as {
+      categories?: unknown;
+      tasksByCategory?: unknown;
     };
-  });
 
-  const taskIdSet = new Set(normalizedTasks.map((task) => task.id));
+    const maybeCategories = Array.isArray(rawObject?.categories)
+      ? rawObject.categories
+      : [];
+    categories = maybeCategories
+      .map((category) => (typeof category === "string" ? category.trim() : ""))
+      .filter((category) => category.length > 0);
 
-  const withFilteredDependencies = normalizedTasks.map((task) => ({
-    ...task,
-    dependencies: task.dependencies.filter(
-      (dependency) => dependency !== task.id && taskIdSet.has(dependency),
-    ),
-  }));
+    const maybeTasksByCategory = rawObject?.tasksByCategory;
+    tasksByCategoryRaw =
+      maybeTasksByCategory &&
+      typeof maybeTasksByCategory === "object" &&
+      !Array.isArray(maybeTasksByCategory)
+        ? (maybeTasksByCategory as Record<string, unknown>)
+        : {};
+  }
 
-  if (detectCycle(withFilteredDependencies)) {
+  const normalizedTasksByCategory: Record<string, ChecklistTaskDefinition[]> =
+    {};
+  const normalizedCategories: string[] = [];
+  const seenCategories = new Set<string>();
+
+  const registerCategory = (category: string) => {
+    const normalizedName = category.trim();
+    if (normalizedName.length === 0 || seenCategories.has(normalizedName)) {
+      return;
+    }
+
+    seenCategories.add(normalizedName);
+    normalizedCategories.push(normalizedName);
+  };
+
+  for (const category of categories) {
+    registerCategory(category);
+  }
+
+  for (const category of Object.keys(tasksByCategoryRaw)) {
+    registerCategory(category);
+  }
+
+  if (normalizedCategories.length === 0) {
+    registerCategory(DEFAULT_CATEGORY);
+  }
+
+  for (const category of normalizedCategories) {
+    const rawTasks = Array.isArray(tasksByCategoryRaw[category])
+      ? (tasksByCategoryRaw[category] as Array<
+          Partial<ChecklistTaskDefinition>
+        >)
+      : [];
+
+    normalizedTasksByCategory[category] = rawTasks.map((task) => ({
+      id: String(task.id ?? crypto.randomUUID()),
+      title: typeof task.title === "string" ? task.title : "",
+      description: typeof task.description === "string" ? task.description : "",
+      dependencies: Array.isArray(task.dependencies)
+        ? task.dependencies.map((dependency) => String(dependency))
+        : [],
+    }));
+  }
+
+  const allTasks = normalizedCategories.flatMap(
+    (category) => normalizedTasksByCategory[category] ?? [],
+  );
+  const taskIdSet = new Set(allTasks.map((task) => task.id));
+
+  const filteredTasksByCategory: Record<string, ChecklistTaskDefinition[]> = {};
+
+  for (const category of normalizedCategories) {
+    filteredTasksByCategory[category] = (
+      normalizedTasksByCategory[category] ?? []
+    ).map((task) => ({
+      ...task,
+      dependencies: task.dependencies.filter(
+        (dependency) => dependency !== task.id && taskIdSet.has(dependency),
+      ),
+    }));
+  }
+
+  if (detectCycle(Object.values(filteredTasksByCategory).flat())) {
     throw new Error("Checklist definition has circular dependencies.");
   }
 
   return {
-    tasks: withFilteredDependencies,
+    categories: normalizedCategories,
+    tasksByCategory: filteredTasksByCategory,
   };
 };
 
 export const normalizeState = (raw: unknown): ChecklistState => {
   const maybeTasks = (raw as ChecklistState | undefined)?.tasks;
 
-  if (!maybeTasks || typeof maybeTasks !== "object" || Array.isArray(maybeTasks)) {
+  if (
+    !maybeTasks ||
+    typeof maybeTasks !== "object" ||
+    Array.isArray(maybeTasks)
+  ) {
     return createEmptyState();
   }
 

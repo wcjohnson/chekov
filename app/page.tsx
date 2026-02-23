@@ -13,9 +13,9 @@ import {
   createEmptyState,
   dependenciesAreComplete,
   ensureStateForDefinition,
+  flattenDefinitionTasks,
   normalizeDefinition,
   normalizeState,
-  sortTasks,
   wouldCreateCycle,
 } from "./lib/checklist";
 import { loadDefinition, loadState, saveAll } from "./lib/storage";
@@ -28,7 +28,9 @@ import type {
 } from "./lib/types";
 
 const downloadJson = (fileName: string, data: unknown): void => {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json",
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -44,18 +46,21 @@ const readJsonFile = async (file: File): Promise<unknown> => {
 
 const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
 
-const getTaskCategory = (task: ChecklistTaskDefinition): string =>
-  task.category?.trim() ? task.category : DEFAULT_CATEGORY;
-
 export default function Home() {
   const [mode, setMode] = useState<ChecklistMode>("task");
   const [searchText, setSearchText] = useState("");
-  const [definition, setDefinition] = useState<ChecklistDefinition>(createEmptyDefinition);
+  const [definition, setDefinition] = useState<ChecklistDefinition>(
+    createEmptyDefinition,
+  );
   const [state, setState] = useState<ChecklistState>(createEmptyState);
   const [selectedTaskId, setSelectedTaskId] = useState<TaskId | null>(null);
-  const [editSelectedTaskIds, setEditSelectedTaskIds] = useState<Set<TaskId>>(new Set());
+  const [editSelectedTaskIds, setEditSelectedTaskIds] = useState<Set<TaskId>>(
+    new Set(),
+  );
   const [isSettingDependencies, setIsSettingDependencies] = useState(false);
-  const [pendingDependencyIds, setPendingDependencyIds] = useState<Set<TaskId>>(new Set());
+  const [pendingDependencyIds, setPendingDependencyIds] = useState<Set<TaskId>>(
+    new Set(),
+  );
   const [leftPaneWidth, setLeftPaneWidth] = useState(32);
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -74,11 +79,16 @@ export default function Home() {
           loadState(),
         ]);
 
-        const hydratedState = ensureStateForDefinition(storedDefinition, storedState);
+        const hydratedState = ensureStateForDefinition(
+          storedDefinition,
+          storedState,
+        );
 
         setDefinition(storedDefinition);
         setState(hydratedState);
-        setSelectedTaskId(storedDefinition.tasks[0]?.id ?? null);
+        setSelectedTaskId(
+          flattenDefinitionTasks(storedDefinition)[0]?.id ?? null,
+        );
       } catch {
         setErrorMessage("Failed to load checklist from IndexedDB.");
       } finally {
@@ -110,42 +120,68 @@ export default function Home() {
       return;
     }
 
-    if (!definition.tasks.some((task) => task.id === selectedTaskId)) {
-      setSelectedTaskId(definition.tasks[0]?.id ?? null);
-    }
-  }, [definition.tasks, selectedTaskId]);
+    const flattened = flattenDefinitionTasks(definition);
 
-  const sortedTasks = useMemo(() => sortTasks(definition.tasks), [definition.tasks]);
+    if (!flattened.some((task) => task.id === selectedTaskId)) {
+      setSelectedTaskId(flattened[0]?.id ?? null);
+    }
+  }, [definition, selectedTaskId]);
+
+  const allTasks = useMemo(
+    () => flattenDefinitionTasks(definition),
+    [definition],
+  );
 
   const taskMap = useMemo(() => {
     const map = new Map<TaskId, ChecklistTaskDefinition>();
 
-    for (const task of definition.tasks) {
+    for (const task of allTasks) {
       map.set(task.id, task);
     }
 
     return map;
-  }, [definition.tasks]);
+  }, [allTasks]);
 
-  const selectedTask = selectedTaskId ? taskMap.get(selectedTaskId) ?? null : null;
+  const taskCategoryMap = useMemo(() => {
+    const map = new Map<TaskId, string>();
+
+    for (const category of definition.categories) {
+      for (const task of definition.tasksByCategory[category] ?? []) {
+        map.set(task.id, category);
+      }
+    }
+
+    return map;
+  }, [definition]);
+
+  const selectedTask = selectedTaskId
+    ? (taskMap.get(selectedTaskId) ?? null)
+    : null;
+  const selectedTaskCategory =
+    (selectedTaskId ? taskCategoryMap.get(selectedTaskId) : undefined) ??
+    DEFAULT_CATEGORY;
 
   const normalizedSearch = searchText.trim().toLowerCase();
   const isSearchActive = normalizedSearch.length >= 2;
 
   const visibleTasks = useMemo(() => {
     if (isSearchActive) {
-      return sortedTasks.filter((task) => {
-        const titleMatches = task.title.toLowerCase().includes(normalizedSearch);
-        const descriptionMatches = task.description.toLowerCase().includes(normalizedSearch);
+      return allTasks.filter((task) => {
+        const titleMatches = task.title
+          .toLowerCase()
+          .includes(normalizedSearch);
+        const descriptionMatches = task.description
+          .toLowerCase()
+          .includes(normalizedSearch);
         return titleMatches || descriptionMatches;
       });
     }
 
     if (mode === "edit") {
-      return sortedTasks;
+      return allTasks;
     }
 
-    return sortedTasks.filter((task) => {
+    return allTasks.filter((task) => {
       const taskState = state.tasks[task.id];
 
       if (taskState?.completed) {
@@ -158,33 +194,34 @@ export default function Home() {
 
       return dependenciesAreComplete(task, state);
     });
-  }, [isSearchActive, mode, normalizedSearch, sortedTasks, state]);
+  }, [allTasks, isSearchActive, mode, normalizedSearch, state]);
 
   const tasksByCategory = useMemo(() => {
     const grouped = new Map<string, ChecklistTaskDefinition[]>();
 
     for (const task of visibleTasks) {
-      const categoryName = getTaskCategory(task);
-      const existing = grouped.get(categoryName);
-      if (existing) {
-        existing.push(task);
-      } else {
-        grouped.set(categoryName, [task]);
-      }
+      const categoryName = taskCategoryMap.get(task.id) ?? DEFAULT_CATEGORY;
+      const existing = grouped.get(categoryName) ?? [];
+      existing.push(task);
+      grouped.set(categoryName, existing);
     }
 
-    return Array.from(grouped.entries()).map(([category, tasks]) => ({
-      category,
-      tasks,
-    }));
-  }, [visibleTasks]);
+    return definition.categories
+      .filter((category) => grouped.has(category))
+      .map((category) => ({
+        category,
+        tasks: grouped.get(category) ?? [],
+      }));
+  }, [definition.categories, taskCategoryMap, visibleTasks]);
 
   useEffect(() => {
     if (mode !== "task" || !selectedTaskId) {
       return;
     }
 
-    const stillVisible = visibleTasks.some((task) => task.id === selectedTaskId);
+    const stillVisible = visibleTasks.some(
+      (task) => task.id === selectedTaskId,
+    );
     if (!stillVisible) {
       setSelectedTaskId(null);
     }
@@ -265,10 +302,12 @@ export default function Home() {
   }, [isDesktop, isResizing]);
 
   useEffect(() => {
-    const validTaskIds = new Set(definition.tasks.map((task) => task.id));
+    const validTaskIds = new Set(allTasks.map((task) => task.id));
 
     setEditSelectedTaskIds((previous) => {
-      const next = new Set(Array.from(previous).filter((taskId) => validTaskIds.has(taskId)));
+      const next = new Set(
+        Array.from(previous).filter((taskId) => validTaskIds.has(taskId)),
+      );
       return next.size === previous.size ? previous : next;
     });
 
@@ -280,20 +319,41 @@ export default function Home() {
       );
       return next.size === previous.size ? previous : next;
     });
-  }, [definition.tasks, selectedTaskId]);
+  }, [allTasks, selectedTaskId]);
 
-  const updateTask = (taskId: TaskId, updater: (task: ChecklistTaskDefinition) => ChecklistTaskDefinition) => {
-    setDefinition((previous) => ({
-      tasks: previous.tasks.map((task) => (task.id === taskId ? updater(task) : task)),
-    }));
+  const updateTask = (
+    taskId: TaskId,
+    updater: (task: ChecklistTaskDefinition) => ChecklistTaskDefinition,
+  ) => {
+    setDefinition((previous) => {
+      const nextTasksByCategory: ChecklistDefinition["tasksByCategory"] = {
+        ...previous.tasksByCategory,
+      };
+
+      for (const category of previous.categories) {
+        nextTasksByCategory[category] = (
+          previous.tasksByCategory[category] ?? []
+        ).map((task) => (task.id === taskId ? updater(task) : task));
+      }
+
+      return {
+        ...previous,
+        tasksByCategory: nextTasksByCategory,
+      };
+    });
   };
 
   const updateTaskState = (
     taskId: TaskId,
-    updater: (taskState: ChecklistState["tasks"][TaskId]) => ChecklistState["tasks"][TaskId],
+    updater: (
+      taskState: ChecklistState["tasks"][TaskId],
+    ) => ChecklistState["tasks"][TaskId],
   ) => {
     setState((previous) => {
-      const existing = previous.tasks[taskId] ?? { completed: false, explicitlyHidden: false };
+      const existing = previous.tasks[taskId] ?? {
+        completed: false,
+        explicitlyHidden: false,
+      };
 
       return {
         tasks: {
@@ -306,21 +366,29 @@ export default function Home() {
 
   const addTask = () => {
     const nextId = crypto.randomUUID();
-    const nextOrder = sortedTasks.length;
 
-    setDefinition((previous) => ({
-      tasks: [
-        ...previous.tasks,
-        {
-          id: nextId,
-          order: nextOrder,
-          category: DEFAULT_CATEGORY,
-          title: "Untitled Task",
-          description: "",
-          dependencies: [],
+    setDefinition((previous) => {
+      const hasDefaultCategory = previous.categories.includes(DEFAULT_CATEGORY);
+      const categories = hasDefaultCategory
+        ? previous.categories
+        : [...previous.categories, DEFAULT_CATEGORY];
+
+      return {
+        categories,
+        tasksByCategory: {
+          ...previous.tasksByCategory,
+          [DEFAULT_CATEGORY]: [
+            ...(previous.tasksByCategory[DEFAULT_CATEGORY] ?? []),
+            {
+              id: nextId,
+              title: "Untitled Task",
+              description: "",
+              dependencies: [],
+            },
+          ],
         },
-      ],
-    }));
+      };
+    });
 
     setState((previous) => ({
       tasks: {
@@ -340,14 +408,29 @@ export default function Home() {
       return;
     }
 
-    setDefinition((previous) => ({
-      tasks: previous.tasks
-        .filter((task) => task.id !== selectedTask.id)
-        .map((task) => ({
-          ...task,
-          dependencies: task.dependencies.filter((dependencyId) => dependencyId !== selectedTask.id),
-        })),
-    }));
+    setDefinition((previous) => {
+      const nextTasksByCategory: ChecklistDefinition["tasksByCategory"] = {
+        ...previous.tasksByCategory,
+      };
+
+      for (const category of previous.categories) {
+        nextTasksByCategory[category] = (
+          previous.tasksByCategory[category] ?? []
+        )
+          .filter((task) => task.id !== selectedTask.id)
+          .map((task) => ({
+            ...task,
+            dependencies: task.dependencies.filter(
+              (dependencyId) => dependencyId !== selectedTask.id,
+            ),
+          }));
+      }
+
+      return {
+        ...previous,
+        tasksByCategory: nextTasksByCategory,
+      };
+    });
 
     setState((previous) => {
       const nextTasks = { ...previous.tasks };
@@ -360,7 +443,7 @@ export default function Home() {
         return current;
       }
 
-      const remaining = sortedTasks.filter((task) => task.id !== selectedTask.id);
+      const remaining = allTasks.filter((task) => task.id !== selectedTask.id);
       return remaining[0]?.id ?? null;
     });
   };
@@ -375,14 +458,29 @@ export default function Home() {
       return;
     }
 
-    setDefinition((previous) => ({
-      tasks: previous.tasks
-        .filter((task) => !selectedIds.has(task.id))
-        .map((task) => ({
-          ...task,
-          dependencies: task.dependencies.filter((dependencyId) => !selectedIds.has(dependencyId)),
-        })),
-    }));
+    setDefinition((previous) => {
+      const nextTasksByCategory: ChecklistDefinition["tasksByCategory"] = {
+        ...previous.tasksByCategory,
+      };
+
+      for (const category of previous.categories) {
+        nextTasksByCategory[category] = (
+          previous.tasksByCategory[category] ?? []
+        )
+          .filter((task) => !selectedIds.has(task.id))
+          .map((task) => ({
+            ...task,
+            dependencies: task.dependencies.filter(
+              (dependencyId) => !selectedIds.has(dependencyId),
+            ),
+          }));
+      }
+
+      return {
+        ...previous,
+        tasksByCategory: nextTasksByCategory,
+      };
+    });
 
     setState((previous) => {
       const nextTasks = { ...previous.tasks };
@@ -397,7 +495,7 @@ export default function Home() {
         return current;
       }
 
-      const remaining = sortedTasks.filter((task) => !selectedIds.has(task.id));
+      const remaining = allTasks.filter((task) => !selectedIds.has(task.id));
       return remaining[0]?.id ?? null;
     });
 
@@ -409,70 +507,98 @@ export default function Home() {
     setPendingDependencyIds(new Set());
   };
 
-  const moveTask = useCallback( (taskId: TaskId, nextCategory: string, nextIndex: number) => {
-    setDefinition((previous) => {
-      const taskToMove = sortedTasks.find((task) => task.id === taskId);
-      if (!taskToMove) {
-        return previous;
-      }
-      
-      const allTasks = previous.tasks
-      taskToMove.category = nextCategory;
+  const moveTask = useCallback(
+    (taskId: TaskId, nextCategory: string, nextIndex: number) => {
+      setDefinition((previous) => {
+        const sourceCategory = previous.categories.find((category) =>
+          (previous.tasksByCategory[category] ?? []).some(
+            (task) => task.id === taskId,
+          ),
+        );
 
-      const nextCategoryTasks = allTasks
-        .filter((task) => getTaskCategory(task) === nextCategory && task.id !== taskId)
-      nextCategoryTasks.splice(nextIndex, 0, taskToMove);
-      // Reassign order based on new position in category
-      const updatedTaskMap = new Map();
-      nextCategoryTasks.forEach((task, index) => {
-        task.order = index;
-        updatedTaskMap.set(task.id, task);
-      });
-
-      // Generate a new total Tasks array with all updated tasks replaced
-      const updatedTasks = allTasks.map((task) => {
-        const updatedTask = updatedTaskMap.get(task.id);
-        if (updatedTask) {
-          return updatedTask;
-        } else {
-          return task;
+        if (!sourceCategory) {
+          return previous;
         }
+
+        const sourceTasks = [
+          ...(previous.tasksByCategory[sourceCategory] ?? []),
+        ];
+        const fromIndex = sourceTasks.findIndex((task) => task.id === taskId);
+        if (fromIndex < 0) {
+          return previous;
+        }
+
+        const [taskToMove] = sourceTasks.splice(fromIndex, 1);
+        if (!taskToMove) {
+          return previous;
+        }
+
+        const hasTargetCategory = previous.categories.includes(nextCategory);
+        const categories = hasTargetCategory
+          ? previous.categories
+          : [...previous.categories, nextCategory];
+
+        const targetTasks =
+          sourceCategory === nextCategory
+            ? sourceTasks
+            : [...(previous.tasksByCategory[nextCategory] ?? [])];
+
+        const clampedIndex = Math.max(
+          0,
+          Math.min(nextIndex, targetTasks.length),
+        );
+        targetTasks.splice(clampedIndex, 0, taskToMove);
+
+        const nextTasksByCategory: ChecklistDefinition["tasksByCategory"] = {
+          ...previous.tasksByCategory,
+          [sourceCategory]:
+            sourceCategory === nextCategory ? targetTasks : sourceTasks,
+          [nextCategory]: targetTasks,
+        };
+
+        return {
+          categories,
+          tasksByCategory: nextTasksByCategory,
+        };
       });
+    },
+    [],
+  );
 
-      return { tasks: updatedTasks };
-    });
-  }, [sortedTasks]);
+  const handleSortableMove = (
+    source: Parameters<DragOverEvent>[0]["operation"]["source"],
+    target: Parameters<DragOverEvent>[0]["operation"]["target"],
+  ) => {
+    if (!source || !target) {
+      return;
+    }
 
-  const handleSortableDragEnd = (event: Parameters<DragEndEvent>[0]) => {
+    if (!isSortable(source) || !isSortable(target)) {
+      return;
+    }
+
+    if (target.id === source.id) {
+      return;
+    }
+
+    const sourceTaskId = String(source.id);
+    const targetCategory = String(
+      target.group ?? source.group ?? DEFAULT_CATEGORY,
+    );
+    moveTask(sourceTaskId, targetCategory, target.index);
+  };
+
+  const handleDragEnd = (event: Parameters<DragEndEvent>[0]) => {
     if (event.canceled) {
       return;
     }
 
-    console.log("handleSortableDragEnd event:", event); 
-
-    const { operation } = event;
-    if (!operation.source || !operation.target) {
-      return;
-    }
-    if(!isSortable(operation.source)) { return; }
-
-    const { index, group, initialGroup } = operation.source;
-    const sourceTaskId = String(operation.source.id);
-    const sourceCategory = String(initialGroup);
-    const targetCategory = String(group);
-
-    console.log("moveTask details:", { sourceTaskId, sourceCategory, targetCategory, index });
-    moveTask(sourceTaskId, targetCategory, index);
+    handleSortableMove(event.operation.source, event.operation.target);
   };
 
   const handleDragOver = (event: Parameters<DragOverEvent>[0]) => {
-      const { target, source } = event.operation;
-
-    //? when we move the item to a new list, this callback is called again when source as the target 
-    if (target?.id === source?.id) {
-      return;
-    }
-  }
+    handleSortableMove(event.operation.source, event.operation.target);
+  };
 
   const toggleTaskCompletion = (taskId: TaskId) => {
     updateTaskState(taskId, (previous) => ({
@@ -555,7 +681,9 @@ export default function Home() {
     );
 
     if (wouldCreateCycle(definition, selectedTask.id, nextDependencies)) {
-      setErrorMessage("That dependency set would create a circular dependency.");
+      setErrorMessage(
+        "That dependency set would create a circular dependency.",
+      );
       return;
     }
 
@@ -581,6 +709,14 @@ export default function Home() {
     setErrorMessage(null);
   };
 
+  const changeSelectedTaskCategory = (nextCategory: string) => {
+    if (!selectedTask) {
+      return;
+    }
+
+    moveTask(selectedTask.id, nextCategory, 0);
+  };
+
   const handleImportDefinition = async (file: File) => {
     try {
       const parsed = await readJsonFile(file);
@@ -589,7 +725,7 @@ export default function Home() {
 
       setDefinition(nextDefinition);
       setState(nextState);
-      setSelectedTaskId(nextDefinition.tasks[0]?.id ?? null);
+      setSelectedTaskId(flattenDefinitionTasks(nextDefinition)[0]?.id ?? null);
       setErrorMessage(null);
     } catch {
       setErrorMessage("Invalid definition JSON file.");
@@ -599,7 +735,10 @@ export default function Home() {
   const handleImportState = async (file: File) => {
     try {
       const parsed = await readJsonFile(file);
-      const nextState = ensureStateForDefinition(definition, normalizeState(parsed));
+      const nextState = ensureStateForDefinition(
+        definition,
+        normalizeState(parsed),
+      );
 
       setState(nextState);
       setErrorMessage(null);
@@ -626,14 +765,20 @@ export default function Home() {
           searchText={searchText}
           importDefinitionInputRef={importDefinitionInputRef}
           importStateInputRef={importStateInputRef}
-          onToggleMode={() => setMode((current) => (current === "task" ? "edit" : "task"))}
+          onToggleMode={() =>
+            setMode((current) => (current === "task" ? "edit" : "task"))
+          }
           onAddTask={addTask}
           onDeleteAll={deleteSelectedTasks}
           onUnhideAll={unhideAllTasks}
           onResetCompleted={resetAllCompletedTasks}
           onSearchTextChange={setSearchText}
-          onExportDefinition={() => downloadJson("chekov-definition.json", definition)}
-          onImportDefinitionClick={() => importDefinitionInputRef.current?.click()}
+          onExportDefinition={() =>
+            downloadJson("chekov-definition.json", definition)
+          }
+          onImportDefinitionClick={() =>
+            importDefinitionInputRef.current?.click()
+          }
           onExportState={() => downloadJson("chekov-state.json", state)}
           onImportStateClick={() => importStateInputRef.current?.click()}
           onImportDefinitionFile={(file) => {
@@ -661,7 +806,7 @@ export default function Home() {
           onToggleComplete={toggleTaskCompletion}
           onToggleEditSelection={toggleEditTaskSelection}
           onTogglePendingDependency={togglePendingDependencySelection}
-          onDragEnd={handleSortableDragEnd}
+          onDragEnd={handleDragEnd}
           onDragOver={handleDragOver}
         />
       }
@@ -669,6 +814,7 @@ export default function Home() {
         <RightColumn
           mode={mode}
           selectedTask={selectedTask}
+          selectedTaskCategory={selectedTaskCategory}
           isLoaded={isLoaded}
           errorMessage={errorMessage}
           state={state}
@@ -680,6 +826,7 @@ export default function Home() {
           onStartSetDependencies={startSetDependencies}
           onConfirmSetDependencies={confirmSetDependencies}
           onClearSelectedTaskDependencies={clearSelectedTaskDependencies}
+          onChangeSelectedTaskCategory={changeSelectedTaskCategory}
         />
       }
     />
