@@ -69,8 +69,10 @@ export function TaskDetails({
     return Array.from(tags).sort((left, right) => left.localeCompare(right));
   }, [taskMap]);
 
-  const addTag = () => {
-    const normalizedTag = tagInput.trim();
+  const knownTagSet = useMemo(() => new Set(allKnownTags), [allKnownTags]);
+
+  const addTag = (rawTag: string = tagInput) => {
+    const normalizedTag = rawTag.trim();
     if (!normalizedTag) {
       return;
     }
@@ -234,7 +236,15 @@ export function TaskDetails({
             <input
               type="text"
               value={tagInput}
-              onChange={(event) => setTagInput(event.target.value)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setTagInput(nextValue);
+
+                const normalized = nextValue.trim();
+                if (normalized.length > 0 && knownTagSet.has(normalized)) {
+                  addTag(normalized);
+                }
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
@@ -255,7 +265,7 @@ export function TaskDetails({
             </datalist>
             <button
               type="button"
-              onClick={addTag}
+              onClick={() => addTag()}
               disabled={tagInput.trim().length === 0}
               className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
