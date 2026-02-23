@@ -23,6 +23,7 @@ type CategoryProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  onAddTaskToCategory: (category: string) => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMoveUp: () => void;
@@ -43,6 +44,7 @@ export function Category({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  onAddTaskToCategory,
   canMoveUp,
   canMoveDown,
   onMoveUp,
@@ -122,6 +124,15 @@ export function Category({
             />
           );
         })}
+        {mode === "edit" && (
+          <button
+            type="button"
+            onClick={() => onAddTaskToCategory(category)}
+            className="mt-2 w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            Add Task
+          </button>
+        )}
       </div>
     </details>
   );

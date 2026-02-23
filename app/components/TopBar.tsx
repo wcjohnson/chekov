@@ -11,7 +11,6 @@ type TopBarProps = {
   importDefinitionInputRef: RefObject<HTMLInputElement | null>;
   importStateInputRef: RefObject<HTMLInputElement | null>;
   onToggleMode: () => void;
-  onAddTask: () => void;
   onDeleteAll: () => void;
   onUnhideAll: () => void;
   onResetCompleted: () => void;
@@ -32,7 +31,6 @@ export function TopBar({
   importDefinitionInputRef,
   importStateInputRef,
   onToggleMode,
-  onAddTask,
   onDeleteAll,
   onUnhideAll,
   onResetCompleted,
@@ -58,13 +56,6 @@ export function TopBar({
           </button>
           {mode === "edit" && (
             <>
-              <button
-                type="button"
-                onClick={onAddTask}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-              >
-                Add Task
-              </button>
               {!isSettingDependencies && editSelectedCount > 0 && (
                 <button
                   type="button"

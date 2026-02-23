@@ -28,6 +28,7 @@ type LeftColumnProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  onAddTaskToCategory: (category: string) => void;
   onAddCategory: (categoryName: string) => void;
   setDefinition: (
     updater: (prev: ChecklistDefinition) => ChecklistDefinition,
@@ -50,6 +51,7 @@ export function LeftColumn({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  onAddTaskToCategory,
   onAddCategory,
   setDefinition,
 }: LeftColumnProps) {
@@ -134,6 +136,7 @@ export function LeftColumn({
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}
               onTogglePendingDependency={onTogglePendingDependency}
+              onAddTaskToCategory={onAddTaskToCategory}
               canMoveUp={index > 0}
               canMoveDown={index < tasks.categories.length - 1}
               onMoveUp={() => moveCategory(index, index - 1)}

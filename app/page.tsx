@@ -342,27 +342,27 @@ export default function Home() {
     });
   };
 
-  const addTask = () => {
+  const addTaskToCategory = (category: string) => {
     const nextId = crypto.randomUUID();
 
     setDefinition((previous) => {
-      const hasDefaultCategory = previous.categories.includes(DEFAULT_CATEGORY);
-      const categories = hasDefaultCategory
-        ? previous.categories
-        : [...previous.categories, DEFAULT_CATEGORY];
+      const hasCategory = previous.categories.includes(category);
+      if (!hasCategory) {
+        return previous;
+      }
 
       return {
-        categories,
+        ...previous,
         tasksByCategory: {
           ...previous.tasksByCategory,
-          [DEFAULT_CATEGORY]: [
-            ...(previous.tasksByCategory[DEFAULT_CATEGORY] ?? []),
+          [category]: [
             {
               id: nextId,
               title: "Untitled Task",
               description: "",
               dependencies: [],
             },
+            ...(previous.tasksByCategory[category] ?? []),
           ],
         },
       };
@@ -379,6 +379,7 @@ export default function Home() {
     }));
 
     setSelectedTaskId(nextId);
+    setErrorMessage(null);
   };
 
   const addCategory = (categoryName: string) => {
@@ -706,7 +707,6 @@ export default function Home() {
           onToggleMode={() =>
             setMode((current) => (current === "task" ? "edit" : "task"))
           }
-          onAddTask={addTask}
           onDeleteAll={deleteSelectedTasks}
           onUnhideAll={unhideAllTasks}
           onResetCompleted={resetAllCompletedTasks}
@@ -745,6 +745,7 @@ export default function Home() {
           onToggleComplete={toggleTaskCompletion}
           onToggleEditSelection={toggleEditTaskSelection}
           onTogglePendingDependency={togglePendingDependencySelection}
+          onAddTaskToCategory={addTaskToCategory}
           onAddCategory={addCategory}
         />
       }
