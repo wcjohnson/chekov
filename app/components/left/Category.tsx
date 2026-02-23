@@ -2,6 +2,7 @@
 
 import { Task } from "./Task";
 import type { ChecklistMode, ChecklistState, ChecklistTaskDefinition, TaskId } from "../../lib/types";
+import { dependenciesAreComplete } from "@/app/lib/checklist";
 
 type CategoryProps = {
   category: string;
@@ -16,7 +17,6 @@ type CategoryProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
-  dependenciesAreComplete: (task: ChecklistTaskDefinition, state: ChecklistState) => boolean;
 };
 
 export function Category({
@@ -32,7 +32,6 @@ export function Category({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
-  dependenciesAreComplete,
 }: CategoryProps) {
   return (
     <details open className="rounded-md border border-zinc-200 dark:border-zinc-800">

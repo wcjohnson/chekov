@@ -663,7 +663,6 @@ export default function Home() {
           onTogglePendingDependency={togglePendingDependencySelection}
           onDragEnd={handleSortableDragEnd}
           onDragOver={handleDragOver}
-          dependenciesAreComplete={dependenciesAreComplete}
         />
       }
       rightColumn={

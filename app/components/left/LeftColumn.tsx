@@ -23,7 +23,6 @@ type LeftColumnProps = {
   onTogglePendingDependency: (taskId: TaskId) => void;
   onDragEnd: (event: Parameters<DragEndEvent>[0]) => void;
   onDragOver: (event: Parameters<DragOverEvent>[0]) => void;
-  dependenciesAreComplete: (task: ChecklistTaskDefinition, state: ChecklistState) => boolean;
 };
 
 export function LeftColumn({
@@ -44,7 +43,6 @@ export function LeftColumn({
   onTogglePendingDependency,
   onDragEnd,
   onDragOver,
-  dependenciesAreComplete,
 }: LeftColumnProps) {
   return (
     <>
@@ -79,7 +77,6 @@ export function LeftColumn({
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}
               onTogglePendingDependency={onTogglePendingDependency}
-              dependenciesAreComplete={dependenciesAreComplete}
             />
           ))}
 
