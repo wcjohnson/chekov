@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { RefObject } from "react";
 import type { ChecklistMode } from "../lib/types";
 
@@ -13,7 +12,6 @@ type TopBarProps = {
   importStateInputRef: RefObject<HTMLInputElement | null>;
   onToggleMode: () => void;
   onAddTask: () => void;
-  onAddCategory: (categoryName: string) => void;
   onDeleteAll: () => void;
   onUnhideAll: () => void;
   onResetCompleted: () => void;
@@ -35,7 +33,6 @@ export function TopBar({
   importStateInputRef,
   onToggleMode,
   onAddTask,
-  onAddCategory,
   onDeleteAll,
   onUnhideAll,
   onResetCompleted,
@@ -47,20 +44,6 @@ export function TopBar({
   onImportDefinitionFile,
   onImportStateFile,
 }: TopBarProps) {
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-
-  const submitNewCategory = () => {
-    const normalized = newCategoryName.trim();
-    if (!normalized) {
-      return;
-    }
-
-    onAddCategory(normalized);
-    setNewCategoryName("");
-    setIsAddingCategory(false);
-  };
-
   return (
     <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex w-full items-center justify-between gap-4">
@@ -82,57 +65,6 @@ export function TopBar({
               >
                 Add Task
               </button>
-              {!isAddingCategory && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddingCategory(true)}
-                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                >
-                  Add Category
-                </button>
-              )}
-              {isAddingCategory && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newCategoryName}
-                    onChange={(event) => setNewCategoryName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        submitNewCategory();
-                      }
-
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        setIsAddingCategory(false);
-                        setNewCategoryName("");
-                      }
-                    }}
-                    placeholder="Category name"
-                    className="w-40 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm dark:border-zinc-700"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={submitNewCategory}
-                    disabled={newCategoryName.trim().length === 0}
-                    className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAddingCategory(false);
-                      setNewCategoryName("");
-                    }}
-                    className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
               {!isSettingDependencies && editSelectedCount > 0 && (
                 <button
                   type="button"

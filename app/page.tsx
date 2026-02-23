@@ -707,7 +707,6 @@ export default function Home() {
             setMode((current) => (current === "task" ? "edit" : "task"))
           }
           onAddTask={addTask}
-          onAddCategory={addCategory}
           onDeleteAll={deleteSelectedTasks}
           onUnhideAll={unhideAllTasks}
           onResetCompleted={resetAllCompletedTasks}
@@ -746,6 +745,7 @@ export default function Home() {
           onToggleComplete={toggleTaskCompletion}
           onToggleEditSelection={toggleEditTaskSelection}
           onTogglePendingDependency={togglePendingDependencySelection}
+          onAddCategory={addCategory}
         />
       }
       rightColumn={
