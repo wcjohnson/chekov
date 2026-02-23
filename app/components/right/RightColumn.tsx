@@ -32,7 +32,6 @@ type RightColumnProps = {
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
-  onChangeSelectedTaskCategory: (category: string) => void;
 };
 
 export function RightColumn({
@@ -50,7 +49,6 @@ export function RightColumn({
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
-  onChangeSelectedTaskCategory,
 }: RightColumnProps) {
   return (
     <>
@@ -83,7 +81,6 @@ export function RightColumn({
             onStartSetDependencies={onStartSetDependencies}
             onConfirmSetDependencies={onConfirmSetDependencies}
             onClearSelectedTaskDependencies={onClearSelectedTaskDependencies}
-            onChangeSelectedTaskCategory={onChangeSelectedTaskCategory}
           />
         </div>
       )}

@@ -1,8 +1,6 @@
 "use client";
 
-import type { DragEndEvent, DragOverEvent } from "@dnd-kit/react";
-import { isSortable } from "@dnd-kit/react/sortable";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { LeftColumn } from "./components/left/LeftColumn";
 import { RightColumn } from "./components/right/RightColumn";
@@ -71,6 +69,78 @@ export default function Home() {
   const importStateInputRef = useRef<HTMLInputElement>(null);
   const mainPaneRef = useRef<HTMLElement>(null);
 
+  ///////////////////////////////////////// Data slicing
+
+  const taskArray = useMemo(
+    () => flattenDefinitionTasks(definition),
+    [definition],
+  );
+
+  const taskMap = useMemo(() => {
+    const map = new Map<TaskId, ChecklistTaskDefinition>();
+
+    for (const task of taskArray) {
+      map.set(task.id, task);
+    }
+
+    return map;
+  }, [taskArray]);
+
+  const taskCategoryMap = useMemo(() => {
+    const map = new Map<TaskId, string>();
+
+    for (const category of definition.categories) {
+      for (const task of definition.tasksByCategory[category] ?? []) {
+        map.set(task.id, category);
+      }
+    }
+
+    return map;
+  }, [definition]);
+
+  const selectedTask = selectedTaskId
+    ? (taskMap.get(selectedTaskId) ?? null)
+    : null;
+  const selectedTaskCategory =
+    (selectedTaskId ? taskCategoryMap.get(selectedTaskId) : undefined) ??
+    DEFAULT_CATEGORY;
+
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const isSearchActive = normalizedSearch.length >= 2;
+
+  const taskVisibilityMap = useMemo(() => {
+    const map = new Map<TaskId, boolean>();
+    for (const task of taskArray) {
+      if (mode === "edit") {
+        map.set(task.id, true);
+      } else if (isSearchActive) {
+        const titleMatches = task.title
+          .toLowerCase()
+          .includes(normalizedSearch);
+        const descriptionMatches = task.description
+          .toLowerCase()
+          .includes(normalizedSearch);
+        if (titleMatches || descriptionMatches) {
+          map.set(task.id, true);
+        }
+      } else {
+        const taskState = state.tasks[task.id];
+
+        if (
+          !taskState?.completed &&
+          !taskState?.explicitlyHidden &&
+          dependenciesAreComplete(task, state)
+        ) {
+          map.set(task.id, true);
+        }
+      }
+    }
+
+    return map;
+  }, [taskArray, isSearchActive, mode, normalizedSearch, state]);
+
+  ///////////////////////////////////////// Events
+
   useEffect(() => {
     const bootstrap = async () => {
       try {
@@ -86,9 +156,7 @@ export default function Home() {
 
         setDefinition(storedDefinition);
         setState(hydratedState);
-        setSelectedTaskId(
-          flattenDefinitionTasks(storedDefinition)[0]?.id ?? null,
-        );
+        setSelectedTaskId(null);
       } catch {
         setErrorMessage("Failed to load checklist from IndexedDB.");
       } finally {
@@ -115,117 +183,27 @@ export default function Home() {
     void persist();
   }, [definition, isLoaded, state]);
 
+  // Clear selection on task invalidation
   useEffect(() => {
     if (!selectedTaskId) {
       return;
     }
-
-    const flattened = flattenDefinitionTasks(definition);
-
-    if (!flattened.some((task) => task.id === selectedTaskId)) {
-      setSelectedTaskId(flattened[0]?.id ?? null);
+    if (!taskMap.has(selectedTaskId)) {
+      setSelectedTaskId(null);
     }
-  }, [definition, selectedTaskId]);
-
-  const allTasks = useMemo(
-    () => flattenDefinitionTasks(definition),
-    [definition],
-  );
-
-  const taskMap = useMemo(() => {
-    const map = new Map<TaskId, ChecklistTaskDefinition>();
-
-    for (const task of allTasks) {
-      map.set(task.id, task);
-    }
-
-    return map;
-  }, [allTasks]);
-
-  const taskCategoryMap = useMemo(() => {
-    const map = new Map<TaskId, string>();
-
-    for (const category of definition.categories) {
-      for (const task of definition.tasksByCategory[category] ?? []) {
-        map.set(task.id, category);
-      }
-    }
-
-    return map;
-  }, [definition]);
-
-  const selectedTask = selectedTaskId
-    ? (taskMap.get(selectedTaskId) ?? null)
-    : null;
-  const selectedTaskCategory =
-    (selectedTaskId ? taskCategoryMap.get(selectedTaskId) : undefined) ??
-    DEFAULT_CATEGORY;
-
-  const normalizedSearch = searchText.trim().toLowerCase();
-  const isSearchActive = normalizedSearch.length >= 2;
-
-  const visibleTasks = useMemo(() => {
-    if (isSearchActive) {
-      return allTasks.filter((task) => {
-        const titleMatches = task.title
-          .toLowerCase()
-          .includes(normalizedSearch);
-        const descriptionMatches = task.description
-          .toLowerCase()
-          .includes(normalizedSearch);
-        return titleMatches || descriptionMatches;
-      });
-    }
-
-    if (mode === "edit") {
-      return allTasks;
-    }
-
-    return allTasks.filter((task) => {
-      const taskState = state.tasks[task.id];
-
-      if (taskState?.completed) {
-        return false;
-      }
-
-      if (taskState?.explicitlyHidden) {
-        return false;
-      }
-
-      return dependenciesAreComplete(task, state);
-    });
-  }, [allTasks, isSearchActive, mode, normalizedSearch, state]);
-
-  const tasksByCategory = useMemo(() => {
-    const grouped = new Map<string, ChecklistTaskDefinition[]>();
-
-    for (const task of visibleTasks) {
-      const categoryName = taskCategoryMap.get(task.id) ?? DEFAULT_CATEGORY;
-      const existing = grouped.get(categoryName) ?? [];
-      existing.push(task);
-      grouped.set(categoryName, existing);
-    }
-
-    return definition.categories
-      .filter((category) => grouped.has(category))
-      .map((category) => ({
-        category,
-        tasks: grouped.get(category) ?? [],
-      }));
-  }, [definition.categories, taskCategoryMap, visibleTasks]);
+  }, [selectedTaskId, taskMap]);
 
   useEffect(() => {
     if (mode !== "task" || !selectedTaskId) {
       return;
     }
 
-    const stillVisible = visibleTasks.some(
-      (task) => task.id === selectedTaskId,
-    );
+    const stillVisible = taskVisibilityMap.get(selectedTaskId);
+
     if (!stillVisible) {
       setSelectedTaskId(null);
     }
-  }, [mode, selectedTaskId, visibleTasks]);
+  }, [mode, selectedTaskId, taskVisibilityMap]);
 
   useEffect(() => {
     if (mode === "edit") {
@@ -302,7 +280,7 @@ export default function Home() {
   }, [isDesktop, isResizing]);
 
   useEffect(() => {
-    const validTaskIds = new Set(allTasks.map((task) => task.id));
+    const validTaskIds = new Set(taskArray.map((task) => task.id));
 
     setEditSelectedTaskIds((previous) => {
       const next = new Set(
@@ -319,7 +297,7 @@ export default function Home() {
       );
       return next.size === previous.size ? previous : next;
     });
-  }, [allTasks, selectedTaskId]);
+  }, [taskArray, selectedTaskId]);
 
   const updateTask = (
     taskId: TaskId,
@@ -403,6 +381,49 @@ export default function Home() {
     setSelectedTaskId(nextId);
   };
 
+  const addCategory = (categoryName: string) => {
+    const normalizedCategory = categoryName.trim();
+    if (!normalizedCategory) {
+      setErrorMessage("Category name cannot be empty.");
+      return;
+    }
+
+    if (definition.categories.includes(normalizedCategory)) {
+      setErrorMessage("A category with that name already exists.");
+      return;
+    }
+
+    const nextId = crypto.randomUUID();
+
+    setDefinition((previous) => ({
+      categories: [...previous.categories, normalizedCategory],
+      tasksByCategory: {
+        ...previous.tasksByCategory,
+        [normalizedCategory]: [
+          {
+            id: nextId,
+            title: "Untitled Task",
+            description: "",
+            dependencies: [],
+          },
+        ],
+      },
+    }));
+
+    setState((previous) => ({
+      tasks: {
+        ...previous.tasks,
+        [nextId]: {
+          completed: false,
+          explicitlyHidden: false,
+        },
+      },
+    }));
+
+    setSelectedTaskId(nextId);
+    setErrorMessage(null);
+  };
+
   const deleteSelectedTask = () => {
     if (!selectedTask) {
       return;
@@ -426,9 +447,18 @@ export default function Home() {
           }));
       }
 
+      const nextCategories = previous.categories.filter(
+        (category) => (nextTasksByCategory[category] ?? []).length > 0,
+      );
+
+      const cleanedTasksByCategory: ChecklistDefinition["tasksByCategory"] = {};
+      for (const category of nextCategories) {
+        cleanedTasksByCategory[category] = nextTasksByCategory[category] ?? [];
+      }
+
       return {
-        ...previous,
-        tasksByCategory: nextTasksByCategory,
+        categories: nextCategories,
+        tasksByCategory: cleanedTasksByCategory,
       };
     });
 
@@ -443,13 +473,13 @@ export default function Home() {
         return current;
       }
 
-      const remaining = allTasks.filter((task) => task.id !== selectedTask.id);
+      const remaining = taskArray.filter((task) => task.id !== selectedTask.id);
       return remaining[0]?.id ?? null;
     });
   };
 
   const selectAllFilteredTasks = () => {
-    setEditSelectedTaskIds(new Set(visibleTasks.map((task) => task.id)));
+    setEditSelectedTaskIds(new Set(taskVisibilityMap.keys()));
   };
 
   const deleteSelectedTasks = () => {
@@ -476,9 +506,18 @@ export default function Home() {
           }));
       }
 
+      const nextCategories = previous.categories.filter(
+        (category) => (nextTasksByCategory[category] ?? []).length > 0,
+      );
+
+      const cleanedTasksByCategory: ChecklistDefinition["tasksByCategory"] = {};
+      for (const category of nextCategories) {
+        cleanedTasksByCategory[category] = nextTasksByCategory[category] ?? [];
+      }
+
       return {
-        ...previous,
-        tasksByCategory: nextTasksByCategory,
+        categories: nextCategories,
+        tasksByCategory: cleanedTasksByCategory,
       };
     });
 
@@ -495,7 +534,7 @@ export default function Home() {
         return current;
       }
 
-      const remaining = allTasks.filter((task) => !selectedIds.has(task.id));
+      const remaining = taskArray.filter((task) => !selectedIds.has(task.id));
       return remaining[0]?.id ?? null;
     });
 
@@ -505,99 +544,6 @@ export default function Home() {
   const clearSelection = () => {
     setEditSelectedTaskIds(new Set());
     setPendingDependencyIds(new Set());
-  };
-
-  const moveTask = useCallback(
-    (taskId: TaskId, nextCategory: string, nextIndex: number) => {
-      setDefinition((previous) => {
-        const sourceCategory = previous.categories.find((category) =>
-          (previous.tasksByCategory[category] ?? []).some(
-            (task) => task.id === taskId,
-          ),
-        );
-
-        if (!sourceCategory) {
-          return previous;
-        }
-
-        const sourceTasks = [
-          ...(previous.tasksByCategory[sourceCategory] ?? []),
-        ];
-        const fromIndex = sourceTasks.findIndex((task) => task.id === taskId);
-        if (fromIndex < 0) {
-          return previous;
-        }
-
-        const [taskToMove] = sourceTasks.splice(fromIndex, 1);
-        if (!taskToMove) {
-          return previous;
-        }
-
-        const hasTargetCategory = previous.categories.includes(nextCategory);
-        const categories = hasTargetCategory
-          ? previous.categories
-          : [...previous.categories, nextCategory];
-
-        const targetTasks =
-          sourceCategory === nextCategory
-            ? sourceTasks
-            : [...(previous.tasksByCategory[nextCategory] ?? [])];
-
-        const clampedIndex = Math.max(
-          0,
-          Math.min(nextIndex, targetTasks.length),
-        );
-        targetTasks.splice(clampedIndex, 0, taskToMove);
-
-        const nextTasksByCategory: ChecklistDefinition["tasksByCategory"] = {
-          ...previous.tasksByCategory,
-          [sourceCategory]:
-            sourceCategory === nextCategory ? targetTasks : sourceTasks,
-          [nextCategory]: targetTasks,
-        };
-
-        return {
-          categories,
-          tasksByCategory: nextTasksByCategory,
-        };
-      });
-    },
-    [],
-  );
-
-  const handleSortableMove = (
-    source: Parameters<DragOverEvent>[0]["operation"]["source"],
-    target: Parameters<DragOverEvent>[0]["operation"]["target"],
-  ) => {
-    if (!source || !target) {
-      return;
-    }
-
-    if (!isSortable(source) || !isSortable(target)) {
-      return;
-    }
-
-    if (target.id === source.id) {
-      return;
-    }
-
-    const sourceTaskId = String(source.id);
-    const targetCategory = String(
-      target.group ?? source.group ?? DEFAULT_CATEGORY,
-    );
-    moveTask(sourceTaskId, targetCategory, target.index);
-  };
-
-  const handleDragEnd = (event: Parameters<DragEndEvent>[0]) => {
-    if (event.canceled) {
-      return;
-    }
-
-    handleSortableMove(event.operation.source, event.operation.target);
-  };
-
-  const handleDragOver = (event: Parameters<DragOverEvent>[0]) => {
-    handleSortableMove(event.operation.source, event.operation.target);
   };
 
   const toggleTaskCompletion = (taskId: TaskId) => {
@@ -709,14 +655,6 @@ export default function Home() {
     setErrorMessage(null);
   };
 
-  const changeSelectedTaskCategory = (nextCategory: string) => {
-    if (!selectedTask) {
-      return;
-    }
-
-    moveTask(selectedTask.id, nextCategory, 0);
-  };
-
   const handleImportDefinition = async (file: File) => {
     try {
       const parsed = await readJsonFile(file);
@@ -725,7 +663,7 @@ export default function Home() {
 
       setDefinition(nextDefinition);
       setState(nextState);
-      setSelectedTaskId(flattenDefinitionTasks(nextDefinition)[0]?.id ?? null);
+      setSelectedTaskId(null);
       setErrorMessage(null);
     } catch {
       setErrorMessage("Invalid definition JSON file.");
@@ -769,6 +707,7 @@ export default function Home() {
             setMode((current) => (current === "task" ? "edit" : "task"))
           }
           onAddTask={addTask}
+          onAddCategory={addCategory}
           onDeleteAll={deleteSelectedTasks}
           onUnhideAll={unhideAllTasks}
           onResetCompleted={resetAllCompletedTasks}
@@ -792,8 +731,9 @@ export default function Home() {
       leftColumn={
         <LeftColumn
           mode={mode}
-          visibleTasks={visibleTasks}
-          tasksByCategory={tasksByCategory}
+          tasks={definition}
+          setDefinition={setDefinition}
+          taskVisibilityMap={taskVisibilityMap}
           state={state}
           selectedTaskId={selectedTaskId}
           isSettingDependencies={isSettingDependencies}
@@ -806,8 +746,6 @@ export default function Home() {
           onToggleComplete={toggleTaskCompletion}
           onToggleEditSelection={toggleEditTaskSelection}
           onTogglePendingDependency={togglePendingDependencySelection}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
         />
       }
       rightColumn={
@@ -826,7 +764,6 @@ export default function Home() {
           onStartSetDependencies={startSetDependencies}
           onConfirmSetDependencies={confirmSetDependencies}
           onClearSelectedTaskDependencies={clearSelectedTaskDependencies}
-          onChangeSelectedTaskCategory={changeSelectedTaskCategory}
         />
       }
     />

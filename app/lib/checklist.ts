@@ -11,7 +11,14 @@ export const DEFAULT_CATEGORY = "Tasks";
 export const createEmptyDefinition = (): ChecklistDefinition => ({
   categories: [DEFAULT_CATEGORY],
   tasksByCategory: {
-    [DEFAULT_CATEGORY]: [],
+    [DEFAULT_CATEGORY]: [
+      {
+        id: crypto.randomUUID(),
+        title: "Untitled Task",
+        description: "",
+        dependencies: [],
+      },
+    ],
   },
 });
 

@@ -1,7 +1,12 @@
 "use client";
 
 import { useSortable } from "@dnd-kit/react/sortable";
-import type { ChecklistMode, ChecklistState, ChecklistTaskDefinition, TaskId } from "../../lib/types";
+import type {
+  ChecklistMode,
+  ChecklistState,
+  ChecklistTaskDefinition,
+  TaskId,
+} from "../../lib/types";
 
 type TaskProps = {
   task: ChecklistTaskDefinition;
@@ -43,15 +48,18 @@ export function Task({
   const showEditSelectionCheckbox =
     mode === "edit" && (!isSettingDependencies || task.id !== selectedTaskId);
 
-  const { ref, handleRef, isDragSource } = useSortable({
+  const { ref, handleRef, isDragSource, isDragging } = useSortable({
     id: task.id,
     index,
+    type: "task",
+    accept: "task",
     group: category,
     disabled: !canDrag,
   });
 
   return (
     <div
+      data-dragging={isDragging}
       ref={ref}
       role="button"
       tabIndex={0}
@@ -118,7 +126,9 @@ export function Task({
           onClick={(event) => event.stopPropagation()}
         />
       )}
-      {!showTaskModeCheckbox && !showEditSelectionCheckbox && <span className="w-4" />}
+      {!showTaskModeCheckbox && !showEditSelectionCheckbox && (
+        <span className="w-4" />
+      )}
       <p
         className={`min-w-0 truncate text-sm font-medium ${
           mode === "task" && taskState.completed ? "line-through" : ""

@@ -2,7 +2,6 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { DEFAULT_CATEGORY } from "../../lib/checklist";
 import type {
   ChecklistMode,
   ChecklistState,
@@ -31,7 +30,6 @@ type TaskDetailsProps = {
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
-  onChangeSelectedTaskCategory: (category: string) => void;
 };
 
 export function TaskDetails({
@@ -47,7 +45,6 @@ export function TaskDetails({
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
-  onChangeSelectedTaskCategory,
 }: TaskDetailsProps) {
   if (mode === "edit") {
     return (
@@ -75,22 +72,6 @@ export function TaskDetails({
             className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
           />
         </label>
-
-        <div className="grid grid-cols-1 gap-3">
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium">Category</span>
-            <input
-              value={selectedTaskCategory}
-              onChange={(event) =>
-                onChangeSelectedTaskCategory(
-                  event.target.value.trim() || DEFAULT_CATEGORY,
-                )
-              }
-              className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
-            />
-          </label>
-        </div>
-
         <div>
           <p className="mb-2 text-sm font-medium">Dependencies</p>
           <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
