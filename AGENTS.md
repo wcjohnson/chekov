@@ -22,7 +22,7 @@
 - Replaced starter page with a single-page checklist app.
 - Implemented Task Mode (default) + Edit Mode with mode-specific interactions.
 - Added top-bar controls:
-  - Mode toggle, Add Task (Edit), Unhide All, Reset Completed
+  - Mode toggle, Unhide All, Reset Completed
   - Search (case-insensitive on title/description, activates at 2+ chars)
   - Single Data dropdown for import/export definition/state
 - Left pane behavior:
@@ -30,11 +30,16 @@
   - Compact single-line task rows
   - In Task Mode, completed tasks strikethrough and hidden tasks annotated `(Hidden)`
   - In Task Mode, completion checkbox only appears when dependencies are complete
+  - In Edit Mode, `Add Task` button appears at the bottom of each category
+  - In Edit Mode, category-level `Up` / `Down` controls reorder `definition.categories`
+  - In Edit Mode, `Add Category` lives at the bottom of the category list
+  - Category expand/collapse state is persisted per mode (`task` vs `edit`)
 - Edit Mode workflows:
   - Select All / Clear Selection in left header
   - Delete All appears in top bar when multi-selection exists
   - Dependency-setting mode (`Set Dependencies` → select in list → `Confirm Dependencies`)
   - `Clear Dependencies` action for selected task
+  - Task details no longer include editable category input (category change from details removed)
 - Layout:
   - Full viewport split pane
   - Independent scrolling in both panes
@@ -47,14 +52,17 @@
 - Canonical definition shape now:
   - `ChecklistDefinition = { categories: string[]; tasksByCategory: Record<string, ChecklistTaskDefinition[]> }`
   - `ChecklistTaskDefinition = { id, title, description, dependencies }` (no `order`, no `category`)
-  - `ChecklistState = { tasks: Record<TaskId, { completed, explicitlyHidden }> }`
+  - `ChecklistState = { tasks: Record<TaskId, { completed, explicitlyHidden }>, categoryVisibilityByMode: { task: Record<string, boolean>, edit: Record<string, boolean> } }`
 - Category display order is driven by `definition.categories`.
 - Task order is driven by array order inside `definition.tasksByCategory[category]`.
+- Blank definition initializes with category `Tasks` and one `Untitled Task`.
 - Helpers in `app/lib/checklist.ts` now include:
   - `flattenDefinitionTasks(definition)`
   - `ensureStateForDefinition(definition, state)` based on flattened task IDs
+  - `ensureStateForDefinition` also aligns/initializes category visibility maps per mode and defaults new categories to open
   - `wouldCreateCycle(...)` based on flattened tasks
   - `normalizeDefinition(...)` supporting both new model and legacy `tasks[]` payloads.
+  - `normalizeState(...)` supporting both task state and per-mode category visibility state.
 
 ## Legacy Compatibility
 
@@ -91,9 +99,14 @@
   - Edit Mode checkboxes are for selection workflows, not completion toggling
   - Task completion toggles happen in Task Mode only
   - Dependency-setting mode intentionally repurposes list selection
+  - Category expand/collapse is controlled state (not uncontrolled `<details open>`), persisted separately for Task/Edit modes
+  - New categories should default open in both modes until explicitly collapsed
 - Preserve drag-reorder semantics:
   - Reorder/move tasks by mutating arrays in `tasksByCategory`
   - Keep `categories` order intact unless explicitly changing category ordering feature
+- Current add flows:
+  - Add category via left-pane bottom control (Edit Mode), not top bar
+  - Add task via per-category control in category pane (Edit Mode)
 - When touching right pane details, note category is derived externally and passed as `selectedTaskCategory` (task no longer owns category field).
 
 ## Quick File Map (handoff)
