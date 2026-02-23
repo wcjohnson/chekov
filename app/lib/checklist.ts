@@ -24,6 +24,10 @@ export const createEmptyDefinition = (): ChecklistDefinition => ({
 
 export const createEmptyState = (): ChecklistState => ({
   tasks: {},
+  categoryVisibilityByMode: {
+    task: {},
+    edit: {},
+  },
 });
 
 export const defaultTaskState = (): ChecklistTaskState => ({
@@ -48,6 +52,11 @@ export const ensureStateForDefinition = (
   state: ChecklistState,
 ): ChecklistState => {
   const nextTasks = { ...state.tasks };
+  const nextCategoryVisibilityByMode: ChecklistState["categoryVisibilityByMode"] =
+    {
+      task: { ...(state.categoryVisibilityByMode?.task ?? {}) },
+      edit: { ...(state.categoryVisibilityByMode?.edit ?? {}) },
+    };
   const allTasks = flattenDefinitionTasks(definition);
 
   for (const task of allTasks) {
@@ -62,7 +71,34 @@ export const ensureStateForDefinition = (
     }
   }
 
-  return { tasks: nextTasks };
+  const validCategories = new Set(definition.categories);
+
+  for (const category of definition.categories) {
+    if (typeof nextCategoryVisibilityByMode.task[category] !== "boolean") {
+      nextCategoryVisibilityByMode.task[category] = true;
+    }
+
+    if (typeof nextCategoryVisibilityByMode.edit[category] !== "boolean") {
+      nextCategoryVisibilityByMode.edit[category] = true;
+    }
+  }
+
+  for (const category of Object.keys(nextCategoryVisibilityByMode.task)) {
+    if (!validCategories.has(category)) {
+      delete nextCategoryVisibilityByMode.task[category];
+    }
+  }
+
+  for (const category of Object.keys(nextCategoryVisibilityByMode.edit)) {
+    if (!validCategories.has(category)) {
+      delete nextCategoryVisibilityByMode.edit[category];
+    }
+  }
+
+  return {
+    tasks: nextTasks,
+    categoryVisibilityByMode: nextCategoryVisibilityByMode,
+  };
 };
 
 export const dependenciesAreComplete = (
@@ -277,28 +313,76 @@ export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
 };
 
 export const normalizeState = (raw: unknown): ChecklistState => {
-  const maybeTasks = (raw as ChecklistState | undefined)?.tasks;
-
-  if (
-    !maybeTasks ||
-    typeof maybeTasks !== "object" ||
-    Array.isArray(maybeTasks)
-  ) {
-    return createEmptyState();
-  }
+  const typedRaw = raw as Partial<ChecklistState> | undefined;
+  const maybeTasks = typedRaw?.tasks;
 
   const normalizedTasks: ChecklistState["tasks"] = {};
 
-  for (const [taskId, taskState] of Object.entries(maybeTasks)) {
-    const typedState = taskState as Partial<ChecklistTaskState>;
+  if (
+    maybeTasks &&
+    typeof maybeTasks === "object" &&
+    !Array.isArray(maybeTasks)
+  ) {
+    for (const [taskId, taskState] of Object.entries(maybeTasks)) {
+      const typedState = taskState as Partial<ChecklistTaskState>;
 
-    normalizedTasks[taskId] = {
-      completed: Boolean(typedState.completed),
-      explicitlyHidden: Boolean(typedState.explicitlyHidden),
-    };
+      normalizedTasks[taskId] = {
+        completed: Boolean(typedState.completed),
+        explicitlyHidden: Boolean(typedState.explicitlyHidden),
+      };
+    }
+  }
+
+  const maybeVisibilityByMode = typedRaw?.categoryVisibilityByMode;
+  const maybeTaskVisibility =
+    maybeVisibilityByMode &&
+    typeof maybeVisibilityByMode === "object" &&
+    !Array.isArray(maybeVisibilityByMode)
+      ? (
+          maybeVisibilityByMode as Partial<
+            ChecklistState["categoryVisibilityByMode"]
+          >
+        ).task
+      : undefined;
+  const maybeEditVisibility =
+    maybeVisibilityByMode &&
+    typeof maybeVisibilityByMode === "object" &&
+    !Array.isArray(maybeVisibilityByMode)
+      ? (
+          maybeVisibilityByMode as Partial<
+            ChecklistState["categoryVisibilityByMode"]
+          >
+        ).edit
+      : undefined;
+
+  const normalizedTaskVisibility: Record<string, boolean> = {};
+  const normalizedEditVisibility: Record<string, boolean> = {};
+
+  if (
+    maybeTaskVisibility &&
+    typeof maybeTaskVisibility === "object" &&
+    !Array.isArray(maybeTaskVisibility)
+  ) {
+    for (const [category, isOpen] of Object.entries(maybeTaskVisibility)) {
+      normalizedTaskVisibility[category] = Boolean(isOpen);
+    }
+  }
+
+  if (
+    maybeEditVisibility &&
+    typeof maybeEditVisibility === "object" &&
+    !Array.isArray(maybeEditVisibility)
+  ) {
+    for (const [category, isOpen] of Object.entries(maybeEditVisibility)) {
+      normalizedEditVisibility[category] = Boolean(isOpen);
+    }
   }
 
   return {
     tasks: normalizedTasks,
+    categoryVisibilityByMode: {
+      task: normalizedTaskVisibility,
+      edit: normalizedEditVisibility,
+    },
   };
 };

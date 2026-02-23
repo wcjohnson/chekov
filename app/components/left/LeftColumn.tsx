@@ -28,6 +28,8 @@ type LeftColumnProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  categoryOpenByMode: Record<string, boolean>;
+  onSetCategoryOpen: (category: string, isOpen: boolean) => void;
   onAddTaskToCategory: (category: string) => void;
   onAddCategory: (categoryName: string) => void;
   setDefinition: (
@@ -51,6 +53,8 @@ export function LeftColumn({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  categoryOpenByMode,
+  onSetCategoryOpen,
   onAddTaskToCategory,
   onAddCategory,
   setDefinition,
@@ -136,6 +140,8 @@ export function LeftColumn({
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}
               onTogglePendingDependency={onTogglePendingDependency}
+              isOpen={categoryOpenByMode[category] ?? true}
+              onOpenChange={(isOpen) => onSetCategoryOpen(category, isOpen)}
               onAddTaskToCategory={onAddTaskToCategory}
               canMoveUp={index > 0}
               canMoveDown={index < tasks.categories.length - 1}

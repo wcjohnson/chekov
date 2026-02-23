@@ -17,8 +17,14 @@ export type ChecklistTaskState = {
   explicitlyHidden: boolean;
 };
 
+export type ChecklistCategoryVisibilityByMode = {
+  task: Record<string, boolean>;
+  edit: Record<string, boolean>;
+};
+
 export type ChecklistState = {
   tasks: Record<TaskId, ChecklistTaskState>;
+  categoryVisibilityByMode: ChecklistCategoryVisibilityByMode;
 };
 
 export type ChecklistMode = "task" | "edit";

@@ -23,6 +23,8 @@ type CategoryProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
   onAddTaskToCategory: (category: string) => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -44,6 +46,8 @@ export function Category({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  isOpen,
+  onOpenChange,
   onAddTaskToCategory,
   canMoveUp,
   canMoveDown,
@@ -58,7 +62,10 @@ export function Category({
 
   return (
     <details
-      open
+      open={isOpen}
+      onToggle={(event) => {
+        onOpenChange(event.currentTarget.open);
+      }}
       className="rounded-md border border-zinc-200 dark:border-zinc-800"
     >
       <summary className="relative cursor-pointer select-none px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900">

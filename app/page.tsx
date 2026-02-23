@@ -107,6 +107,7 @@ export default function Home() {
 
   const normalizedSearch = searchText.trim().toLowerCase();
   const isSearchActive = normalizedSearch.length >= 2;
+  const categoryOpenByMode = state.categoryVisibilityByMode[mode] ?? {};
 
   const taskVisibilityMap = useMemo(() => {
     const map = new Map<TaskId, boolean>();
@@ -334,12 +335,30 @@ export default function Home() {
       };
 
       return {
+        ...previous,
         tasks: {
           ...previous.tasks,
           [taskId]: updater(existing),
         },
       };
     });
+  };
+
+  const setCategoryOpen = (
+    targetMode: ChecklistMode,
+    category: string,
+    isOpen: boolean,
+  ) => {
+    setState((previous) => ({
+      ...previous,
+      categoryVisibilityByMode: {
+        ...previous.categoryVisibilityByMode,
+        [targetMode]: {
+          ...previous.categoryVisibilityByMode[targetMode],
+          [category]: isOpen,
+        },
+      },
+    }));
   };
 
   const addTaskToCategory = (category: string) => {
@@ -369,6 +388,7 @@ export default function Home() {
     });
 
     setState((previous) => ({
+      ...previous,
       tasks: {
         ...previous.tasks,
         [nextId]: {
@@ -412,11 +432,23 @@ export default function Home() {
     }));
 
     setState((previous) => ({
+      ...previous,
       tasks: {
         ...previous.tasks,
         [nextId]: {
           completed: false,
           explicitlyHidden: false,
+        },
+      },
+      categoryVisibilityByMode: {
+        ...previous.categoryVisibilityByMode,
+        task: {
+          ...previous.categoryVisibilityByMode.task,
+          [normalizedCategory]: true,
+        },
+        edit: {
+          ...previous.categoryVisibilityByMode.edit,
+          [normalizedCategory]: true,
         },
       },
     }));
@@ -429,6 +461,11 @@ export default function Home() {
     if (!selectedTask) {
       return;
     }
+
+    const remainingCategories = definition.categories.filter((category) => {
+      const categoryTasks = definition.tasksByCategory[category] ?? [];
+      return categoryTasks.some((task) => task.id !== selectedTask.id);
+    });
 
     setDefinition((previous) => {
       const nextTasksByCategory: ChecklistDefinition["tasksByCategory"] = {
@@ -466,7 +503,25 @@ export default function Home() {
     setState((previous) => {
       const nextTasks = { ...previous.tasks };
       delete nextTasks[selectedTask.id];
-      return { tasks: nextTasks };
+
+      const nextTaskVisibility: Record<string, boolean> = {};
+      const nextEditVisibility: Record<string, boolean> = {};
+
+      for (const category of remainingCategories) {
+        nextTaskVisibility[category] =
+          previous.categoryVisibilityByMode.task[category] ?? true;
+        nextEditVisibility[category] =
+          previous.categoryVisibilityByMode.edit[category] ?? true;
+      }
+
+      return {
+        ...previous,
+        tasks: nextTasks,
+        categoryVisibilityByMode: {
+          task: nextTaskVisibility,
+          edit: nextEditVisibility,
+        },
+      };
     });
 
     setSelectedTaskId((current) => {
@@ -488,6 +543,11 @@ export default function Home() {
     if (selectedIds.size === 0) {
       return;
     }
+
+    const remainingCategories = definition.categories.filter((category) => {
+      const categoryTasks = definition.tasksByCategory[category] ?? [];
+      return categoryTasks.some((task) => !selectedIds.has(task.id));
+    });
 
     setDefinition((previous) => {
       const nextTasksByCategory: ChecklistDefinition["tasksByCategory"] = {
@@ -527,7 +587,25 @@ export default function Home() {
       for (const taskId of selectedIds) {
         delete nextTasks[taskId];
       }
-      return { tasks: nextTasks };
+
+      const nextTaskVisibility: Record<string, boolean> = {};
+      const nextEditVisibility: Record<string, boolean> = {};
+
+      for (const category of remainingCategories) {
+        nextTaskVisibility[category] =
+          previous.categoryVisibilityByMode.task[category] ?? true;
+        nextEditVisibility[category] =
+          previous.categoryVisibilityByMode.edit[category] ?? true;
+      }
+
+      return {
+        ...previous,
+        tasks: nextTasks,
+        categoryVisibilityByMode: {
+          task: nextTaskVisibility,
+          edit: nextEditVisibility,
+        },
+      };
     });
 
     setSelectedTaskId((current) => {
@@ -589,7 +667,10 @@ export default function Home() {
         };
       }
 
-      return { tasks: nextTasks };
+      return {
+        ...previous,
+        tasks: nextTasks,
+      };
     });
   };
 
@@ -604,7 +685,10 @@ export default function Home() {
         };
       }
 
-      return { tasks: nextTasks };
+      return {
+        ...previous,
+        tasks: nextTasks,
+      };
     });
   };
 
@@ -745,6 +829,10 @@ export default function Home() {
           onToggleComplete={toggleTaskCompletion}
           onToggleEditSelection={toggleEditTaskSelection}
           onTogglePendingDependency={togglePendingDependencySelection}
+          categoryOpenByMode={categoryOpenByMode}
+          onSetCategoryOpen={(category, isOpen) => {
+            setCategoryOpen(mode, category, isOpen);
+          }}
           onAddTaskToCategory={addTaskToCategory}
           onAddCategory={addCategory}
         />
