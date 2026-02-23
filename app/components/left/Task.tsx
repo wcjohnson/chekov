@@ -1,7 +1,9 @@
 "use client";
 
 import { useSortable } from "@dnd-kit/react/sortable";
+import { getTagBadgeClasses } from "../../lib/tagColors";
 import type {
+  ChecklistDefinition,
   ChecklistMode,
   ChecklistState,
   ChecklistTaskDefinition,
@@ -24,6 +26,7 @@ type TaskProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  tagColors: ChecklistDefinition["tagColors"];
 };
 
 export function Task({
@@ -42,6 +45,7 @@ export function Task({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  tagColors,
 }: TaskProps) {
   const canDrag = mode === "edit" && !isSettingDependencies;
   const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
@@ -143,7 +147,7 @@ export function Task({
           {tags.map((tag) => (
             <span
               key={`${task.id}-tag-${tag}`}
-              className="max-w-28 truncate rounded border border-zinc-300 px-1.5 py-0.5 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
+              className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
               title={tag}
             >
               {tag}

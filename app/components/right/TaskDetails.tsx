@@ -1,9 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  getTagBadgeClasses,
+  getTagSwatchClasses,
+  TAG_COLOR_OPTIONS,
+  type TagColorKey,
+} from "../../lib/tagColors";
 import type {
+  ChecklistDefinition,
   ChecklistMode,
   ChecklistState,
   ChecklistTaskDefinition,
@@ -15,6 +22,7 @@ type TaskDetailsProps = {
   selectedTask: ChecklistTaskDefinition;
   selectedTaskCategory: string;
   state: ChecklistState;
+  tagColors: ChecklistDefinition["tagColors"];
   taskMap: Map<TaskId, ChecklistTaskDefinition>;
   isSettingDependencies: boolean;
   onDeleteSelectedTask: () => void;
@@ -31,6 +39,7 @@ type TaskDetailsProps = {
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
+  onSetTagColor: (tag: string, color: TagColorKey | null) => void;
 };
 
 export function TaskDetails({
@@ -38,6 +47,7 @@ export function TaskDetails({
   selectedTask,
   selectedTaskCategory,
   state,
+  tagColors,
   taskMap,
   isSettingDependencies,
   onDeleteSelectedTask,
@@ -46,8 +56,13 @@ export function TaskDetails({
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
+  onSetTagColor,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
+  const [activeTagColorPickerTag, setActiveTagColorPickerTag] = useState<
+    string | null
+  >(null);
+  const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const selectedTaskTags = useMemo(
     () => Array.from(selectedTask.tags ?? []),
@@ -96,6 +111,10 @@ export function TaskDetails({
   };
 
   const removeTag = (tagToRemove: string) => {
+    if (activeTagColorPickerTag === tagToRemove) {
+      setActiveTagColorPickerTag(null);
+    }
+
     onUpdateTask(selectedTask.id, (task) => {
       const nextTags = new Set(task.tags ?? []);
       nextTags.delete(tagToRemove);
@@ -115,6 +134,41 @@ export function TaskDetails({
   };
 
   const datalistId = `known-tags-${selectedTask.id}`;
+
+  useEffect(() => {
+    if (!activeTagColorPickerTag) {
+      return;
+    }
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      const activeWrapper = tagWrapperRefs.current[activeTagColorPickerTag];
+
+      if (!activeWrapper) {
+        setActiveTagColorPickerTag(null);
+        return;
+      }
+
+      if (activeWrapper.contains(event.target as Node)) {
+        return;
+      }
+
+      setActiveTagColorPickerTag(null);
+    };
+
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveTagColorPickerTag(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    document.addEventListener("keydown", handleDocumentKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+      document.removeEventListener("keydown", handleDocumentKeyDown);
+    };
+  }, [activeTagColorPickerTag]);
 
   if (mode === "edit") {
     return (
@@ -215,15 +269,75 @@ export function TaskDetails({
           {selectedTaskTags.length > 0 ? (
             <div className="mb-2 flex flex-wrap gap-2">
               {selectedTaskTags.map((tag) => (
-                <button
+                <div
                   key={`${selectedTask.id}-tag-remove-${tag}`}
-                  type="button"
-                  onClick={() => removeTag(tag)}
-                  className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                  title="Remove tag"
+                  className="flex items-center gap-1"
+                  ref={(element) => {
+                    tagWrapperRefs.current[tag] = element;
+                  }}
                 >
-                  {tag} ×
-                </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTagColorPickerTag((previous) =>
+                          previous === tag ? null : tag,
+                        );
+                      }}
+                      className={`cursor-pointer list-none rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                    >
+                      {tag}
+                    </button>
+                    {activeTagColorPickerTag === tag && (
+                      <div className="absolute left-0 z-20 mt-1 w-52 rounded-md border border-zinc-200 bg-white p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                        <p className="mb-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                          Set tag color
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSetTagColor(tag, null);
+                            setActiveTagColorPickerTag(null);
+                          }}
+                          className={`mb-2 w-full rounded border px-2 py-1 text-left text-xs ${getTagBadgeClasses(undefined)}`}
+                        >
+                          Default
+                        </button>
+                        <div className="grid grid-cols-8 gap-1">
+                          {TAG_COLOR_OPTIONS.map((colorOption) => {
+                            const isSelected =
+                              tagColors[tag] === colorOption.key;
+
+                            return (
+                              <button
+                                key={`${selectedTask.id}-tag-color-${tag}-${colorOption.key}`}
+                                type="button"
+                                onClick={() => {
+                                  onSetTagColor(tag, colorOption.key);
+                                  setActiveTagColorPickerTag(null);
+                                }}
+                                title={colorOption.label}
+                                className={`h-5 w-5 rounded border border-zinc-300 dark:border-zinc-700 ${getTagSwatchClasses(colorOption.key)} ${
+                                  isSelected
+                                    ? "ring-2 ring-zinc-500 ring-offset-1 dark:ring-zinc-300 dark:ring-offset-zinc-950"
+                                    : ""
+                                }`}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    title="Remove tag"
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -299,7 +413,7 @@ export function TaskDetails({
             {selectedTaskTags.map((tag) => (
               <span
                 key={`${selectedTask.id}-tag-view-${tag}`}
-                className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+                className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
               >
                 {tag}
               </span>

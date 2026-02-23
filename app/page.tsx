@@ -16,6 +16,7 @@ import {
   normalizeState,
   wouldCreateCycle,
 } from "./lib/checklist";
+import type { TagColorKey } from "./lib/tagColors";
 import { loadDefinition, loadState, saveAll } from "./lib/storage";
 import type {
   ChecklistDefinition,
@@ -55,6 +56,40 @@ const readJsonFile = async (file: File): Promise<unknown> => {
 };
 
 const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
+
+const collectUsedTags = (
+  tasksByCategory: ChecklistDefinition["tasksByCategory"],
+  categories: string[],
+): Set<string> => {
+  const usedTags = new Set<string>();
+
+  for (const category of categories) {
+    for (const task of tasksByCategory[category] ?? []) {
+      for (const tag of task.tags ?? []) {
+        usedTags.add(tag);
+      }
+    }
+  }
+
+  return usedTags;
+};
+
+const pruneTagColors = (
+  tagColors: ChecklistDefinition["tagColors"],
+  tasksByCategory: ChecklistDefinition["tasksByCategory"],
+  categories: string[],
+): ChecklistDefinition["tagColors"] => {
+  const usedTags = collectUsedTags(tasksByCategory, categories);
+  const nextTagColors: ChecklistDefinition["tagColors"] = {};
+
+  for (const [tag, color] of Object.entries(tagColors)) {
+    if (usedTags.has(tag)) {
+      nextTagColors[tag] = color;
+    }
+  }
+
+  return nextTagColors;
+};
 
 export default function Home() {
   const [mode, setMode] = useState<ChecklistMode>("task");
@@ -341,6 +376,43 @@ export default function Home() {
       return {
         ...previous,
         tasksByCategory: nextTasksByCategory,
+        tagColors: pruneTagColors(
+          previous.tagColors,
+          nextTasksByCategory,
+          previous.categories,
+        ),
+      };
+    });
+  };
+
+  const setTagColor = (tag: string, color: TagColorKey | null) => {
+    setDefinition((previous) => {
+      const normalizedTag = tag.trim();
+      if (!normalizedTag) {
+        return previous;
+      }
+
+      const nextTagColors = { ...previous.tagColors };
+
+      if (color === null) {
+        if (!(normalizedTag in nextTagColors)) {
+          return previous;
+        }
+
+        delete nextTagColors[normalizedTag];
+      } else if (nextTagColors[normalizedTag] === color) {
+        return previous;
+      } else {
+        nextTagColors[normalizedTag] = color;
+      }
+
+      return {
+        ...previous,
+        tagColors: pruneTagColors(
+          nextTagColors,
+          previous.tasksByCategory,
+          previous.categories,
+        ),
       };
     });
   };
@@ -440,6 +512,7 @@ export default function Home() {
     const nextId = crypto.randomUUID();
 
     setDefinition((previous) => ({
+      ...previous,
       categories: [...previous.categories, normalizedCategory],
       tasksByCategory: {
         ...previous.tasksByCategory,
@@ -518,8 +591,14 @@ export default function Home() {
       }
 
       return {
+        ...previous,
         categories: nextCategories,
         tasksByCategory: cleanedTasksByCategory,
+        tagColors: pruneTagColors(
+          previous.tagColors,
+          cleanedTasksByCategory,
+          nextCategories,
+        ),
       };
     });
 
@@ -600,8 +679,14 @@ export default function Home() {
       }
 
       return {
+        ...previous,
         categories: nextCategories,
         tasksByCategory: cleanedTasksByCategory,
+        tagColors: pruneTagColors(
+          previous.tagColors,
+          cleanedTasksByCategory,
+          nextCategories,
+        ),
       };
     });
 
@@ -852,6 +937,7 @@ export default function Home() {
           onToggleComplete={toggleTaskCompletion}
           onToggleEditSelection={toggleEditTaskSelection}
           onTogglePendingDependency={togglePendingDependencySelection}
+          tagColors={definition.tagColors}
           categoryOpenByMode={categoryOpenByMode}
           onSetCategoryOpen={(category, isOpen) => {
             setCategoryOpen(mode, category, isOpen);
@@ -868,6 +954,7 @@ export default function Home() {
           isLoaded={isLoaded}
           errorMessage={errorMessage}
           state={state}
+          tagColors={definition.tagColors}
           taskMap={taskMap}
           isSettingDependencies={isSettingDependencies}
           onDeleteSelectedTask={deleteSelectedTask}
@@ -876,6 +963,7 @@ export default function Home() {
           onStartSetDependencies={startSetDependencies}
           onConfirmSetDependencies={confirmSetDependencies}
           onClearSelectedTaskDependencies={clearSelectedTaskDependencies}
+          onSetTagColor={setTagColor}
         />
       }
     />

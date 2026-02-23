@@ -2,6 +2,7 @@
 
 import { Task } from "./Task";
 import type {
+  ChecklistDefinition,
   ChecklistMode,
   ChecklistState,
   ChecklistTaskDefinition,
@@ -23,6 +24,7 @@ type CategoryProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  tagColors: ChecklistDefinition["tagColors"];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onAddTaskToCategory: (category: string) => void;
@@ -46,6 +48,7 @@ export function Category({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  tagColors,
   isOpen,
   onOpenChange,
   onAddTaskToCategory,
@@ -124,6 +127,7 @@ export function Category({
               isEditSelected={editSelectedTaskIds.has(task.id)}
               isPendingDependency={pendingDependencyIds.has(task.id)}
               dependenciesComplete={dependenciesAreComplete(task, state)}
+              tagColors={tagColors}
               onSelectTask={onSelectTask}
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}

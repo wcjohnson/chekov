@@ -5,11 +5,13 @@ import type {
   ChecklistTaskState,
   TaskId,
 } from "./types";
+import { isTagColorKey, type TagColorKey } from "./tagColors";
 
 export const DEFAULT_CATEGORY = "Tasks";
 
 export const createEmptyDefinition = (): ChecklistDefinition => ({
   categories: [DEFAULT_CATEGORY],
+  tagColors: {},
   tasksByCategory: {
     [DEFAULT_CATEGORY]: [
       {
@@ -192,6 +194,7 @@ export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
 
   let categories: string[];
   let tasksByCategoryRaw: Record<string, unknown>;
+  let tagColorsRaw: Record<string, unknown>;
 
   if (hasLegacyTasks) {
     const grouped: Record<string, Array<Partial<ChecklistTaskDefinition>>> = {};
@@ -218,10 +221,12 @@ export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
 
     categories = Object.keys(grouped);
     tasksByCategoryRaw = grouped;
+    tagColorsRaw = {};
   } else {
     const rawObject = typedRaw as {
       categories?: unknown;
       tasksByCategory?: unknown;
+      tagColors?: unknown;
     };
 
     const maybeCategories = Array.isArray(rawObject?.categories)
@@ -237,6 +242,14 @@ export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
       typeof maybeTasksByCategory === "object" &&
       !Array.isArray(maybeTasksByCategory)
         ? (maybeTasksByCategory as Record<string, unknown>)
+        : {};
+
+    const maybeTagColors = rawObject?.tagColors;
+    tagColorsRaw =
+      maybeTagColors &&
+      typeof maybeTagColors === "object" &&
+      !Array.isArray(maybeTagColors)
+        ? (maybeTagColors as Record<string, unknown>)
         : {};
   }
 
@@ -330,9 +343,31 @@ export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
     throw new Error("Checklist definition has circular dependencies.");
   }
 
+  const usedTags = new Set<string>();
+
+  for (const task of Object.values(filteredTasksByCategory).flat()) {
+    for (const tag of task.tags ?? []) {
+      usedTags.add(tag);
+    }
+  }
+
+  const normalizedTagColors: Record<string, TagColorKey> = {};
+
+  for (const [rawTag, rawColor] of Object.entries(tagColorsRaw)) {
+    const tag = rawTag.trim();
+    const color = typeof rawColor === "string" ? rawColor : "";
+
+    if (tag.length === 0 || !usedTags.has(tag) || !isTagColorKey(color)) {
+      continue;
+    }
+
+    normalizedTagColors[tag] = color;
+  }
+
   return {
     categories: normalizedCategories,
     tasksByCategory: filteredTasksByCategory,
+    tagColors: normalizedTagColors,
   };
 };
 

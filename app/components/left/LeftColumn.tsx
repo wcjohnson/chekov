@@ -28,6 +28,7 @@ type LeftColumnProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  tagColors: ChecklistDefinition["tagColors"];
   categoryOpenByMode: Record<string, boolean>;
   onSetCategoryOpen: (category: string, isOpen: boolean) => void;
   onAddTaskToCategory: (category: string) => void;
@@ -53,6 +54,7 @@ export function LeftColumn({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  tagColors,
   categoryOpenByMode,
   onSetCategoryOpen,
   onAddTaskToCategory,
@@ -140,6 +142,7 @@ export function LeftColumn({
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}
               onTogglePendingDependency={onTogglePendingDependency}
+              tagColors={tagColors}
               isOpen={categoryOpenByMode[category] ?? true}
               onOpenChange={(isOpen) => onSetCategoryOpen(category, isOpen)}
               onAddTaskToCategory={onAddTaskToCategory}

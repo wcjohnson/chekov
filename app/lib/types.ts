@@ -1,3 +1,5 @@
+import type { TagColorKey } from "./tagColors";
+
 export type TaskId = string;
 
 export type ChecklistTaskDefinition = {
@@ -11,6 +13,7 @@ export type ChecklistTaskDefinition = {
 export type ChecklistDefinition = {
   categories: string[];
   tasksByCategory: Record<string, ChecklistTaskDefinition[]>;
+  tagColors: Record<string, TagColorKey>;
 };
 
 export type ChecklistTaskState = {

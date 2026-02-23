@@ -3,11 +3,13 @@
 import { RightHeader } from "./RightHeader";
 import { TaskDetails } from "./TaskDetails";
 import type {
+  ChecklistDefinition,
   ChecklistMode,
   ChecklistState,
   ChecklistTaskDefinition,
   TaskId,
 } from "../../lib/types";
+import type { TagColorKey } from "../../lib/tagColors";
 
 type RightColumnProps = {
   mode: ChecklistMode;
@@ -16,6 +18,7 @@ type RightColumnProps = {
   isLoaded: boolean;
   errorMessage: string | null;
   state: ChecklistState;
+  tagColors: ChecklistDefinition["tagColors"];
   taskMap: Map<TaskId, ChecklistTaskDefinition>;
   isSettingDependencies: boolean;
   onDeleteSelectedTask: () => void;
@@ -32,6 +35,7 @@ type RightColumnProps = {
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
+  onSetTagColor: (tag: string, color: TagColorKey | null) => void;
 };
 
 export function RightColumn({
@@ -41,6 +45,7 @@ export function RightColumn({
   isLoaded,
   errorMessage,
   state,
+  tagColors,
   taskMap,
   isSettingDependencies,
   onDeleteSelectedTask,
@@ -49,6 +54,7 @@ export function RightColumn({
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
+  onSetTagColor,
 }: RightColumnProps) {
   return (
     <>
@@ -73,6 +79,7 @@ export function RightColumn({
             selectedTask={selectedTask}
             selectedTaskCategory={selectedTaskCategory}
             state={state}
+            tagColors={tagColors}
             taskMap={taskMap}
             isSettingDependencies={isSettingDependencies}
             onDeleteSelectedTask={onDeleteSelectedTask}
@@ -81,6 +88,7 @@ export function RightColumn({
             onStartSetDependencies={onStartSetDependencies}
             onConfirmSetDependencies={onConfirmSetDependencies}
             onClearSelectedTaskDependencies={onClearSelectedTaskDependencies}
+            onSetTagColor={onSetTagColor}
           />
         </div>
       )}
