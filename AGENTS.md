@@ -6,19 +6,43 @@
 - Storage: IndexedDB (in-browser, no backend)
 
 ## Work Completed
-- Replaced starter page with a single-page checklist app UI in `app/page.tsx`.
-- Implemented two UI modes:
-  - Task Mode (default): shows only tasks that are incomplete, not explicitly hidden, and dependency-valid.
-  - Edit Mode: shows all tasks and allows editing full task details.
-- Added top bar with Chekov branding and toolbar actions for:
-  - Mode switching
-  - Add/Delete task (Edit Mode)
-  - Export/Import checklist definition JSON
-  - Export/Import checklist state JSON
-- Added task detail panel with:
-  - Read-only markdown render in Task Mode
-  - Editable title, category, order, completed, hidden, dependencies, description in Edit Mode
-- Added dependency validation to prevent circular dependencies.
+- Replaced starter page with a single-page checklist app in `app/page.tsx`.
+- Implemented two primary modes:
+  - Task Mode (default): operational task execution view.
+  - Edit Mode: checklist definition/state management view.
+- Added top bar with:
+  - Mode switch
+  - Add Task (Edit Mode)
+  - Unhide All / Reset Completed
+  - Search (case-insensitive title/description; active from 2+ chars)
+  - Consolidated Data dropdown for import/export actions
+- Implemented category accordion task list in both modes:
+  - Categories render as collapsible sections with per-category task counts
+  - Categories with zero rendered tasks are omitted
+  - Tasks are compact single-line rows
+- Added Task Mode rendering behavior:
+  - Completed title strikethrough
+  - `(Hidden)` annotation for explicitly hidden tasks
+  - Completion checkbox hidden when dependencies are unmet (including search surfacing cases)
+- Added Task Mode details actions:
+  - Hide Task / Unhide Task
+- Added Edit Mode multi-select workflows:
+  - Select All (in task list pane header, search-aware)
+  - Clear Selection
+  - Delete All appears when task multi-selection exists
+  - Dedicated dependency selection mode via `Set Dependencies` + `Confirm Dependencies`
+  - `Clear Dependencies` action
+- Added drag-and-drop reordering within category (Edit Mode):
+  - Drag handle per task row implemented with `@dnd-kit/react`
+  - Uses `DragDropProvider` + `useSortable` primitives (`@dnd-kit/react/sortable`)
+  - Drop mutates `order` values for all tasks in the category so ordering is consistent top-to-bottom
+  - Removed manual order input from Edit Mode details pane
+- Refactored layout:
+  - Full viewport split-pane layout
+  - Independent scrolling for task pane and details pane
+  - Draggable vertical resize handle between panes on desktop
+  - Pane width persists across reloads via `localStorage`
+- Resolved hydration issue by avoiding nested `<button>` elements in task rows.
 
 ## Data Model
 - Top-level objects are separated into:
@@ -39,6 +63,7 @@
 - Import performs normalization and validation; circular dependency definitions are rejected.
 
 ## Dependencies Added
+- `@dnd-kit/react`
 - `idb`
 - `react-markdown`
 - `remark-gfm`
@@ -48,3 +73,8 @@
 - Avoid introducing backend persistence unless explicitly requested.
 - Maintain the separation between definition and state objects.
 - Keep cycle prevention enforced when changing dependencies.
+- Preserve current interaction contracts:
+  - Edit Mode checkboxes are for selection workflows, not completion toggling
+  - Task completion toggles happen in Task Mode only
+  - Dependency-setting mode intentionally repurposes list selection
+- Preserve drag-reorder semantics: reorder only within category, then renumber category task orders.

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { DragDropProvider, type DragEndEvent, type DragOverEvent } from "@dnd-kit/react";
+import { isSortable, isSortableOperation, useSortable } from "@dnd-kit/react/sortable";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -43,6 +45,134 @@ const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
 const getTaskCategory = (task: ChecklistTaskDefinition): string =>
   task.category?.trim() ? task.category : DEFAULT_CATEGORY;
 
+type SortableTaskRowProps = {
+  task: ChecklistTaskDefinition;
+  taskState: ChecklistState["tasks"][TaskId];
+  category: string;
+  index: number;
+  mode: ChecklistMode;
+  isSettingDependencies: boolean;
+  selectedTaskId: TaskId | null;
+  isSelected: boolean;
+  isEditSelected: boolean;
+  isPendingDependency: boolean;
+  dependenciesComplete: boolean;
+  onSelectTask: (taskId: TaskId) => void;
+  onToggleComplete: (taskId: TaskId) => void;
+  onToggleEditSelection: (taskId: TaskId) => void;
+  onTogglePendingDependency: (taskId: TaskId) => void;
+};
+
+function SortableTaskRow({
+  task,
+  taskState,
+  category,
+  index,
+  mode,
+  isSettingDependencies,
+  selectedTaskId,
+  isSelected,
+  isEditSelected,
+  isPendingDependency,
+  dependenciesComplete,
+  onSelectTask,
+  onToggleComplete,
+  onToggleEditSelection,
+  onTogglePendingDependency,
+}: SortableTaskRowProps) {
+  const canDrag = mode === "edit" && !isSettingDependencies;
+  const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
+  const showEditSelectionCheckbox =
+    mode === "edit" && (!isSettingDependencies || task.id !== selectedTaskId);
+
+  const { ref, handleRef, isDragSource } = useSortable({
+    id: task.id,
+    index,
+    group: category,
+    disabled: !canDrag,
+  });
+
+  return (
+    <div
+      ref={ref}
+      role="button"
+      tabIndex={0}
+      onClick={() => {
+        if (mode === "edit" && isSettingDependencies) {
+          return;
+        }
+        onSelectTask(task.id);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") {
+          return;
+        }
+
+        event.preventDefault();
+        if (mode === "edit" && isSettingDependencies) {
+          return;
+        }
+
+        onSelectTask(task.id);
+      }}
+      className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left ${
+        isSelected
+          ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
+          : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+      } ${isDragSource ? "opacity-60" : ""}`}
+    >
+      {canDrag && (
+        <button
+          type="button"
+          ref={handleRef}
+          onClick={(event) => event.stopPropagation()}
+          className="cursor-grab select-none text-zinc-500 dark:text-zinc-400"
+          aria-label="Drag to reorder"
+        >
+          ⋮⋮
+        </button>
+      )}
+      {showTaskModeCheckbox && (
+        <input
+          type="checkbox"
+          checked={taskState.completed}
+          onChange={(event) => {
+            event.stopPropagation();
+            onToggleComplete(task.id);
+          }}
+          onClick={(event) => event.stopPropagation()}
+        />
+      )}
+      {showEditSelectionCheckbox && (
+        <input
+          type="checkbox"
+          checked={isSettingDependencies ? isPendingDependency : isEditSelected}
+          onChange={(event) => {
+            event.stopPropagation();
+
+            if (isSettingDependencies) {
+              onTogglePendingDependency(task.id);
+              return;
+            }
+
+            onToggleEditSelection(task.id);
+          }}
+          onClick={(event) => event.stopPropagation()}
+        />
+      )}
+      {!showTaskModeCheckbox && !showEditSelectionCheckbox && <span className="w-4" />}
+      <p
+        className={`min-w-0 truncate text-sm font-medium ${
+          mode === "task" && taskState.completed ? "line-through" : ""
+        }`}
+      >
+        {task.title || "Untitled Task"}
+        {mode === "task" && taskState.explicitlyHidden ? " (Hidden)" : ""}
+      </p>
+    </div>
+  );
+}
+
 export default function Home() {
   const [mode, setMode] = useState<ChecklistMode>("task");
   const [searchText, setSearchText] = useState("");
@@ -55,7 +185,6 @@ export default function Home() {
   const [leftPaneWidth, setLeftPaneWidth] = useState(32);
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [draggingTaskId, setDraggingTaskId] = useState<TaskId | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -406,46 +535,102 @@ export default function Home() {
     setPendingDependencyIds(new Set());
   };
 
-  const reorderTaskWithinCategory = (category: string, sourceTaskId: TaskId, targetTaskId: TaskId) => {
-    if (sourceTaskId === targetTaskId) {
+  const moveTask = useCallback( (taskId: TaskId, nextCategory: string, nextIndex: number) => {
+    setDefinition((previous) => {
+      const taskToMove = sortedTasks.find((task) => task.id === taskId);
+      if (!taskToMove) {
+        return previous;
+      }
+      
+      const allTasks = previous.tasks
+      const oldCategory = getTaskCategory(taskToMove);
+      const categoryChanged = oldCategory !== nextCategory;
+      taskToMove.category = nextCategory;
+
+      const nextCategoryTasks = allTasks
+        .filter((task) => getTaskCategory(task) === nextCategory && task.id !== taskId)
+      nextCategoryTasks.splice(nextIndex, 0, taskToMove);
+      // Reassign order based on new position in category
+      const updatedTaskMap = new Map();
+      nextCategoryTasks.forEach((task, index) => {
+        task.order = index;
+        updatedTaskMap.set(task.id, task);
+      });
+
+      // Generate a new total Tasks array with all updated tasks replaced
+      const updatedTasks = allTasks.map((task) => {
+        const updatedTask = updatedTaskMap.get(task.id);
+        if (updatedTask) {
+          return updatedTask;
+        } else {
+          return task;
+        }
+      });
+
+      return { tasks: updatedTasks };
+    });
+  }, [sortedTasks]);
+
+  const handleSortableDragEnd = (event: Parameters<DragEndEvent>[0]) => {
+    if (event.canceled) {
       return;
     }
 
-    setDefinition((previous) => {
-      const categoryTasks = sortTasks(
-        previous.tasks.filter((task) => getTaskCategory(task) === category),
-      );
+    console.log("handleSortableDragEnd event:", event); 
 
-      const fromIndex = categoryTasks.findIndex((task) => task.id === sourceTaskId);
-      const toIndex = categoryTasks.findIndex((task) => task.id === targetTaskId);
+    const { operation } = event;
+    if (!operation.source || !operation.target) {
+      return;
+    }
+    if(!isSortable(operation.source)) { return; }
 
-      if (fromIndex < 0 || toIndex < 0) {
-        return previous;
+    const { index, group, initialGroup } = operation.source;
+    const sourceTaskId = String(operation.source.id);
+    const sourceTask = taskMap.get(sourceTaskId);
+    const sourceCategory = String(initialGroup);
+    const targetCategory = String(group);
+
+    console.log("moveTask details:", { sourceTaskId, sourceCategory, targetCategory, index });
+    moveTask(sourceTaskId, targetCategory, index);
+  };
+
+  const handleDragOver = (event: Parameters<DragOverEvent>[0]) => {
+     const { target, source, shape, position } = event.operation;
+
+    //? when we move the item to a new list, this callback is called again when source as the target 
+    if (target?.id === source?.id) {
+      return;
+    }
+  }
+
+  const toggleTaskCompletion = (taskId: TaskId) => {
+    updateTaskState(taskId, (previous) => ({
+      ...previous,
+      completed: !previous.completed,
+    }));
+  };
+
+  const toggleEditTaskSelection = (taskId: TaskId) => {
+    setEditSelectedTaskIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
       }
+      return next;
+    });
+  };
 
-      const reordered = [...categoryTasks];
-      const [movedTask] = reordered.splice(fromIndex, 1);
-      reordered.splice(toIndex, 0, movedTask);
-
-      const nextOrderById = new Map<TaskId, number>();
-      reordered.forEach((task, index) => {
-        nextOrderById.set(task.id, index);
-      });
-
-      return {
-        tasks: previous.tasks.map((task) => {
-          const nextOrder = nextOrderById.get(task.id);
-
-          if (nextOrder === undefined) {
-            return task;
-          }
-
-          return {
-            ...task,
-            order: nextOrder,
-          };
-        }),
-      };
+  const togglePendingDependencySelection = (taskId: TaskId) => {
+    setPendingDependencyIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
     });
   };
 
@@ -709,163 +894,57 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            {tasksByCategory.map(({ category, tasks }) => (
-              <details key={category} open className="rounded-md border border-zinc-200 dark:border-zinc-800">
-                <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                  {category} ({tasks.length})
-                </summary>
-                <div className="space-y-1 px-2 pb-2">
-                  {tasks.map((task) => {
-                    const taskState = state.tasks[task.id] ?? { completed: false, explicitlyHidden: false };
-                    const selected = selectedTaskId === task.id;
-                    const dependenciesComplete = dependenciesAreComplete(task, state);
-                    const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
-                    const showEditSelectionCheckbox =
-                      mode === "edit" && (!isSettingDependencies || task.id !== selectedTaskId);
-                    const canDrag = mode === "edit" && !isSettingDependencies;
-                    const isDragging = draggingTaskId === task.id;
+          <DragDropProvider
+            key={`dnd-${mode}-${isSettingDependencies ? "deps" : "normal"}`}
+            onDragEnd={handleSortableDragEnd}
+            onDragOver={handleDragOver}
+          >
+            <div className="space-y-2">
+              {tasksByCategory.map(({ category, tasks }) => (
+                <details key={category} open className="rounded-md border border-zinc-200 dark:border-zinc-800">
+                  <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900">
+                    {category} ({tasks.length})
+                  </summary>
+                  <div className="space-y-1 px-2 pb-2">
+                    {tasks.map((task, index) => {
+                      const taskState = state.tasks[task.id] ?? { completed: false, explicitlyHidden: false };
 
-                    return (
-                      <div
-                        key={task.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          if (mode === "edit" && isSettingDependencies) {
-                            return;
-                          }
-                          setSelectedTaskId(task.id);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" && event.key !== " ") {
-                            return;
-                          }
+                      return (
+                        <SortableTaskRow
+                          key={task.id}
+                          task={task}
+                          taskState={taskState}
+                          category={category}
+                          index={index}
+                          mode={mode}
+                          isSettingDependencies={isSettingDependencies}
+                          selectedTaskId={selectedTaskId}
+                          isSelected={selectedTaskId === task.id}
+                          isEditSelected={editSelectedTaskIds.has(task.id)}
+                          isPendingDependency={pendingDependencyIds.has(task.id)}
+                          dependenciesComplete={dependenciesAreComplete(task, state)}
+                          onSelectTask={setSelectedTaskId}
+                          onToggleComplete={toggleTaskCompletion}
+                          onToggleEditSelection={toggleEditTaskSelection}
+                          onTogglePendingDependency={togglePendingDependencySelection}
+                        />
+                      );
+                    })}
+                  </div>
+                </details>
+              ))}
 
-                          event.preventDefault();
-                          if (mode === "edit" && isSettingDependencies) {
-                            return;
-                          }
-
-                          setSelectedTaskId(task.id);
-                        }}
-                        onDragOver={(event) => {
-                          if (!canDrag || !draggingTaskId || draggingTaskId === task.id) {
-                            return;
-                          }
-                          event.preventDefault();
-                        }}
-                        onDrop={(event) => {
-                          if (!canDrag || !draggingTaskId || draggingTaskId === task.id) {
-                            return;
-                          }
-
-                          event.preventDefault();
-                          reorderTaskWithinCategory(category, draggingTaskId, task.id);
-                          setDraggingTaskId(null);
-                        }}
-                        className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left ${
-                          selected
-                            ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-                            : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-                        }`}
-                        draggable={false}
-                      >
-                        {canDrag && (
-                          <button
-                            type="button"
-                            draggable
-                            onDragStart={(event) => {
-                              event.stopPropagation();
-                              setDraggingTaskId(task.id);
-                            }}
-                            onDragEnd={() => setDraggingTaskId(null)}
-                            onClick={(event) => event.stopPropagation()}
-                            className={`cursor-grab select-none text-zinc-500 dark:text-zinc-400 ${
-                              isDragging ? "opacity-50" : ""
-                            }`}
-                            aria-label="Drag to reorder"
-                          >
-                            ⋮⋮
-                          </button>
-                        )}
-                        {showTaskModeCheckbox && (
-                          <input
-                            type="checkbox"
-                            checked={taskState.completed}
-                            onChange={(event) => {
-                              event.stopPropagation();
-                              updateTaskState(task.id, (previous) => ({
-                                ...previous,
-                                completed: !previous.completed,
-                              }));
-                            }}
-                            onClick={(event) => event.stopPropagation()}
-                          />
-                        )}
-                        {showEditSelectionCheckbox && (
-                          <input
-                            type="checkbox"
-                            checked={
-                              isSettingDependencies
-                                ? pendingDependencyIds.has(task.id)
-                                : editSelectedTaskIds.has(task.id)
-                            }
-                            onChange={(event) => {
-                              event.stopPropagation();
-
-                              if (isSettingDependencies) {
-                                setPendingDependencyIds((previous) => {
-                                  const next = new Set(previous);
-                                  if (next.has(task.id)) {
-                                    next.delete(task.id);
-                                  } else {
-                                    next.add(task.id);
-                                  }
-                                  return next;
-                                });
-                                return;
-                              }
-
-                              setEditSelectedTaskIds((previous) => {
-                                const next = new Set(previous);
-                                if (next.has(task.id)) {
-                                  next.delete(task.id);
-                                } else {
-                                  next.add(task.id);
-                                }
-                                return next;
-                              });
-                            }}
-                            onClick={(event) => event.stopPropagation()}
-                          />
-                        )}
-                        {!showTaskModeCheckbox && !showEditSelectionCheckbox && <span className="w-4" />}
-                        <p
-                          className={`min-w-0 truncate text-sm font-medium ${
-                            mode === "task" && taskState.completed ? "line-through" : ""
-                          }`}
-                        >
-                          {task.title || "Untitled Task"}
-                          {mode === "task" && taskState.explicitlyHidden ? " (Hidden)" : ""}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </details>
-            ))}
-
-            {visibleTasks.length === 0 && (
-              <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                {mode === "task"
-                  ? isSearchActive
-                    ? "No tasks match your search."
-                    : "No incomplete, visible tasks currently satisfy dependency requirements."
-                  : "No tasks defined. Add one from the toolbar."}
-              </p>
-            )}
-          </div>
+              {visibleTasks.length === 0 && (
+                <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                  {mode === "task"
+                    ? isSearchActive
+                      ? "No tasks match your search."
+                      : "No incomplete, visible tasks currently satisfy dependency requirements."
+                    : "No tasks defined. Add one from the toolbar."}
+                </p>
+              )}
+            </div>
+          </DragDropProvider>
         </section>
 
         <div
