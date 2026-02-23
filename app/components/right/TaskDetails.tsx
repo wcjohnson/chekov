@@ -192,10 +192,14 @@ export function TaskDetails({
           <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
             {selectedTask.dependencies.map((dependencyId) => {
               const dependencyTask = taskMap.get(dependencyId);
+              const dependencyCompleted =
+                state.tasks[dependencyId]?.completed ?? false;
               return (
                 <li key={dependencyId}>
-                  {dependencyTask?.title || dependencyId}
-                  {state.tasks[dependencyId]?.completed ? " (completed)" : ""}
+                  <span className={dependencyCompleted ? "line-through" : ""}>
+                    {dependencyTask?.title || dependencyId}
+                  </span>
+                  {dependencyCompleted ? " (completed)" : ""}
                 </li>
               );
             })}
