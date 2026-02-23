@@ -156,10 +156,6 @@ export function TaskDetails({
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Completed: {state.tasks[selectedTask.id]?.completed ? "Yes" : "No"}
       </p>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Explicitly hidden:{" "}
-        {state.tasks[selectedTask.id]?.explicitlyHidden ? "Yes" : "No"}
-      </p>
       <div>
         <button
           type="button"
