@@ -375,13 +375,13 @@ export default function Home() {
         tasksByCategory: {
           ...previous.tasksByCategory,
           [category]: [
+            ...(previous.tasksByCategory[category] ?? []),
             {
               id: nextId,
               title: "Untitled Task",
               description: "",
               dependencies: [],
             },
-            ...(previous.tasksByCategory[category] ?? []),
           ],
         },
       };
