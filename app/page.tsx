@@ -1,10 +1,12 @@
 "use client";
 
-import { DragDropProvider, type DragEndEvent, type DragOverEvent } from "@dnd-kit/react";
-import { isSortable, isSortableOperation, useSortable } from "@dnd-kit/react/sortable";
+import type { DragEndEvent, DragOverEvent } from "@dnd-kit/react";
+import { isSortable } from "@dnd-kit/react/sortable";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { AppLayout } from "./components/layout/AppLayout";
+import { LeftColumn } from "./components/left/LeftColumn";
+import { RightColumn } from "./components/right/RightColumn";
+import { TopBar } from "./components/TopBar";
 import {
   DEFAULT_CATEGORY,
   createEmptyDefinition,
@@ -44,134 +46,6 @@ const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
 
 const getTaskCategory = (task: ChecklistTaskDefinition): string =>
   task.category?.trim() ? task.category : DEFAULT_CATEGORY;
-
-type SortableTaskRowProps = {
-  task: ChecklistTaskDefinition;
-  taskState: ChecklistState["tasks"][TaskId];
-  category: string;
-  index: number;
-  mode: ChecklistMode;
-  isSettingDependencies: boolean;
-  selectedTaskId: TaskId | null;
-  isSelected: boolean;
-  isEditSelected: boolean;
-  isPendingDependency: boolean;
-  dependenciesComplete: boolean;
-  onSelectTask: (taskId: TaskId) => void;
-  onToggleComplete: (taskId: TaskId) => void;
-  onToggleEditSelection: (taskId: TaskId) => void;
-  onTogglePendingDependency: (taskId: TaskId) => void;
-};
-
-function SortableTaskRow({
-  task,
-  taskState,
-  category,
-  index,
-  mode,
-  isSettingDependencies,
-  selectedTaskId,
-  isSelected,
-  isEditSelected,
-  isPendingDependency,
-  dependenciesComplete,
-  onSelectTask,
-  onToggleComplete,
-  onToggleEditSelection,
-  onTogglePendingDependency,
-}: SortableTaskRowProps) {
-  const canDrag = mode === "edit" && !isSettingDependencies;
-  const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
-  const showEditSelectionCheckbox =
-    mode === "edit" && (!isSettingDependencies || task.id !== selectedTaskId);
-
-  const { ref, handleRef, isDragSource } = useSortable({
-    id: task.id,
-    index,
-    group: category,
-    disabled: !canDrag,
-  });
-
-  return (
-    <div
-      ref={ref}
-      role="button"
-      tabIndex={0}
-      onClick={() => {
-        if (mode === "edit" && isSettingDependencies) {
-          return;
-        }
-        onSelectTask(task.id);
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") {
-          return;
-        }
-
-        event.preventDefault();
-        if (mode === "edit" && isSettingDependencies) {
-          return;
-        }
-
-        onSelectTask(task.id);
-      }}
-      className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left ${
-        isSelected
-          ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-          : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-      } ${isDragSource ? "opacity-60" : ""}`}
-    >
-      {canDrag && (
-        <button
-          type="button"
-          ref={handleRef}
-          onClick={(event) => event.stopPropagation()}
-          className="cursor-grab select-none text-zinc-500 dark:text-zinc-400"
-          aria-label="Drag to reorder"
-        >
-          ⋮⋮
-        </button>
-      )}
-      {showTaskModeCheckbox && (
-        <input
-          type="checkbox"
-          checked={taskState.completed}
-          onChange={(event) => {
-            event.stopPropagation();
-            onToggleComplete(task.id);
-          }}
-          onClick={(event) => event.stopPropagation()}
-        />
-      )}
-      {showEditSelectionCheckbox && (
-        <input
-          type="checkbox"
-          checked={isSettingDependencies ? isPendingDependency : isEditSelected}
-          onChange={(event) => {
-            event.stopPropagation();
-
-            if (isSettingDependencies) {
-              onTogglePendingDependency(task.id);
-              return;
-            }
-
-            onToggleEditSelection(task.id);
-          }}
-          onClick={(event) => event.stopPropagation()}
-        />
-      )}
-      {!showTaskModeCheckbox && !showEditSelectionCheckbox && <span className="w-4" />}
-      <p
-        className={`min-w-0 truncate text-sm font-medium ${
-          mode === "task" && taskState.completed ? "line-through" : ""
-        }`}
-      >
-        {task.title || "Untitled Task"}
-        {mode === "task" && taskState.explicitlyHidden ? " (Hidden)" : ""}
-      </p>
-    </div>
-  );
-}
 
 export default function Home() {
   const [mode, setMode] = useState<ChecklistMode>("task");
@@ -543,8 +417,6 @@ export default function Home() {
       }
       
       const allTasks = previous.tasks
-      const oldCategory = getTaskCategory(taskToMove);
-      const categoryChanged = oldCategory !== nextCategory;
       taskToMove.category = nextCategory;
 
       const nextCategoryTasks = allTasks
@@ -586,7 +458,6 @@ export default function Home() {
 
     const { index, group, initialGroup } = operation.source;
     const sourceTaskId = String(operation.source.id);
-    const sourceTask = taskMap.get(sourceTaskId);
     const sourceCategory = String(initialGroup);
     const targetCategory = String(group);
 
@@ -595,7 +466,7 @@ export default function Home() {
   };
 
   const handleDragOver = (event: Parameters<DragOverEvent>[0]) => {
-     const { target, source, shape, position } = event.operation;
+      const { target, source } = event.operation;
 
     //? when we move the item to a new list, this callback is called again when source as the target 
     if (target?.id === source?.id) {
@@ -738,418 +609,80 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex w-full items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold tracking-tight">Chekov</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMode((current) => (current === "task" ? "edit" : "task"))}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            >
-              {mode === "task" ? "Switch to Edit Mode" : "Switch to Task Mode"}
-            </button>
-            {mode === "edit" && (
-              <>
-                <button
-                  type="button"
-                  onClick={addTask}
-                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                >
-                  Add Task
-                </button>
-                {!isSettingDependencies && editSelectedTaskIds.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={deleteSelectedTasks}
-                    className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    Delete All
-                  </button>
-                )}
-              </>
-            )}
-            <button
-              type="button"
-              onClick={unhideAllTasks}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            >
-              Unhide All
-            </button>
-            <button
-              type="button"
-              onClick={resetAllCompletedTasks}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            >
-              Reset Completed
-            </button>
-            <input
-              type="search"
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search title/description"
-              className="w-52 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm dark:border-zinc-700"
-            />
-            <details className="relative">
-              <summary className="cursor-pointer list-none rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900">
-                Data
-              </summary>
-              <div className="absolute right-0 z-10 mt-2 w-52 rounded-md border border-zinc-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-                <button
-                  type="button"
-                  onClick={() => downloadJson("chekov-definition.json", definition)}
-                  className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                >
-                  Export Definition
-                </button>
-                <button
-                  type="button"
-                  onClick={() => importDefinitionInputRef.current?.click()}
-                  className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                >
-                  Import Definition
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadJson("chekov-state.json", state)}
-                  className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                >
-                  Export State
-                </button>
-                <button
-                  type="button"
-                  onClick={() => importStateInputRef.current?.click()}
-                  className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                >
-                  Import State
-                </button>
-              </div>
-            </details>
-            <input
-              ref={importDefinitionInputRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  void handleImportDefinition(file);
-                }
-                event.currentTarget.value = "";
-              }}
-            />
-            <input
-              ref={importStateInputRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  void handleImportState(file);
-                }
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-        </div>
-      </header>
-
-      <main ref={mainPaneRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:flex-row md:gap-0">
-        <section
-          className="min-h-0 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:shrink-0"
-          style={isDesktop ? { width: `${leftPaneWidth}%` } : undefined}
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              {mode === "task" ? "Available Tasks" : "All Tasks"}
-            </h2>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">{visibleTasks.length}</span>
-              {mode === "edit" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={selectAllFilteredTasks}
-                    disabled={isSettingDependencies || visibleTasks.length === 0}
-                    className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    Select All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={clearSelection}
-                    disabled={
-                      isSettingDependencies
-                        ? pendingDependencyIds.size === 0
-                        : editSelectedTaskIds.size === 0
-                    }
-                    className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    Clear Selection
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <DragDropProvider
-            key={`dnd-${mode}-${isSettingDependencies ? "deps" : "normal"}`}
-            onDragEnd={handleSortableDragEnd}
-            onDragOver={handleDragOver}
-          >
-            <div className="space-y-2">
-              {tasksByCategory.map(({ category, tasks }) => (
-                <details key={category} open className="rounded-md border border-zinc-200 dark:border-zinc-800">
-                  <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900">
-                    {category} ({tasks.length})
-                  </summary>
-                  <div className="space-y-1 px-2 pb-2">
-                    {tasks.map((task, index) => {
-                      const taskState = state.tasks[task.id] ?? { completed: false, explicitlyHidden: false };
-
-                      return (
-                        <SortableTaskRow
-                          key={task.id}
-                          task={task}
-                          taskState={taskState}
-                          category={category}
-                          index={index}
-                          mode={mode}
-                          isSettingDependencies={isSettingDependencies}
-                          selectedTaskId={selectedTaskId}
-                          isSelected={selectedTaskId === task.id}
-                          isEditSelected={editSelectedTaskIds.has(task.id)}
-                          isPendingDependency={pendingDependencyIds.has(task.id)}
-                          dependenciesComplete={dependenciesAreComplete(task, state)}
-                          onSelectTask={setSelectedTaskId}
-                          onToggleComplete={toggleTaskCompletion}
-                          onToggleEditSelection={toggleEditTaskSelection}
-                          onTogglePendingDependency={togglePendingDependencySelection}
-                        />
-                      );
-                    })}
-                  </div>
-                </details>
-              ))}
-
-              {visibleTasks.length === 0 && (
-                <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                  {mode === "task"
-                    ? isSearchActive
-                      ? "No tasks match your search."
-                      : "No incomplete, visible tasks currently satisfy dependency requirements."
-                    : "No tasks defined. Add one from the toolbar."}
-                </p>
-              )}
-            </div>
-          </DragDropProvider>
-        </section>
-
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          onMouseDown={() => {
-            if (isDesktop) {
-              setIsResizing(true);
-            }
+    <AppLayout
+      mainPaneRef={mainPaneRef}
+      isDesktop={isDesktop}
+      leftPaneWidth={leftPaneWidth}
+      onResizeStart={() => {
+        if (isDesktop) {
+          setIsResizing(true);
+        }
+      }}
+      topBar={
+        <TopBar
+          mode={mode}
+          isSettingDependencies={isSettingDependencies}
+          editSelectedCount={editSelectedTaskIds.size}
+          searchText={searchText}
+          importDefinitionInputRef={importDefinitionInputRef}
+          importStateInputRef={importStateInputRef}
+          onToggleMode={() => setMode((current) => (current === "task" ? "edit" : "task"))}
+          onAddTask={addTask}
+          onDeleteAll={deleteSelectedTasks}
+          onUnhideAll={unhideAllTasks}
+          onResetCompleted={resetAllCompletedTasks}
+          onSearchTextChange={setSearchText}
+          onExportDefinition={() => downloadJson("chekov-definition.json", definition)}
+          onImportDefinitionClick={() => importDefinitionInputRef.current?.click()}
+          onExportState={() => downloadJson("chekov-state.json", state)}
+          onImportStateClick={() => importStateInputRef.current?.click()}
+          onImportDefinitionFile={(file) => {
+            void handleImportDefinition(file);
           }}
-          className="hidden w-2 cursor-col-resize bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 md:block"
+          onImportStateFile={(file) => {
+            void handleImportState(file);
+          }}
         />
-
-        <section className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:ml-4">
-          <h2 className="mb-3 text-lg font-semibold tracking-tight">
-            {mode === "task" ? selectedTask?.title || "Task Details" : "Task Details"}
-          </h2>
-
-          {!isLoaded && <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading checklist...</p>}
-
-          {isLoaded && !selectedTask && (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Select a task to view details.</p>
-          )}
-
-          {isLoaded && selectedTask && (
-            <div className="space-y-4">
-              {mode === "edit" ? (
-                <>
-                  <div className="flex items-center justify-end">
-                    <button
-                      type="button"
-                      onClick={deleteSelectedTask}
-                      className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                    >
-                      Delete Task
-                    </button>
-                  </div>
-
-                  <label className="block text-sm">
-                    <span className="mb-1 block font-medium">Title</span>
-                    <input
-                      value={selectedTask.title}
-                      onChange={(event) =>
-                        updateTask(selectedTask.id, (task) => ({
-                          ...task,
-                          title: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
-                    />
-                  </label>
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <label className="block text-sm">
-                      <span className="mb-1 block font-medium">Category</span>
-                      <input
-                        value={selectedTask.category}
-                        onChange={(event) =>
-                          updateTask(selectedTask.id, (task) => ({
-                            ...task,
-                            category: event.target.value.trim() ? event.target.value : DEFAULT_CATEGORY,
-                          }))
-                        }
-                        className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
-                      />
-                    </label>
-                  </div>
-
-                  <div>
-                    <p className="mb-2 text-sm font-medium">Dependencies</p>
-                    <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-                      {selectedTask.dependencies.length === 0 ? (
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
-                      ) : (
-                        <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
-                          {selectedTask.dependencies.map((dependencyId) => {
-                            const dependencyTask = taskMap.get(dependencyId);
-                            return <li key={dependencyId}>{dependencyTask?.title || dependencyId}</li>;
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {!isSettingDependencies && (
-                        <button
-                          type="button"
-                          onClick={startSetDependencies}
-                          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                        >
-                          Set Dependencies
-                        </button>
-                      )}
-                      {isSettingDependencies && (
-                        <button
-                          type="button"
-                          onClick={confirmSetDependencies}
-                          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                        >
-                          Confirm Dependencies
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={clearSelectedTaskDependencies}
-                        disabled={selectedTask.dependencies.length === 0}
-                        className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                      >
-                        Clear Dependencies
-                      </button>
-                      {isSettingDependencies && (
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Select dependency tasks from the left pane, then confirm.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <label className="block text-sm">
-                    <span className="mb-1 block font-medium">Description (Markdown)</span>
-                    <textarea
-                      value={selectedTask.description}
-                      onChange={(event) =>
-                        updateTask(selectedTask.id, (task) => ({
-                          ...task,
-                          description: event.target.value,
-                        }))
-                      }
-                      rows={10}
-                      className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 font-mono text-sm dark:border-zinc-700"
-                    />
-                  </label>
-                </>
-              ) : (
-                <>
-                  <article className="prose prose-zinc max-w-none dark:prose-invert">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {selectedTask.description || "No description."}
-                    </ReactMarkdown>
-                  </article>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Category: {selectedTask.category}</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Order: {selectedTask.order}</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    Completed: {state.tasks[selectedTask.id]?.completed ? "Yes" : "No"}
-                  </p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    Explicitly hidden: {state.tasks[selectedTask.id]?.explicitlyHidden ? "Yes" : "No"}
-                  </p>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateTaskState(selectedTask.id, (taskState) => ({
-                          ...taskState,
-                          explicitlyHidden: true,
-                        }))
-                      }
-                      disabled={Boolean(state.tasks[selectedTask.id]?.explicitlyHidden)}
-                      className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                    >
-                      Hide Task
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateTaskState(selectedTask.id, (taskState) => ({
-                          ...taskState,
-                          explicitlyHidden: false,
-                        }))
-                      }
-                      disabled={!Boolean(state.tasks[selectedTask.id]?.explicitlyHidden)}
-                      className="ml-2 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                    >
-                      Unhide Task
-                    </button>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-sm font-medium">Dependencies</p>
-                    {selectedTask.dependencies.length === 0 ? (
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
-                    ) : (
-                      <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
-                        {selectedTask.dependencies.map((dependencyId) => {
-                          const dependencyTask = taskMap.get(dependencyId);
-                          return (
-                            <li key={dependencyId}>
-                              {dependencyTask?.title || dependencyId}
-                              {state.tasks[dependencyId]?.completed ? " (completed)" : ""}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {errorMessage && (
-            <p className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
-              {errorMessage}
-            </p>
-          )}
-        </section>
-      </main>
-    </div>
+      }
+      leftColumn={
+        <LeftColumn
+          mode={mode}
+          visibleTasks={visibleTasks}
+          tasksByCategory={tasksByCategory}
+          state={state}
+          selectedTaskId={selectedTaskId}
+          isSettingDependencies={isSettingDependencies}
+          editSelectedTaskIds={editSelectedTaskIds}
+          pendingDependencyIds={pendingDependencyIds}
+          isSearchActive={isSearchActive}
+          onSelectAll={selectAllFilteredTasks}
+          onClearSelection={clearSelection}
+          onSelectTask={setSelectedTaskId}
+          onToggleComplete={toggleTaskCompletion}
+          onToggleEditSelection={toggleEditTaskSelection}
+          onTogglePendingDependency={togglePendingDependencySelection}
+          onDragEnd={handleSortableDragEnd}
+          onDragOver={handleDragOver}
+          dependenciesAreComplete={dependenciesAreComplete}
+        />
+      }
+      rightColumn={
+        <RightColumn
+          mode={mode}
+          selectedTask={selectedTask}
+          isLoaded={isLoaded}
+          errorMessage={errorMessage}
+          state={state}
+          taskMap={taskMap}
+          isSettingDependencies={isSettingDependencies}
+          onDeleteSelectedTask={deleteSelectedTask}
+          onUpdateTask={updateTask}
+          onUpdateTaskState={updateTaskState}
+          onStartSetDependencies={startSetDependencies}
+          onConfirmSetDependencies={confirmSetDependencies}
+          onClearSelectedTaskDependencies={clearSelectedTaskDependencies}
+        />
+      }
+    />
   );
 }
