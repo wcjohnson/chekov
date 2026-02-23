@@ -111,9 +111,7 @@ export default function Home() {
   const taskVisibilityMap = useMemo(() => {
     const map = new Map<TaskId, boolean>();
     for (const task of taskArray) {
-      if (mode === "edit") {
-        map.set(task.id, true);
-      } else if (isSearchActive) {
+      if (isSearchActive) {
         const titleMatches = task.title
           .toLowerCase()
           .includes(normalizedSearch);
@@ -123,6 +121,8 @@ export default function Home() {
         if (titleMatches || descriptionMatches) {
           map.set(task.id, true);
         }
+      } else if (mode === "edit") {
+        map.set(task.id, true);
       } else {
         const taskState = state.tasks[task.id];
 
