@@ -119,7 +119,11 @@ export default function Home() {
         const descriptionMatches = task.description
           .toLowerCase()
           .includes(normalizedSearch);
-        if (titleMatches || descriptionMatches) {
+        const categoryMatches = taskCategoryMap
+          .get(task.id)
+          ?.toLowerCase()
+          .includes(normalizedSearch);
+        if (titleMatches || descriptionMatches || categoryMatches) {
           map.set(task.id, true);
         }
       } else if (mode === "edit") {
@@ -138,7 +142,14 @@ export default function Home() {
     }
 
     return map;
-  }, [taskArray, isSearchActive, mode, normalizedSearch, state]);
+  }, [
+    taskArray,
+    taskCategoryMap,
+    isSearchActive,
+    mode,
+    normalizedSearch,
+    state,
+  ]);
 
   ///////////////////////////////////////// Events
 
