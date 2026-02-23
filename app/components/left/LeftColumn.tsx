@@ -78,6 +78,7 @@ export function LeftColumn({
               key={category}
               category={category}
               tasks={tasks.tasksByCategory[category]}
+              taskVisibilityMap={taskVisibilityMap}
               mode={mode}
               state={state}
               selectedTaskId={selectedTaskId}
