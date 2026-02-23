@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type {
@@ -46,6 +47,73 @@ export function TaskDetails({
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
 }: TaskDetailsProps) {
+  const [tagInput, setTagInput] = useState("");
+
+  const selectedTaskTags = useMemo(
+    () => Array.from(selectedTask.tags ?? []),
+    [selectedTask.tags],
+  );
+
+  const allKnownTags = useMemo(() => {
+    const tags = new Set<string>();
+
+    for (const task of taskMap.values()) {
+      for (const tag of task.tags ?? []) {
+        const normalized = tag.trim();
+        if (normalized.length > 0) {
+          tags.add(normalized);
+        }
+      }
+    }
+
+    return Array.from(tags).sort((left, right) => left.localeCompare(right));
+  }, [taskMap]);
+
+  const addTag = () => {
+    const normalizedTag = tagInput.trim();
+    if (!normalizedTag) {
+      return;
+    }
+
+    onUpdateTask(selectedTask.id, (task) => {
+      const nextTags = new Set(task.tags ?? []);
+
+      if (nextTags.has(normalizedTag)) {
+        return task;
+      }
+
+      nextTags.add(normalizedTag);
+
+      return {
+        ...task,
+        tags: nextTags,
+      };
+    });
+
+    setTagInput("");
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    onUpdateTask(selectedTask.id, (task) => {
+      const nextTags = new Set(task.tags ?? []);
+      nextTags.delete(tagToRemove);
+
+      if (nextTags.size === 0) {
+        return {
+          ...task,
+          tags: undefined,
+        };
+      }
+
+      return {
+        ...task,
+        tags: nextTags,
+      };
+    });
+  };
+
+  const datalistId = `known-tags-${selectedTask.id}`;
+
   if (mode === "edit") {
     return (
       <>
@@ -139,6 +207,62 @@ export function TaskDetails({
             className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 font-mono text-sm dark:border-zinc-700"
           />
         </label>
+
+        <div>
+          <p className="mb-2 text-sm font-medium">Tags</p>
+          {selectedTaskTags.length > 0 ? (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {selectedTaskTags.map((tag) => (
+                <button
+                  key={`${selectedTask.id}-tag-remove-${tag}`}
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  title="Remove tag"
+                >
+                  {tag} ×
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
+              No tags
+            </p>
+          )}
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(event) => setTagInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addTag();
+                }
+              }}
+              placeholder="Add tag"
+              list={datalistId}
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+            />
+            <datalist id={datalistId}>
+              {allKnownTags.map((tag) => (
+                <option
+                  key={`${selectedTask.id}-tag-option-${tag}`}
+                  value={tag}
+                />
+              ))}
+            </datalist>
+            <button
+              type="button"
+              onClick={addTag}
+              disabled={tagInput.trim().length === 0}
+              className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Add Tag
+            </button>
+          </div>
+        </div>
       </>
     );
   }
@@ -156,6 +280,23 @@ export function TaskDetails({
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Completed: {state.tasks[selectedTask.id]?.completed ? "Yes" : "No"}
       </p>
+      <div>
+        <p className="mb-1 text-sm font-medium">Tags</p>
+        {selectedTaskTags.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {selectedTaskTags.map((tag) => (
+              <span
+                key={`${selectedTask.id}-tag-view-${tag}`}
+                className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
       <div>
         <button
           type="button"

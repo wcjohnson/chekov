@@ -274,14 +274,33 @@ export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
         >)
       : [];
 
-    normalizedTasksByCategory[category] = rawTasks.map((task) => ({
-      id: String(task.id ?? crypto.randomUUID()),
-      title: typeof task.title === "string" ? task.title : "",
-      description: typeof task.description === "string" ? task.description : "",
-      dependencies: Array.isArray(task.dependencies)
-        ? task.dependencies.map((dependency) => String(dependency))
-        : [],
-    }));
+    normalizedTasksByCategory[category] = rawTasks.map((task) => {
+      const rawTags = (task as { tags?: unknown }).tags;
+
+      const normalizedTagValues =
+        rawTags instanceof Set
+          ? Array.from(rawTags)
+          : Array.isArray(rawTags)
+            ? rawTags
+            : [];
+
+      const normalizedTags = new Set(
+        normalizedTagValues
+          .map((tag) => (typeof tag === "string" ? tag.trim() : ""))
+          .filter((tag) => tag.length > 0),
+      );
+
+      return {
+        id: String(task.id ?? crypto.randomUUID()),
+        title: typeof task.title === "string" ? task.title : "",
+        description:
+          typeof task.description === "string" ? task.description : "",
+        dependencies: Array.isArray(task.dependencies)
+          ? task.dependencies.map((dependency) => String(dependency))
+          : [],
+        ...(normalizedTags.size > 0 ? { tags: normalizedTags } : {}),
+      };
+    });
   }
 
   const allTasks = normalizedCategories.flatMap(
@@ -294,12 +313,17 @@ export const normalizeDefinition = (raw: unknown): ChecklistDefinition => {
   for (const category of normalizedCategories) {
     filteredTasksByCategory[category] = (
       normalizedTasksByCategory[category] ?? []
-    ).map((task) => ({
-      ...task,
-      dependencies: task.dependencies.filter(
-        (dependency) => dependency !== task.id && taskIdSet.has(dependency),
-      ),
-    }));
+    ).map((task) => {
+      const normalizedTags = new Set(task.tags ?? []);
+
+      return {
+        ...task,
+        dependencies: task.dependencies.filter(
+          (dependency) => dependency !== task.id && taskIdSet.has(dependency),
+        ),
+        ...(normalizedTags.size > 0 ? { tags: normalizedTags } : {}),
+      };
+    });
   }
 
   if (detectCycle(Object.values(filteredTasksByCategory).flat())) {

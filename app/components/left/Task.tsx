@@ -47,6 +47,7 @@ export function Task({
   const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
   const showEditSelectionCheckbox =
     mode === "edit" && (!isSettingDependencies || task.id !== selectedTaskId);
+  const tags = Array.from(task.tags ?? []);
 
   const { ref, handleRef, isDragSource, isDragging } = useSortable({
     id: task.id,
@@ -130,13 +131,26 @@ export function Task({
         <span className="w-4" />
       )}
       <p
-        className={`min-w-0 truncate text-sm font-medium ${
+        className={`min-w-0 flex-1 truncate text-sm font-medium ${
           mode === "task" && taskState.completed ? "line-through" : ""
         }`}
       >
         {task.title || "Untitled Task"}
         {mode === "task" && taskState.explicitlyHidden ? " (Hidden)" : ""}
       </p>
+      {tags.length > 0 && (
+        <div className="ml-auto flex max-w-[50%] items-center justify-end gap-1 overflow-hidden">
+          {tags.map((tag) => (
+            <span
+              key={`${task.id}-tag-${tag}`}
+              className="max-w-28 truncate rounded border border-zinc-300 px-1.5 py-0.5 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
+              title={tag}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

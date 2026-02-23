@@ -26,7 +26,19 @@ import type {
 } from "./lib/types";
 
 const downloadJson = (fileName: string, data: unknown): void => {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
+  const serialized = JSON.stringify(
+    data,
+    (_key, value) => {
+      if (value instanceof Set) {
+        return Array.from(value);
+      }
+
+      return value;
+    },
+    2,
+  );
+
+  const blob = new Blob([serialized], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);

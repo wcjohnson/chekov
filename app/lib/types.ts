@@ -5,6 +5,7 @@ export type ChecklistTaskDefinition = {
   title: string;
   description: string;
   dependencies: TaskId[];
+  tags?: Set<string>;
 };
 
 export type ChecklistDefinition = {
