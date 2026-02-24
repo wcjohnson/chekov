@@ -307,13 +307,13 @@ export function useDeleteTasksMutation() {
 export function useMoveTaskMutation() {
   return useMutation({
     mutationFn: async ({
-      taskId,
       fromCategory,
+      fromIndex,
       toCategory,
       toIndex,
     }: {
-      taskId: TaskId;
       fromCategory: string;
+      fromIndex: number;
       toCategory: string;
       toIndex: number;
     }) => {
@@ -340,19 +340,24 @@ export function useMoveTaskMutation() {
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
       const categoryHiddenStore = tx.objectStore(CATEGORY_HIDDEN_STORE);
 
-      const task = await tasksStore.get(taskId);
-      if (!task) {
-        await tx.done;
-        throw new Error("Task not found");
+      const fromTaskIds = (await categoryTasksStore.get(fromCategory)) ?? [];
+      const taskId = fromTaskIds[fromIndex];
+      if (!taskId) {
+        tx.abort();
+        await tx.done.catch(() => undefined);
+        return;
       }
 
-      const actualFromCategory = task.category ?? fromCategory;
-      const isSameCategory = actualFromCategory === toCategory;
+      const task = await tasksStore.get(taskId);
+      if (!task) {
+        tx.abort();
+        await tx.done.catch(() => undefined);
+        return;
+      }
+
+      const isSameCategory = fromCategory === toCategory;
 
       const categories = (await categoriesStore.get("categories")) ?? [];
-
-      const fromTaskIds =
-        (await categoryTasksStore.get(actualFromCategory)) ?? [];
       const toTaskIds = isSameCategory
         ? fromTaskIds
         : ((await categoryTasksStore.get(toCategory)) ?? []);
@@ -363,8 +368,11 @@ export function useMoveTaskMutation() {
         withoutTask.splice(clampedIndex, 0, taskId);
         await categoryTasksStore.put(withoutTask, toCategory);
       } else {
-        const nextFromTaskIds = fromTaskIds.filter((id) => id !== taskId);
+        let deletedCategory: string | undefined = undefined;
+        let addedCategory: string | undefined = undefined;
+        let nextCategories = categories;
 
+        const nextFromTaskIds = fromTaskIds.filter((id) => id !== taskId);
         const nextToTaskIds = toTaskIds.filter((id) => id !== taskId);
         const clampedIndex = Math.max(
           0,
@@ -372,47 +380,59 @@ export function useMoveTaskMutation() {
         );
         nextToTaskIds.splice(clampedIndex, 0, taskId);
 
-        if (nextFromTaskIds.length > 0) {
-          await categoryTasksStore.put(nextFromTaskIds, actualFromCategory);
-        } else {
-          await categoryTasksStore.delete(actualFromCategory);
-        }
+        if (nextFromTaskIds.length === 0) deletedCategory = fromCategory;
+        if (nextToTaskIds.length === 1) addedCategory = toCategory;
 
+        // Replace category task lists
+        if (nextFromTaskIds.length > 0) {
+          await categoryTasksStore.put(nextFromTaskIds, fromCategory);
+        }
         await categoryTasksStore.put(nextToTaskIds, toCategory);
 
-        const nextCategories = categories.filter(
-          (category) => category !== actualFromCategory,
-        );
-        if (!nextCategories.includes(toCategory)) {
-          nextCategories.push(toCategory);
+        // Remove categories from main list
+        if (deletedCategory) {
+          await categoryTasksStore.delete(deletedCategory);
+          nextCategories = nextCategories.filter(
+            (category) => category !== deletedCategory,
+          );
         }
+
+        if (addedCategory) {
+          nextCategories.push(addedCategory);
+        }
+
         await categoriesStore.put(nextCategories, "categories");
 
-        if (nextFromTaskIds.length === 0) {
+        // Remove hidden category state for removed categories
+        if (deletedCategory) {
           const hiddenTaskCategories =
             (await categoryHiddenStore.get("task")) ?? new Set<string>();
           const hiddenEditCategories =
             (await categoryHiddenStore.get("edit")) ?? new Set<string>();
 
-          hiddenTaskCategories.delete(actualFromCategory);
-          hiddenEditCategories.delete(actualFromCategory);
+          hiddenTaskCategories.delete(deletedCategory);
+          hiddenEditCategories.delete(deletedCategory);
 
           await categoryHiddenStore.put(hiddenTaskCategories, "task");
           await categoryHiddenStore.put(hiddenEditCategories, "edit");
         }
       }
 
+      // Rewrite base task category
       await tasksStore.put({ ...task, category: toCategory }, taskId);
 
       await tx.done;
+      return taskId;
     },
-    onSuccess: (_res, variables) => {
+    onSuccess: (movedTaskId) => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["categoryTasks"] });
       queryClient.invalidateQueries({ queryKey: ["categoryHidden"] });
-      queryClient.invalidateQueries({
-        queryKey: ["task", "detail", variables.taskId],
-      });
+      if (movedTaskId) {
+        queryClient.invalidateQueries({
+          queryKey: ["task", "detail", movedTaskId],
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["details"] });
     },
   });
@@ -925,8 +945,10 @@ export function useTaskDetail(taskId: TaskId) {
   return useQuery({
     queryKey: ["task", "detail", taskId],
     queryFn: async () => {
+      if (!taskId) return null;
       const db = await getDb();
-      return db.get(TASKS_STORE, taskId);
+      const res = await db.get(TASKS_STORE, taskId);
+      return res === undefined ? null : res;
     },
   });
 }
