@@ -4,9 +4,10 @@ export type TaskId = string;
 
 export type ChecklistTaskDefinition = {
   id: TaskId;
+  category: string;
   title: string;
   description: string;
-  dependencies: TaskId[];
+  dependencies: Set<TaskId>;
   tags?: Set<string>;
 };
 
@@ -32,3 +33,10 @@ export type ChecklistState = {
 };
 
 export type ChecklistMode = "task" | "edit";
+
+export type TaskBreakout = {
+  visibleCategories: string[];
+  categoryTasks: Record<string, TaskId[]>;
+  orderedCategoryTasks: TaskId[][];
+  visibleTasks: Set<TaskId>;
+};

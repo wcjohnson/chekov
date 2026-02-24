@@ -2,17 +2,17 @@
 
 import { useSortable } from "@dnd-kit/react/sortable";
 import { getTagBadgeClasses } from "../../lib/tagColors";
-import type {
-  ChecklistDefinition,
-  ChecklistMode,
-  ChecklistState,
-  ChecklistTaskDefinition,
-  TaskId,
-} from "../../lib/types";
+import type { ChecklistMode, TaskId } from "../../lib/types";
+import {
+  useTagColors,
+  useTaskCompletion,
+  useTaskDetail,
+  useTaskHidden,
+  useTaskTags,
+} from "@/app/lib/storage";
 
 type TaskProps = {
-  task: ChecklistTaskDefinition;
-  taskState: ChecklistState["tasks"][TaskId];
+  taskId: TaskId;
   category: string;
   index: number;
   mode: ChecklistMode;
@@ -26,12 +26,10 @@ type TaskProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
-  tagColors: ChecklistDefinition["tagColors"];
 };
 
 export function Task({
-  task,
-  taskState,
+  taskId,
   category,
   index,
   mode,
@@ -45,17 +43,21 @@ export function Task({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
-  tagColors,
 }: TaskProps) {
+  const detail = useTaskDetail(taskId).data;
+  const tags = Array.from(useTaskTags(taskId).data ?? []);
+  const isComplete = useTaskCompletion(taskId).data ?? false;
+  const isHidden = useTaskHidden(taskId).data ?? false;
+  const tagColors = useTagColors().data ?? {};
+
   const canDrag = mode === "edit" && !isSettingDependencies;
   const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
   const showEditSelectionCheckbox =
-    mode === "edit" && (!isSettingDependencies || task.id !== selectedTaskId);
-  const tags = Array.from(task.tags ?? []);
-  const hasDescription = task.description.trim().length > 0;
+    mode === "edit" && (!isSettingDependencies || taskId !== selectedTaskId);
+  const hasDescription = (detail?.description?.length ?? 0) > 0;
 
   const { ref, handleRef, isDragSource, isDragging } = useSortable({
-    id: task.id,
+    id: taskId,
     index,
     type: "task",
     accept: "task",
@@ -73,7 +75,7 @@ export function Task({
         if (mode === "edit" && isSettingDependencies) {
           return;
         }
-        onSelectTask(task.id);
+        onSelectTask(taskId);
       }}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") {
@@ -85,7 +87,7 @@ export function Task({
           return;
         }
 
-        onSelectTask(task.id);
+        onSelectTask(taskId);
       }}
       className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left ${
         isSelected
@@ -107,10 +109,10 @@ export function Task({
       {showTaskModeCheckbox && (
         <input
           type="checkbox"
-          checked={taskState.completed}
+          checked={isComplete}
           onChange={(event) => {
             event.stopPropagation();
-            onToggleComplete(task.id);
+            onToggleComplete(taskId);
           }}
           onClick={(event) => event.stopPropagation()}
         />
@@ -123,11 +125,11 @@ export function Task({
             event.stopPropagation();
 
             if (isSettingDependencies) {
-              onTogglePendingDependency(task.id);
+              onTogglePendingDependency(taskId);
               return;
             }
 
-            onToggleEditSelection(task.id);
+            onToggleEditSelection(taskId);
           }}
           onClick={(event) => event.stopPropagation()}
         />
@@ -138,11 +140,11 @@ export function Task({
       <div className="flex min-w-0 flex-1 items-center gap-1">
         <p
           className={`min-w-0 flex-1 truncate text-sm font-medium ${
-            mode === "task" && taskState.completed ? "line-through" : ""
+            mode === "task" && isComplete ? "line-through" : ""
           }`}
         >
-          {task.title || "Untitled Task"}
-          {mode === "task" && taskState.explicitlyHidden ? " (Hidden)" : ""}
+          {detail?.title || "Untitled Task"}
+          {mode === "task" && isHidden ? " (Hidden)" : ""}
         </p>
         {hasDescription && (
           <span
@@ -158,7 +160,7 @@ export function Task({
         <div className="ml-auto flex max-w-[50%] items-center justify-end gap-1 overflow-hidden">
           {tags.map((tag) => (
             <span
-              key={`${task.id}-tag-${tag}`}
+              key={`${taskId}-tag-${tag}`}
               className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
               title={tag}
             >

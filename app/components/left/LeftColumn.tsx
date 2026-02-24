@@ -1,113 +1,131 @@
 "use client";
 
-import { move } from "@dnd-kit/helpers";
 import { DragDropProvider } from "@dnd-kit/react";
-import { useState } from "react";
-import type {
-  ChecklistDefinition,
-  ChecklistMode,
-  ChecklistState,
-  TaskId,
-} from "../../lib/types";
+import { useMemo, useRef, useState } from "react";
+import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
+import {
+  useCategories,
+  useCategoriesTasks,
+  useCreateTaskMutation,
+  useMoveCategoryMutation,
+  useMoveTaskMutation,
+} from "@/app/lib/storage";
+import { isSortable } from "@dnd-kit/react/sortable";
 
 type LeftColumnProps = {
   mode: ChecklistMode;
-  tasks: ChecklistDefinition;
-  taskVisibilityMap: Map<TaskId, boolean>;
-  state: ChecklistState;
+  tasksWithCompleteDependencies: Set<TaskId>;
+  tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
   isSettingDependencies: boolean;
   editSelectedTaskIds: Set<TaskId>;
   pendingDependencyIds: Set<TaskId>;
-  isSearchActive: boolean;
   onSelectAll: () => void;
   onClearSelection: () => void;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
-  tagColors: ChecklistDefinition["tagColors"];
-  categoryOpenByMode: Record<string, boolean>;
-  onSetCategoryOpen: (category: string, isOpen: boolean) => void;
-  onAddTaskToCategory: (category: string) => void;
-  onAddCategory: (categoryName: string) => void;
-  setDefinition: (
-    updater: (prev: ChecklistDefinition) => ChecklistDefinition,
-  ) => void;
 };
 
 export function LeftColumn({
   mode,
-  tasks,
-  taskVisibilityMap,
-  state,
+  tasksWithCompleteDependencies,
+  tasksMatchingSearch,
   selectedTaskId,
   isSettingDependencies,
   editSelectedTaskIds,
   pendingDependencyIds,
-  isSearchActive,
   onSelectAll,
   onClearSelection,
   onSelectTask,
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
-  tagColors,
-  categoryOpenByMode,
-  onSetCategoryOpen,
-  onAddTaskToCategory,
-  onAddCategory,
-  setDefinition,
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
 
+  const createTaskMutation = useCreateTaskMutation();
   const submitNewCategory = () => {
     const normalizedCategory = newCategoryName.trim();
     if (!normalizedCategory) {
       return;
     }
+    createTaskMutation.mutate(normalizedCategory);
 
-    onAddCategory(normalizedCategory);
     setNewCategoryName("");
     setIsAddingCategory(false);
   };
 
+  const moveCategoryMutation = useMoveCategoryMutation();
   const moveCategory = (fromIndex: number, toIndex: number) => {
-    setDefinition((previous) => {
-      if (
-        fromIndex < 0 ||
-        toIndex < 0 ||
-        fromIndex >= previous.categories.length ||
-        toIndex >= previous.categories.length ||
-        fromIndex === toIndex
-      ) {
-        return previous;
-      }
-
-      const categories = [...previous.categories];
-      const [movedCategory] = categories.splice(fromIndex, 1);
-
-      if (!movedCategory) {
-        return previous;
-      }
-
-      categories.splice(toIndex, 0, movedCategory);
-
-      return {
-        ...previous,
-        categories,
-      };
-    });
+    moveCategoryMutation.mutate({ fromIndex, toIndex });
   };
+
+  const categories = useCategories().data;
+  const categoriesTasks = useCategoriesTasks().data;
+
+  const taskBreakout: TaskBreakout = useMemo(() => {
+    const visibleCategories: string[] = [];
+    const categoryTasks = {} as Record<string, TaskId[]>;
+    const orderedCategoryTasks: TaskId[][] = [];
+    const visibleTasks = new Set<TaskId>();
+
+    if (!categories || !categoriesTasks) {
+      return {
+        visibleCategories,
+        categoryTasks,
+        orderedCategoryTasks,
+        visibleTasks,
+      };
+    }
+
+    for (const category of categories) {
+      const tasks = categoriesTasks[category] ?? [];
+      const filtered = tasks.filter((taskId) => {
+        const matchesSearch = tasksMatchingSearch.has(taskId);
+        if (mode === "task") {
+          const hasCompleteDependencies =
+            tasksWithCompleteDependencies.has(taskId);
+          return hasCompleteDependencies && matchesSearch;
+        } else {
+          return matchesSearch;
+        }
+      });
+      // TODO: possible visibility bug here, when editing
+      // show all the categories.
+      if (filtered.length > 0) {
+        visibleCategories.push(category);
+        categoryTasks[category] = filtered;
+        orderedCategoryTasks.push(filtered);
+        filtered.forEach((taskId) => visibleTasks.add(taskId));
+      }
+    }
+    return {
+      visibleCategories,
+      categoryTasks,
+      orderedCategoryTasks,
+      visibleTasks,
+    };
+  }, [
+    tasksWithCompleteDependencies,
+    tasksMatchingSearch,
+    categories,
+    mode,
+    categoriesTasks,
+  ]);
+
+  const dragDropSnapshot = useRef(taskBreakout.categoryTasks);
+  const moveTaskMutation = useMoveTaskMutation();
 
   return (
     <>
       <LeftHeader
         mode={mode}
-        visibleTasksCount={taskVisibilityMap.size}
+        visibleTasksCount={taskBreakout.visibleTasks.size}
         isSettingDependencies={isSettingDependencies}
         editSelectedCount={editSelectedTaskIds.size}
         pendingDependencyCount={pendingDependencyIds.size}
@@ -116,24 +134,43 @@ export function LeftColumn({
       />
 
       <DragDropProvider
-        onDragOver={(event) => {
-          setDefinition((prev) => {
-            return {
-              ...prev,
-              tasksByCategory: move(prev.tasksByCategory, event),
-            };
+        onDragStart={() => {
+          dragDropSnapshot.current = taskBreakout.categoryTasks;
+        }}
+        onDragEnd={(event) => {
+          const { source } = event.operation;
+          if (event.canceled) {
+            return;
+          }
+          if (!isSortable(source)) return;
+          const { initialIndex, index, initialGroup, group } = source;
+          if (initialIndex === index && initialGroup === group) {
+            return;
+          }
+          if (!initialGroup || !group) {
+            return;
+          }
+          const taskId =
+            taskBreakout.categoryTasks?.[initialGroup]?.[initialIndex];
+          if (!taskId) {
+            return;
+          }
+          moveTaskMutation.mutate({
+            taskId,
+            fromCategory: initialGroup as string,
+            toCategory: group as string,
+            toIndex: index,
           });
         }}
       >
         <div className="space-y-2">
-          {tasks.categories.map((category, index) => (
+          {taskBreakout.visibleCategories.map((category, index) => (
             <Category
               key={category}
               category={category}
-              tasks={tasks.tasksByCategory[category]}
-              taskVisibilityMap={taskVisibilityMap}
+              taskBreakout={taskBreakout}
+              tasksWithCompleteDependencies={tasksWithCompleteDependencies}
               mode={mode}
-              state={state}
               selectedTaskId={selectedTaskId}
               isSettingDependencies={isSettingDependencies}
               editSelectedTaskIds={editSelectedTaskIds}
@@ -142,12 +179,8 @@ export function LeftColumn({
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}
               onTogglePendingDependency={onTogglePendingDependency}
-              tagColors={tagColors}
-              isOpen={categoryOpenByMode[category] ?? true}
-              onOpenChange={(isOpen) => onSetCategoryOpen(category, isOpen)}
-              onAddTaskToCategory={onAddTaskToCategory}
               canMoveUp={index > 0}
-              canMoveDown={index < tasks.categories.length - 1}
+              canMoveDown={index < taskBreakout.visibleCategories.length - 1}
               onMoveUp={() => moveCategory(index, index - 1)}
               onMoveDown={() => moveCategory(index, index + 1)}
             />
@@ -190,13 +223,9 @@ export function LeftColumn({
             </div>
           )}
 
-          {taskVisibilityMap.size === 0 && (
+          {taskBreakout.visibleTasks.size === 0 && (
             <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-              {mode === "task"
-                ? isSearchActive
-                  ? "No tasks match your search."
-                  : "No incomplete, visible tasks currently satisfy dependency requirements."
-                : "No tasks defined. Add one from the top bar."}
+              {"No tasks here. Add some or change your filters."}
             </p>
           )}
         </div>

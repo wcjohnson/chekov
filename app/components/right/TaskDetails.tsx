@@ -7,56 +7,43 @@ import {
   getTagBadgeClasses,
   getTagSwatchClasses,
   TAG_COLOR_OPTIONS,
-  type TagColorKey,
 } from "../../lib/tagColors";
-import type {
-  ChecklistDefinition,
-  ChecklistMode,
-  ChecklistState,
-  ChecklistTaskDefinition,
-  TaskId,
-} from "../../lib/types";
+import type { ChecklistMode } from "../../lib/types";
+import {
+  useAllKnownTags,
+  useCompletions,
+  useDeleteTasksMutation,
+  useDetails,
+  useTagColorMutation,
+  useTagColors,
+  useTaskAddTagMutation,
+  useTaskDependencies,
+  useTaskDetailMutation,
+  useTaskHidden,
+  useTaskHiddenMutation,
+  useTaskRemoveTagMutation,
+  useTaskTags,
+  type StoredTask,
+} from "@/app/lib/storage";
 
 type TaskDetailsProps = {
   mode: ChecklistMode;
-  selectedTask: ChecklistTaskDefinition;
-  selectedTaskCategory: string;
-  state: ChecklistState;
-  tagColors: ChecklistDefinition["tagColors"];
-  taskMap: Map<TaskId, ChecklistTaskDefinition>;
+  selectedTaskId: string | null;
+  selectedTaskDetail: StoredTask | null | undefined;
   isSettingDependencies: boolean;
-  onDeleteSelectedTask: () => void;
-  onUpdateTask: (
-    taskId: TaskId,
-    updater: (task: ChecklistTaskDefinition) => ChecklistTaskDefinition,
-  ) => void;
-  onUpdateTaskState: (
-    taskId: TaskId,
-    updater: (
-      taskState: ChecklistState["tasks"][TaskId],
-    ) => ChecklistState["tasks"][TaskId],
-  ) => void;
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
-  onSetTagColor: (tag: string, color: TagColorKey | null) => void;
 };
 
 export function TaskDetails({
   mode,
-  selectedTask,
-  selectedTaskCategory,
-  state,
-  tagColors,
-  taskMap,
+  selectedTaskId,
+  selectedTaskDetail,
   isSettingDependencies,
-  onDeleteSelectedTask,
-  onUpdateTask,
-  onUpdateTaskState,
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
-  onSetTagColor,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
   const [activeTagColorPickerTag, setActiveTagColorPickerTag] = useState<
@@ -64,76 +51,49 @@ export function TaskDetails({
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const selectedTaskTags = useMemo(
-    () => Array.from(selectedTask.tags ?? []),
-    [selectedTask.tags],
-  );
+  const selectedTaskTags = useTaskTags(selectedTaskId ?? "").data ?? new Set();
+  // For dependencies display
+  const selectedTaskDeps =
+    useTaskDependencies(selectedTaskId ?? "").data ?? new Set();
+  const allTaskDetails = useDetails().data ?? {};
+  const completions = useCompletions().data ?? new Set();
+  const isTaskHidden = useTaskHidden(selectedTaskId ?? "").data ?? false;
 
+  const knownTagSet = useAllKnownTags().data;
   const allKnownTags = useMemo(() => {
-    const tags = new Set<string>();
+    return Array.from(knownTagSet ?? []).sort((left, right) =>
+      left.localeCompare(right),
+    );
+  }, [knownTagSet]);
 
-    for (const task of taskMap.values()) {
-      for (const tag of task.tags ?? []) {
-        const normalized = tag.trim();
-        if (normalized.length > 0) {
-          tags.add(normalized);
-        }
-      }
-    }
-
-    return Array.from(tags).sort((left, right) => left.localeCompare(right));
-  }, [taskMap]);
-
-  const knownTagSet = useMemo(() => new Set(allKnownTags), [allKnownTags]);
-
+  const taskAddTagMutation = useTaskAddTagMutation();
   const addTag = (rawTag: string = tagInput) => {
-    const normalizedTag = rawTag.trim();
-    if (!normalizedTag) {
-      return;
-    }
-
-    onUpdateTask(selectedTask.id, (task) => {
-      const nextTags = new Set(task.tags ?? []);
-
-      if (nextTags.has(normalizedTag)) {
-        return task;
-      }
-
-      nextTags.add(normalizedTag);
-
-      return {
-        ...task,
-        tags: nextTags,
-      };
+    taskAddTagMutation.mutate({
+      taskId: selectedTaskId ?? "",
+      tag: rawTag,
     });
-
     setTagInput("");
   };
 
+  const taskRemoveTagMutation = useTaskRemoveTagMutation();
   const removeTag = (tagToRemove: string) => {
     if (activeTagColorPickerTag === tagToRemove) {
       setActiveTagColorPickerTag(null);
     }
-
-    onUpdateTask(selectedTask.id, (task) => {
-      const nextTags = new Set(task.tags ?? []);
-      nextTags.delete(tagToRemove);
-
-      if (nextTags.size === 0) {
-        return {
-          ...task,
-          tags: undefined,
-        };
-      }
-
-      return {
-        ...task,
-        tags: nextTags,
-      };
+    taskRemoveTagMutation.mutate({
+      taskId: selectedTaskId ?? "",
+      tag: tagToRemove,
     });
   };
 
-  const datalistId = `known-tags-${selectedTask.id}`;
+  const deleteTasksMutation = useDeleteTasksMutation();
+  const taskDetailMutation = useTaskDetailMutation();
+  const taskHiddenMutation = useTaskHiddenMutation();
+
+  const tagColors = useTagColors().data ?? {};
+  const tagColorMutation = useTagColorMutation();
+
+  const datalistId = `known-tags-${selectedTaskId}`;
 
   useEffect(() => {
     if (!activeTagColorPickerTag) {
@@ -176,7 +136,11 @@ export function TaskDetails({
         <div className="flex items-center justify-end">
           <button
             type="button"
-            onClick={onDeleteSelectedTask}
+            onClick={() => {
+              if (selectedTaskId) {
+                deleteTasksMutation.mutate([selectedTaskId]);
+              }
+            }}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Delete Task
@@ -186,12 +150,12 @@ export function TaskDetails({
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Title</span>
           <input
-            value={selectedTask.title}
+            value={selectedTaskDetail?.title ?? ""}
             onChange={(event) =>
-              onUpdateTask(selectedTask.id, (task) => ({
-                ...task,
+              taskDetailMutation.mutate({
+                taskId: selectedTaskId ?? "",
                 title: event.target.value,
-              }))
+              })
             }
             className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
           />
@@ -199,12 +163,12 @@ export function TaskDetails({
         <div>
           <p className="mb-2 text-sm font-medium">Dependencies</p>
           <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-            {selectedTask.dependencies.length === 0 ? (
+            {selectedTaskDeps.size === 0 ? (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
             ) : (
               <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
-                {selectedTask.dependencies.map((dependencyId) => {
-                  const dependencyTask = taskMap.get(dependencyId);
+                {Array.from(selectedTaskDeps).map((dependencyId) => {
+                  const dependencyTask = allTaskDetails[dependencyId];
                   return (
                     <li key={dependencyId}>
                       {dependencyTask?.title || dependencyId}
@@ -236,7 +200,7 @@ export function TaskDetails({
             <button
               type="button"
               onClick={onClearSelectedTaskDependencies}
-              disabled={selectedTask.dependencies.length === 0}
+              disabled={selectedTaskDeps.size === 0}
               className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
               Clear Dependencies
@@ -252,12 +216,12 @@ export function TaskDetails({
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Description (Markdown)</span>
           <textarea
-            value={selectedTask.description}
+            value={selectedTaskDetail?.description ?? ""}
             onChange={(event) =>
-              onUpdateTask(selectedTask.id, (task) => ({
-                ...task,
+              taskDetailMutation.mutate({
+                taskId: selectedTaskId ?? "",
                 description: event.target.value,
-              }))
+              })
             }
             rows={10}
             className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 font-mono text-sm dark:border-zinc-700"
@@ -266,11 +230,11 @@ export function TaskDetails({
 
         <div>
           <p className="mb-2 text-sm font-medium">Tags</p>
-          {selectedTaskTags.length > 0 ? (
+          {selectedTaskTags.size > 0 ? (
             <div className="mb-2 flex flex-wrap gap-2">
-              {selectedTaskTags.map((tag) => (
+              {Array.from(selectedTaskTags).map((tag) => (
                 <div
-                  key={`${selectedTask.id}-tag-remove-${tag}`}
+                  key={`${selectedTaskId}-tag-remove-${tag}`}
                   className="flex items-center gap-1"
                   ref={(element) => {
                     tagWrapperRefs.current[tag] = element;
@@ -296,7 +260,7 @@ export function TaskDetails({
                         <button
                           type="button"
                           onClick={() => {
-                            onSetTagColor(tag, null);
+                            tagColorMutation.mutate({ tag, colorKey: null });
                             setActiveTagColorPickerTag(null);
                           }}
                           className={`mb-2 w-full rounded border px-2 py-1 text-left text-xs ${getTagBadgeClasses(undefined)}`}
@@ -310,10 +274,13 @@ export function TaskDetails({
 
                             return (
                               <button
-                                key={`${selectedTask.id}-tag-color-${tag}-${colorOption.key}`}
+                                key={`${selectedTaskId}-tag-color-${tag}-${colorOption.key}`}
                                 type="button"
                                 onClick={() => {
-                                  onSetTagColor(tag, colorOption.key);
+                                  tagColorMutation.mutate({
+                                    tag,
+                                    colorKey: colorOption.key,
+                                  });
                                   setActiveTagColorPickerTag(null);
                                 }}
                                 title={colorOption.label}
@@ -355,7 +322,7 @@ export function TaskDetails({
                 setTagInput(nextValue);
 
                 const normalized = nextValue.trim();
-                if (normalized.length > 0 && knownTagSet.has(normalized)) {
+                if (normalized.length > 0 && knownTagSet?.has(normalized)) {
                   addTag(normalized);
                 }
               }}
@@ -372,7 +339,7 @@ export function TaskDetails({
             <datalist id={datalistId}>
               {allKnownTags.map((tag) => (
                 <option
-                  key={`${selectedTask.id}-tag-option-${tag}`}
+                  key={`${selectedTaskId}-tag-option-${tag}`}
                   value={tag}
                 />
               ))}
@@ -395,24 +362,24 @@ export function TaskDetails({
     <>
       <article className="prose prose-zinc max-w-none dark:prose-invert">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {selectedTask.description || "No description."}
+          {selectedTaskDetail?.description || "No description."}
         </ReactMarkdown>
       </article>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Category: {selectedTaskCategory}
+        Category: {selectedTaskDetail?.category ?? "Uncategorized"}
       </p>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Completed: {state.tasks[selectedTask.id]?.completed ? "Yes" : "No"}
+        Completed: {completions.has(selectedTaskId ?? "") ? "Yes" : "No"}
       </p>
       <div>
         <p className="mb-1 text-sm font-medium">Tags</p>
-        {selectedTaskTags.length === 0 ? (
+        {selectedTaskTags.size === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {selectedTaskTags.map((tag) => (
+            {Array.from(selectedTaskTags).map((tag) => (
               <span
-                key={`${selectedTask.id}-tag-view-${tag}`}
+                key={`${selectedTaskId}-tag-view-${tag}`}
                 className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
               >
                 {tag}
@@ -425,12 +392,12 @@ export function TaskDetails({
         <button
           type="button"
           onClick={() =>
-            onUpdateTaskState(selectedTask.id, (taskState) => ({
-              ...taskState,
-              explicitlyHidden: true,
-            }))
+            taskHiddenMutation.mutate({
+              taskId: selectedTaskId ?? "",
+              isHidden: true,
+            })
           }
-          disabled={Boolean(state.tasks[selectedTask.id]?.explicitlyHidden)}
+          disabled={isTaskHidden}
           className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
         >
           Hide Task
@@ -438,12 +405,12 @@ export function TaskDetails({
         <button
           type="button"
           onClick={() =>
-            onUpdateTaskState(selectedTask.id, (taskState) => ({
-              ...taskState,
-              explicitlyHidden: false,
-            }))
+            taskHiddenMutation.mutate({
+              taskId: selectedTaskId ?? "",
+              isHidden: false,
+            })
           }
-          disabled={!Boolean(state.tasks[selectedTask.id]?.explicitlyHidden)}
+          disabled={!isTaskHidden}
           className="ml-2 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
         >
           Unhide Task
@@ -451,14 +418,14 @@ export function TaskDetails({
       </div>
       <div>
         <p className="mb-1 text-sm font-medium">Dependencies</p>
-        {selectedTask.dependencies.length === 0 ? (
+        {selectedTaskDeps.size === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
         ) : (
           <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
-            {selectedTask.dependencies.map((dependencyId) => {
-              const dependencyTask = taskMap.get(dependencyId);
-              const dependencyCompleted =
-                state.tasks[dependencyId]?.completed ?? false;
+            {Array.from(selectedTaskDeps).map((dependencyId) => {
+              const dependencyTask = allTaskDetails[dependencyId];
+              const dependencyCompleted = completions.has(dependencyId);
+
               return (
                 <li key={dependencyId}>
                   <span className={dependencyCompleted ? "line-through" : ""}>
