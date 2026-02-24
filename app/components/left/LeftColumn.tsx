@@ -118,7 +118,6 @@ export function LeftColumn({
     categoriesTasks,
   ]);
 
-  const dragDropSnapshot = useRef(taskBreakout.categoryTasks);
   const moveTaskMutation = useMoveTaskMutation();
 
   return (
@@ -134,9 +133,6 @@ export function LeftColumn({
       />
 
       <DragDropProvider
-        onDragStart={() => {
-          dragDropSnapshot.current = taskBreakout.categoryTasks;
-        }}
         onDragEnd={(event) => {
           const { source } = event.operation;
           if (event.canceled) {
@@ -150,13 +146,9 @@ export function LeftColumn({
           if (!initialGroup || !group) {
             return;
           }
-          const taskId =
-            taskBreakout.categoryTasks?.[initialGroup]?.[initialIndex];
-          if (!taskId) {
-            return;
-          }
+
           moveTaskMutation.mutate({
-            taskId,
+            fromIndex: initialIndex,
             fromCategory: initialGroup as string,
             toCategory: group as string,
             toIndex: index,

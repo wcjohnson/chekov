@@ -1,14 +1,7 @@
 "use client";
 
 import { Task } from "./Task";
-import type {
-  ChecklistDefinition,
-  ChecklistMode,
-  ChecklistState,
-  ChecklistTaskDefinition,
-  TaskBreakout,
-  TaskId,
-} from "../../lib/types";
+import type { ChecklistMode, TaskBreakout, TaskId } from "../../lib/types";
 import {
   useCategoryHiddenMutation,
   useCreateTaskMutation,
