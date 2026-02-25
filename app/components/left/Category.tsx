@@ -165,7 +165,6 @@ export function Category({
               taskId={taskId}
               index={index}
               mode={mode}
-              selectedTaskId={selectedTaskId}
               isSelected={selectedTaskId === taskId}
               isEditSelected={editSelectedTaskIds.has(taskId)}
               dependenciesComplete={tasksWithCompleteDependencies.has(taskId)}

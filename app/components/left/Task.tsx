@@ -17,7 +17,6 @@ type TaskProps = {
   taskId: TaskId;
   index: number;
   mode: ChecklistMode;
-  selectedTaskId: TaskId | null;
   isSelected: boolean;
   isEditSelected: boolean;
   dependenciesComplete: boolean;
@@ -30,7 +29,6 @@ export function Task({
   taskId,
   index,
   mode,
-  selectedTaskId,
   isSelected,
   isEditSelected,
   dependenciesComplete,
@@ -48,11 +46,12 @@ export function Task({
     isDragging: false,
   });
 
-  const setEditContext = useContext(MultiSelectContext);
-  const setEditState = setEditContext.state;
+  const multiSelectContext = useContext(MultiSelectContext);
+  const multiSelectState = multiSelectContext.state;
 
-  const isEditingSet = !!setEditState;
-  const isInEditedSet = Boolean(setEditState?.selectedTaskSet.has(taskId));
+  const isEditingSet = !!multiSelectState;
+  const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
+  const taskIsBannedFromMultiselect = false;
 
   const taskType = detail?.type === "warning" ? "warning" : "task";
   const isWarning = taskType === "warning";
@@ -61,7 +60,7 @@ export function Task({
   const showTaskModeCheckbox =
     mode === "task" && dependenciesComplete && !isWarning;
   const showEditSelectionCheckbox =
-    mode === "edit" && (!isEditingSet || taskId !== selectedTaskId);
+    mode === "edit" && (!isEditingSet || !taskIsBannedFromMultiselect);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
 
   return (
@@ -142,14 +141,16 @@ export function Task({
                 if (isWarning) {
                   return;
                 }
-                const nextSelectedSet = new Set(setEditState.selectedTaskSet);
+                const nextSelectedSet = new Set(
+                  multiSelectState.selectedTaskSet,
+                );
                 if (isInEditedSet) {
                   nextSelectedSet.delete(taskId);
                 } else {
                   nextSelectedSet.add(taskId);
                 }
-                setEditContext.setState({
-                  ...setEditState,
+                multiSelectContext.setState({
+                  ...multiSelectState,
                   selectedTaskSet: nextSelectedSet,
                 });
                 return;
