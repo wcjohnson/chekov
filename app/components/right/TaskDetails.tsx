@@ -57,7 +57,6 @@ type TaskDetailsProps = {
   tasksWithCompleteDependencies: Set<TaskId>;
   isSettingDependencies: boolean;
   onStartSetDependencies: () => void;
-  onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
 };
 
@@ -68,7 +67,6 @@ export function TaskDetails({
   tasksWithCompleteDependencies,
   isSettingDependencies,
   onStartSetDependencies,
-  onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
@@ -239,15 +237,6 @@ export function TaskDetails({
                 Set Dependencies
               </button>
             )}
-            {isSettingDependencies && (
-              <button
-                type="button"
-                onClick={onConfirmSetDependencies}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-              >
-                Confirm Dependencies
-              </button>
-            )}
             <button
               type="button"
               onClick={onClearSelectedTaskDependencies}
@@ -258,7 +247,8 @@ export function TaskDetails({
             </button>
             {isSettingDependencies && (
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Select dependency tasks from the left pane, then confirm.
+                Select dependency tasks from the left pane, then confirm or
+                cancel in the left header.
               </p>
             )}
           </div>

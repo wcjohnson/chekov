@@ -279,6 +279,12 @@ export function AppMain() {
     setErrorMessage(null);
   };
 
+  const cancelSetDependencies = () => {
+    setPendingDependencyIds(new Set());
+    setIsSettingDependencies(false);
+    setErrorMessage(null);
+  };
+
   const clearSelectedTaskDependencies = () => {
     if (!selectedTaskId) {
       return;
@@ -378,6 +384,8 @@ export function AppMain() {
           onToggleComplete={toggleTaskCompletion}
           onToggleEditSelection={toggleEditTaskSelection}
           onTogglePendingDependency={togglePendingDependencySelection}
+          onConfirmSetDependencies={confirmSetDependencies}
+          onCancelSetDependencies={cancelSetDependencies}
         />
       }
       rightColumn={
@@ -388,7 +396,6 @@ export function AppMain() {
           errorMessage={errorMessage}
           isSettingDependencies={isSettingDependencies}
           onStartSetDependencies={startSetDependencies}
-          onConfirmSetDependencies={confirmSetDependencies}
           onClearSelectedTaskDependencies={clearSelectedTaskDependencies}
         />
       }

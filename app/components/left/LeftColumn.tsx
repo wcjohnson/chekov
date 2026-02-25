@@ -9,6 +9,7 @@ import {
   useCategoriesTasksQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
+  useTaskDetailQuery,
 } from "@/app/lib/storage";
 
 type LeftColumnProps = {
@@ -25,6 +26,8 @@ type LeftColumnProps = {
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
   onTogglePendingDependency: (taskId: TaskId) => void;
+  onConfirmSetDependencies: () => void;
+  onCancelSetDependencies: () => void;
 };
 
 export function LeftColumn({
@@ -41,6 +44,8 @@ export function LeftColumn({
   onToggleComplete,
   onToggleEditSelection,
   onTogglePendingDependency,
+  onConfirmSetDependencies,
+  onCancelSetDependencies,
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -64,6 +69,7 @@ export function LeftColumn({
 
   const categories = useCategoriesQuery().data;
   const categoriesTasks = useCategoriesTasksQuery().data;
+  const selectedTaskDetail = useTaskDetailQuery(selectedTaskId ?? "").data;
 
   const taskBreakout: TaskBreakout = useMemo(() => {
     const visibleCategories: string[] = [];
@@ -121,10 +127,13 @@ export function LeftColumn({
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
         isSettingDependencies={isSettingDependencies}
+        dependencyEditingTaskName={selectedTaskDetail?.title ?? null}
         editSelectedCount={editSelectedTaskIds.size}
         pendingDependencyCount={pendingDependencyIds.size}
         onSelectAll={onSelectAll}
         onClearSelection={onClearSelection}
+        onConfirmSetDependencies={onConfirmSetDependencies}
+        onCancelSetDependencies={onCancelSetDependencies}
       />
 
       <div

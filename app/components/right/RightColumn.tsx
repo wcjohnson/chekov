@@ -12,7 +12,6 @@ type RightColumnProps = {
   errorMessage: string | null;
   isSettingDependencies: boolean;
   onStartSetDependencies: () => void;
-  onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
 };
 
@@ -23,7 +22,6 @@ export function RightColumn({
   errorMessage,
   isSettingDependencies,
   onStartSetDependencies,
-  onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
 }: RightColumnProps) {
   const detail = useTaskDetailQuery(selectedTaskId ?? "").data;
@@ -51,7 +49,6 @@ export function RightColumn({
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             isSettingDependencies={isSettingDependencies}
             onStartSetDependencies={onStartSetDependencies}
-            onConfirmSetDependencies={onConfirmSetDependencies}
             onClearSelectedTaskDependencies={onClearSelectedTaskDependencies}
           />
         </div>
