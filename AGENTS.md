@@ -54,11 +54,11 @@
   - Category `Deps` buttons are disabled while any set-edit workflow is active
   - `Clear Dependencies` action for selected task
   - Task details no longer include editable category input (category change from details removed)
-- Warning tasks:
-  - Tasks can be marked as `warning` in edit details
-  - Warning tasks cannot be directly completed
-  - Warning tasks are shown with distinct styling and treated as effectively complete when dependencies are complete
-  - Warning tasks cannot be selected as dependencies in dependency-editing selection UX
+- Reminder tasks:
+  - Tasks can be marked as `reminder` in edit details
+  - Reminder tasks cannot be directly completed
+  - Reminder tasks are shown with distinct styling and treated as effectively complete when dependencies are complete
+  - Reminder tasks cannot be selected as dependencies in dependency-editing selection UX
 - Layout:
   - Full viewport split pane
   - Independent scrolling in both panes
@@ -73,7 +73,7 @@
   - `taskTags`: `Set<string>` by task id
   - `taskDependencies`: `Set<string>` by task id
   - `taskCompletion`: `true` by task id (presence = completed)
-  - `taskWarnings`: `true` by task id (presence = warning)
+  - `taskWarnings`: `true` by task id (presence = reminder; legacy store key name retained)
   - `taskHidden`: `true` by task id (presence = hidden)
   - `categories`: key `"categories"` → ordered `string[]`
   - `categoryTasks`: category → ordered task id `string[]`
@@ -89,7 +89,7 @@
   - `useCategoriesTasksQuery` → `Map<string, string[]>`
   - `useCategoryDependenciesQuery` → `Map<string, Set<TaskId>>`
   - `useTagColorsQuery` → `Map<string, TagColorKey>`
-  - `useWarningsQuery` → `Set<TaskId>`
+  - `useRemindersQuery` → `Set<TaskId>`
 
 ## Import/Export
 
@@ -98,14 +98,17 @@
 - Import/export normalization logic is centralized in `export.ts`:
   - `normalizeChecklistDefinition(...)`
   - `normalizeChecklistState(...)`
-- Exported task definition supports optional `type?: "task" | "warning"`; `"task"` is omitted on export.
+- Exported task definition supports optional `type?: "task" | "reminder" | "warning"`; `"task"` is omitted on export.
 - Exported task definition supports optional `description?: string`; empty descriptions are omitted on export for compactness.
 - Import fills missing task descriptions as empty string when writing to IndexedDB.
-- Export/import schema for warning tasks is unchanged (`type?: "task" | "warning"`), but persistence maps this to/from `taskWarnings` store instead of `tasks.type`.
+- Export/import schema supports both legacy and current reminder types:
+  - Exports emit `type?: "reminder"` for reminder tasks (and omit `"task"`).
+  - Normalization/import accepts legacy `type?: "warning"` and treats it as reminder.
+  - Persistence maps reminder status to/from `taskWarnings` store instead of `tasks.type`.
 - Exported definition supports optional `categoryDependencies?: Record<CategoryName, TaskId[]>`.
 - Imports missing `categoryDependencies` are treated as empty (no category dependencies).
 - Category dependency normalization drops dependency IDs that do not correspond to existing tasks.
-- Normalization/import enforce warning constraints for dependencies and completion state.
+- Normalization/import enforce reminder constraints for dependencies and completion state.
 - Legacy concerns outside this schema are ignored.
   - Old ad-hoc payload shapes (for example legacy flat task payloads) are no longer migration targets unless explicitly added back to `export.ts`.
 
@@ -134,7 +137,7 @@
   - Task and category dependency-setting both use global set-edit context and confirm from the fixed left header banner
   - Category expand/collapse state is persisted per mode in `categoryCollapsed`
   - In Task Mode, categories with unmet category dependencies are not rendered
-  - Warning state should be read from warning queries/store (`useTaskWarningQuery` / `useWarningsQuery`), not from `StoredTask`
+  - Reminder state should be read from reminder queries/store (`useTaskReminderQuery` / `useRemindersQuery`), not from `StoredTask`
 - Preserve drag-reorder semantics:
   - Reorder/move tasks by updating `categoryTasks` arrays and task `category`
   - Keep `categories` order intact unless explicitly changing category-ordering behavior
@@ -149,7 +152,7 @@
 - `useTaskDependenciesMutation` performs cycle detection using `detectCycle` and throws when a cycle would be created.
 - `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
 - `useTaskDetailMutation` updates title/description only.
-- `useTaskWarningMutation` sets/clears warning status in `taskWarnings`; setting warning removes completion + incoming dependency references in one transaction.
+- `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion + incoming dependency references in one transaction.
 - `useTaskCompletionMutation` updates task completion and also adds the category to collapsed task categories when all tasks in the category are complete.
 
 ## Quick File Map (handoff)
