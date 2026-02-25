@@ -110,6 +110,8 @@
 
 - The app is intentionally fully client-side with no server APIs.
 - Avoid introducing backend persistence unless explicitly requested.
+- Treat IndexedDB as the canonical, untainted source of truth on read paths; avoid defensive read-time filtering/checks in query logic when reading from DB stores.
+- Place defensive validation/guardrails at mutation boundaries instead: UX actions that write data and import/export normalization in `app/lib/export.ts`.
 - Keep storage/query contracts in `storage.ts` and export/import schema contracts in `export.ts` aligned.
 - Keep dependency cycle prevention enforced when changing dependency logic (`detectCycle` in `app/lib/utils.ts`).
 - Preserve current interaction contracts:
