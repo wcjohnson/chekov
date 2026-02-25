@@ -2,7 +2,7 @@
 
 import { useContext, type RefObject } from "react";
 import type { ChecklistMode } from "../lib/types";
-import { SetEditContext } from "../lib/utils";
+import { MultiSelectContext } from "../lib/utils";
 
 type TopBarProps = {
   mode: ChecklistMode;
@@ -41,7 +41,7 @@ export function TopBar({
   onImportDefinitionFile,
   onImportStateFile,
 }: TopBarProps) {
-  const setEditContext = useContext(SetEditContext);
+  const setEditContext = useContext(MultiSelectContext);
   const isSettingDependencies = !!setEditContext.editState;
 
   return (

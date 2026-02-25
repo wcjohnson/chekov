@@ -11,7 +11,7 @@ import {
 } from "@/app/lib/storage";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
-import { SetEditContext } from "@/app/lib/utils";
+import { MultiSelectContext } from "@/app/lib/utils";
 
 type TaskProps = {
   taskId: TaskId;
@@ -48,7 +48,7 @@ export function Task({
     isDragging: false,
   });
 
-  const setEditContext = useContext(SetEditContext);
+  const setEditContext = useContext(MultiSelectContext);
   const setEditState = setEditContext.editState;
 
   const isEditingSet = !!setEditState;

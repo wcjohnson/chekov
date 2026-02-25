@@ -1,6 +1,6 @@
 "use client";
 
-import { SetEditContext } from "@/app/lib/utils";
+import { MultiSelectContext } from "@/app/lib/utils";
 import { useContext } from "react";
 
 type LeftHeaderProps = {
@@ -19,7 +19,7 @@ export function LeftHeader({
   onSelectAll,
   onClearSelection,
 }: LeftHeaderProps) {
-  const setEditContext = useContext(SetEditContext);
+  const setEditContext = useContext(MultiSelectContext);
   const isEditingSet = !!setEditContext.editState;
   const setItemCount = setEditContext.editState?.selectedTaskSet.size ?? 0;
 

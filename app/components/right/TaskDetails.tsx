@@ -26,7 +26,7 @@ import {
   useTaskDetailQuery,
   useTaskDependenciesMutation,
 } from "@/app/lib/storage";
-import { SetEditContext } from "@/app/lib/utils";
+import { MultiSelectContext } from "@/app/lib/utils";
 
 function DependencyItem({
   dependencyId,
@@ -70,7 +70,7 @@ export function TaskDetails({
     string | null
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const setEditContext = useContext(SetEditContext);
+  const setEditContext = useContext(MultiSelectContext);
   const isSettingDependencies =
     setEditContext.editState &&
     setEditContext.editState.editContext === "dependencies";

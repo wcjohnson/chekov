@@ -20,7 +20,7 @@ import {
   useUncompleteAllTasksMutation,
   useUnhideAllTasksMutation,
 } from "./lib/storage";
-import { SetEditContext, type SetEditContextState } from "./lib/utils";
+import { MultiSelectContext, type MultiSelectState } from "./lib/utils";
 import {
   downloadJson,
   exportChecklistDefinition,
@@ -47,7 +47,7 @@ export function AppMain() {
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [setEditState, setSetEditState] = useState<SetEditContextState | null>(
+  const [setEditState, setSetEditState] = useState<MultiSelectState | null>(
     null,
   );
 
@@ -267,7 +267,7 @@ export function AppMain() {
   };
 
   return (
-    <SetEditContext
+    <MultiSelectContext
       value={{ setEditState: setSetEditState, editState: setEditState }}
     >
       <AppLayout
@@ -330,7 +330,7 @@ export function AppMain() {
           />
         }
       />
-    </SetEditContext>
+    </MultiSelectContext>
   );
 }
 
