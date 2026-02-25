@@ -8,6 +8,7 @@ import { useTaskDetailQuery } from "@/app/lib/storage";
 type RightColumnProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
+  tasksWithCompleteDependencies: Set<TaskId>;
   errorMessage: string | null;
   isSettingDependencies: boolean;
   onStartSetDependencies: () => void;
@@ -18,6 +19,7 @@ type RightColumnProps = {
 export function RightColumn({
   mode,
   selectedTaskId,
+  tasksWithCompleteDependencies,
   errorMessage,
   isSettingDependencies,
   onStartSetDependencies,
@@ -46,6 +48,7 @@ export function RightColumn({
             mode={mode}
             selectedTaskId={selectedTaskId}
             selectedTaskDetail={detail}
+            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             isSettingDependencies={isSettingDependencies}
             onStartSetDependencies={onStartSetDependencies}
             onConfirmSetDependencies={onConfirmSetDependencies}

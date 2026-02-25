@@ -8,7 +8,7 @@ import {
   getTagSwatchClasses,
   TAG_COLOR_OPTIONS,
 } from "../../lib/tagColors";
-import type { ChecklistMode } from "../../lib/types";
+import type { ChecklistMode, TaskId } from "../../lib/types";
 import {
   useAllKnownTagsQuery,
   useCompletionsQuery,
@@ -52,8 +52,9 @@ function DependencyItem({
 
 type TaskDetailsProps = {
   mode: ChecklistMode;
-  selectedTaskId: string | null;
+  selectedTaskId: TaskId | null;
   selectedTaskDetail: StoredTask | null | undefined;
+  tasksWithCompleteDependencies: Set<TaskId>;
   isSettingDependencies: boolean;
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
@@ -64,6 +65,7 @@ export function TaskDetails({
   mode,
   selectedTaskId,
   selectedTaskDetail,
+  tasksWithCompleteDependencies,
   isSettingDependencies,
   onStartSetDependencies,
   onConfirmSetDependencies,
@@ -82,6 +84,11 @@ export function TaskDetails({
     useTaskDependenciesQuery(selectedTaskId ?? "").data ?? new Set();
   const completions = useCompletionsQuery().data ?? new Set();
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
+  const taskType = selectedTaskDetail?.type === "warning" ? "warning" : "task";
+  const isWarningTask = taskType === "warning";
+  const isEffectivelyCompleted = isWarningTask
+    ? tasksWithCompleteDependencies.has(selectedTaskId ?? "")
+    : completions.has(selectedTaskId ?? "");
 
   const knownTagSet = useAllKnownTagsQuery().data;
   const allKnownTags = useMemo(() => {
@@ -184,6 +191,27 @@ export function TaskDetails({
             className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
           />
         </label>
+
+        <div className="rounded-md border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isWarningTask}
+              onChange={(event) =>
+                taskDetailMutation.mutate({
+                  taskId: selectedTaskId ?? "",
+                  type: event.target.checked ? "warning" : undefined,
+                })
+              }
+            />
+            <span className="font-medium">Warning task</span>
+          </label>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Warnings cannot be completed directly and are treated as completed
+            when all dependencies are completed.
+          </p>
+        </div>
+
         <div>
           <p className="mb-2 text-sm font-medium">Dependencies</p>
           <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
@@ -392,7 +420,7 @@ export function TaskDetails({
         Category: {selectedTaskDetail?.category ?? "Uncategorized"}
       </p>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        Completed: {completions.has(selectedTaskId ?? "") ? "Yes" : "No"}
+        Completed: {isEffectivelyCompleted ? "Yes" : "No"}
       </p>
       <div>
         <p className="mb-1 text-sm font-medium">Tags</p>

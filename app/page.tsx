@@ -384,6 +384,7 @@ export function AppMain() {
         <RightColumn
           mode={mode}
           selectedTaskId={selectedTaskId}
+          tasksWithCompleteDependencies={tasksWithCompleteDependencies}
           errorMessage={errorMessage}
           isSettingDependencies={isSettingDependencies}
           onStartSetDependencies={startSetDependencies}

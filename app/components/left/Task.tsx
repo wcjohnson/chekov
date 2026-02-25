@@ -53,8 +53,12 @@ export function Task({
     isDragging: false,
   });
 
+  const taskType = detail?.type === "warning" ? "warning" : "task";
+  const isWarning = taskType === "warning";
+  const isEffectivelyComplete = isWarning ? dependenciesComplete : isComplete;
   const canDrag = mode === "edit" && !isSettingDependencies;
-  const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
+  const showTaskModeCheckbox =
+    mode === "task" && dependenciesComplete && !isWarning;
   const showEditSelectionCheckbox =
     mode === "edit" && (!isSettingDependencies || taskId !== selectedTaskId);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
@@ -91,6 +95,10 @@ export function Task({
           isSelected
             ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
             : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+        } ${
+          isWarning
+            ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
+            : ""
         } ${dragState.isDragging ? "opacity-60" : ""}`}
       >
         {canDrag && (
@@ -119,12 +127,20 @@ export function Task({
           <input
             type="checkbox"
             checked={
-              isSettingDependencies ? isPendingDependency : isEditSelected
+              isSettingDependencies
+                ? isWarning
+                  ? false
+                  : isPendingDependency
+                : isEditSelected
             }
+            disabled={isSettingDependencies && isWarning}
             onChange={(event) => {
               event.stopPropagation();
 
               if (isSettingDependencies) {
+                if (isWarning) {
+                  return;
+                }
                 onTogglePendingDependency(taskId);
                 return;
               }
@@ -140,12 +156,17 @@ export function Task({
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <p
             className={`min-w-0 flex-1 truncate text-sm font-medium ${
-              mode === "task" && isComplete ? "line-through" : ""
+              mode === "task" && isEffectivelyComplete ? "line-through" : ""
             }`}
           >
             {detail?.title || "Untitled Task"}
             {mode === "task" && isHidden ? " (Hidden)" : ""}
           </p>
+          {isWarning && (
+            <span className="shrink-0 text-xs font-medium text-amber-700 dark:text-amber-300">
+              Warning
+            </span>
+          )}
           {hasDescription && (
             <span
               className="shrink-0 text-zinc-500 dark:text-zinc-400"

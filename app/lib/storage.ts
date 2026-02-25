@@ -22,6 +22,7 @@ export type StoredTask = {
   title: string;
   description: string;
   category: string;
+  type?: "task" | "warning";
 };
 
 interface ChekovDB extends DBSchema {
@@ -465,15 +466,13 @@ export function useMoveCategoryMutation() {
 
 export function useTaskDetailMutation() {
   return useMutation({
-    mutationFn: async ({
-      taskId,
-      title,
-      description,
-    }: {
+    mutationFn: async (variables: {
       taskId: TaskId;
       title?: string | undefined;
       description?: string | undefined;
+      type?: "task" | "warning" | undefined;
     }) => {
+      const { taskId, title, description, type } = variables;
       const db = await getDb();
       const task = await db.get(TASKS_STORE, taskId);
       if (!task) {
@@ -481,7 +480,47 @@ export function useTaskDetailMutation() {
       }
       if (title !== undefined) task.title = title;
       if (description !== undefined) task.description = description;
-      await db.put(TASKS_STORE, task, taskId);
+
+      if ("type" in variables && type === "warning") {
+        const tx = db.transaction(
+          [TASKS_STORE, TASK_COMPLETION_STORE, TASK_DEPENDENCIES_STORE],
+          "readwrite",
+        );
+        const tasksStore = tx.objectStore(TASKS_STORE);
+        const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
+        const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
+
+        task.type = "warning";
+
+        await completionStore.delete(taskId);
+
+        const dependencyTaskIds = await dependenciesStore.getAllKeys();
+        const dependencyValues = await dependenciesStore.getAll();
+
+        for (let index = 0; index < dependencyTaskIds.length; index += 1) {
+          const dependencyTaskId = dependencyTaskIds[index];
+          const dependencies = dependencyValues[index] ?? new Set<string>();
+          if (!dependencies.delete(taskId)) {
+            continue;
+          }
+
+          if (dependencies.size === 0) {
+            await dependenciesStore.delete(dependencyTaskId);
+          } else {
+            await dependenciesStore.put(dependencies, dependencyTaskId);
+          }
+        }
+
+        await tasksStore.put(task, taskId);
+        await tx.done;
+        return;
+      } else {
+        if ("type" in variables && type !== "warning") {
+          delete task.type;
+        }
+
+        await db.put(TASKS_STORE, task, taskId);
+      }
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
@@ -490,6 +529,18 @@ export function useTaskDetailMutation() {
       queryClient.invalidateQueries({
         queryKey: ["details"],
       });
+
+      if (variables.type === "warning") {
+        queryClient.invalidateQueries({
+          queryKey: ["task", "completion", variables.taskId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["completions"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["dependencies"],
+        });
+      }
     },
   });
 }
@@ -651,6 +702,7 @@ export function useTaskCompletionMutation() {
       isCompleted: boolean;
     }) => {
       const db = await getDb();
+
       if (isCompleted) {
         await db.put(TASK_COMPLETION_STORE, true, taskId);
       } else {
@@ -787,6 +839,7 @@ function getQueryArgs_dependencies() {
           dependencies,
         );
       }
+
       return record;
     },
   };

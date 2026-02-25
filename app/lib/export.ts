@@ -20,6 +20,7 @@ export type ExportedTaskDefinition = {
   category: string;
   title: string;
   description: string;
+  type?: "task" | "warning";
   dependencies?: string[];
   tags?: string[];
 };
@@ -56,20 +57,27 @@ function normalizeChecklistDefinition(
     {};
 
   const allTaskIds = new Set<TaskId>();
+  const warningTaskIds = new Set<TaskId>();
 
   for (const tasks of Object.values(definition.tasksByCategory)) {
     for (const task of tasks ?? []) {
       allTaskIds.add(task.id);
+      if (task.type === "warning") {
+        warningTaskIds.add(task.id);
+      }
     }
   }
 
   for (const [category, tasks] of Object.entries(definition.tasksByCategory)) {
     normalizedTasksByCategory[category] = (tasks ?? []).map((task) => {
+      const normalizedType = task.type === "warning" ? "warning" : "task";
       const normalizedDependencies = Array.from(
         new Set<TaskId>(
           Array.from(task.dependencies ?? []).filter(
             (dependencyId) =>
-              dependencyId !== task.id && allTaskIds.has(dependencyId),
+              dependencyId !== task.id &&
+              allTaskIds.has(dependencyId) &&
+              !warningTaskIds.has(dependencyId),
           ),
         ),
       );
@@ -83,7 +91,11 @@ function normalizeChecklistDefinition(
       );
 
       return {
-        ...task,
+        id: task.id,
+        category: task.category,
+        title: task.title,
+        description: task.description,
+        ...(normalizedType === "warning" ? { type: "warning" as const } : {}),
         ...(normalizedDependencies.length > 0
           ? { dependencies: normalizedDependencies }
           : {}),
@@ -225,18 +237,30 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
   const tasksByCategory: Record<string, ExportedTaskDefinition[]> = {};
   categories.forEach((category) => {
     const taskIds = categoryTasksRecord[category] ?? [];
-    tasksByCategory[category] = taskIds.map((taskId) => ({
-      id: taskId,
-      category,
-      title: taskRecord[taskId].title,
-      description: taskRecord[taskId].description,
-      ...(Array.from(taskDependenciesRecord[taskId] ?? []).length > 0
-        ? { dependencies: Array.from(taskDependenciesRecord[taskId] ?? []) }
-        : {}),
-      ...(Array.from(taskTagsRecord[taskId] ?? []).length > 0
-        ? { tags: Array.from(taskTagsRecord[taskId] ?? []) }
-        : {}),
-    }));
+    const categoryTasks: ExportedTaskDefinition[] = [];
+
+    for (const taskId of taskIds) {
+      const task = taskRecord[taskId];
+      if (!task) {
+        continue;
+      }
+
+      categoryTasks.push({
+        id: taskId,
+        category,
+        title: task.title,
+        description: task.description,
+        ...(task.type === "warning" ? { type: "warning" as const } : {}),
+        ...(Array.from(taskDependenciesRecord[taskId] ?? []).length > 0
+          ? { dependencies: Array.from(taskDependenciesRecord[taskId] ?? []) }
+          : {}),
+        ...(Array.from(taskTagsRecord[taskId] ?? []).length > 0
+          ? { tags: Array.from(taskTagsRecord[taskId] ?? []) }
+          : {}),
+      });
+    }
+
+    tasksByCategory[category] = categoryTasks;
   });
 
   return normalizeChecklistDefinition({
@@ -268,9 +292,21 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
     taskCompletionKeys,
     taskCompletionValues,
   );
+  const warningTaskIds = new Set<TaskId>();
+  for (const tasks of Object.values(definition.tasksByCategory)) {
+    for (const task of tasks ?? []) {
+      if (task.type === "warning") {
+        warningTaskIds.add(task.id);
+      }
+    }
+  }
 
   const tasks: Record<TaskId, ExportedChecklistTaskState> = {};
   taskCompletionKeys.forEach((taskId) => {
+    if (warningTaskIds.has(taskId)) {
+      return;
+    }
+
     const completed = taskCompletionRecord[taskId] ?? false;
     const explicitlyHidden = visibilityTask.has(taskId);
     tasks[taskId] = { completed, explicitlyHidden };
@@ -361,6 +397,7 @@ export async function importChecklistDefinition(
           title: task.title,
           description: task.description,
           category,
+          ...(task.type === "warning" ? { type: "warning" as const } : {}),
         },
         task.id,
       );
@@ -383,6 +420,14 @@ export async function importChecklistDefinition(
 export async function importChecklistState(state: ExportedChecklistState) {
   const db = await getDb();
   const definition = await exportChecklistDefinition();
+  const warningTaskIds = new Set<TaskId>();
+  for (const tasks of Object.values(definition.tasksByCategory)) {
+    for (const task of tasks ?? []) {
+      if (task.type === "warning") {
+        warningTaskIds.add(task.id);
+      }
+    }
+  }
 
   const normalizedState = normalizeChecklistState(state, definition);
 
@@ -405,7 +450,7 @@ export async function importChecklistState(state: ExportedChecklistState) {
   ]);
 
   for (const [taskId, taskState] of Object.entries(normalizedState.tasks)) {
-    if (taskState.completed) {
+    if (taskState.completed && !warningTaskIds.has(taskId)) {
       await taskCompletionStore.put(true, taskId);
     }
 
