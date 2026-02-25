@@ -11,6 +11,7 @@ import {
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
   TASK_TAGS_STORE,
+  TASK_WARNINGS_STORE,
   TASKS_STORE,
 } from "./storage";
 import type { TagColorKey } from "./tagColors";
@@ -239,6 +240,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskTagValues,
     taskDependencyKeys,
     taskDependencyValues,
+    warningTaskKeys,
+    warningTaskValues,
     maybeCategories,
     categoryTaskKeys,
     categoryTaskValues,
@@ -253,6 +256,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.getAll(TASK_TAGS_STORE),
     db.getAllKeys(TASK_DEPENDENCIES_STORE),
     db.getAll(TASK_DEPENDENCIES_STORE),
+    db.getAllKeys(TASK_WARNINGS_STORE),
+    db.getAll(TASK_WARNINGS_STORE),
     db.get(CATEGORIES_STORE, "categories"),
     db.getAllKeys(CATEGORY_TASKS_STORE),
     db.getAll(CATEGORY_TASKS_STORE),
@@ -269,6 +274,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskDependencyKeys,
     taskDependencyValues,
   );
+  const warningTasksMap = fromKvPairsToMap(warningTaskKeys, warningTaskValues);
   const categoryTasksMap = fromKvPairsToMap(
     categoryTaskKeys,
     categoryTaskValues,
@@ -301,7 +307,9 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(task.description.length > 0
           ? { description: task.description }
           : {}),
-        ...(task.type === "warning" ? { type: "warning" as const } : {}),
+        ...(warningTasksMap.has(taskId)
+          ? { type: "warning" as const }
+          : {}),
         ...(Array.from(taskDependencies).length > 0
           ? { dependencies: Array.from(taskDependencies) }
           : {}),
@@ -412,6 +420,7 @@ export async function importChecklistDefinition(
       TASKS_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
+      TASK_WARNINGS_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
       CATEGORY_DEPENDENCIES_STORE,
@@ -428,6 +437,7 @@ export async function importChecklistDefinition(
   const taskDependenciesStore = transaction.objectStore(
     TASK_DEPENDENCIES_STORE,
   );
+  const taskWarningsStore = transaction.objectStore(TASK_WARNINGS_STORE);
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
   const categoryDependenciesStore = transaction.objectStore(
@@ -442,6 +452,7 @@ export async function importChecklistDefinition(
     tasksStore.clear(),
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
+    taskWarningsStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
     categoryDependenciesStore.clear(),
@@ -484,10 +495,13 @@ export async function importChecklistDefinition(
           title: task.title,
           description: task.description ?? "",
           category,
-          ...(task.type === "warning" ? { type: "warning" as const } : {}),
         },
         task.id,
       );
+
+      if (task.type === "warning") {
+        await taskWarningsStore.put(true, task.id);
+      }
 
       if (task.dependencies && task.dependencies.length > 0) {
         await taskDependenciesStore.put(new Set(task.dependencies), task.id);

@@ -67,12 +67,13 @@
 
 ## Data Model & Storage
 
-- IndexedDB schema is defined in `app/lib/storage.ts` (`ChekovDB`, `DB_VERSION = 4`).
+- IndexedDB schema is defined in `app/lib/storage.ts` (`ChekovDB`, `DB_VERSION = 5`).
 - Canonical persisted model is normalized across object stores:
-  - `tasks`: `{ id, title, description, category, type? }` where `type` is optional (`"warning"` when warning; omitted for normal task)
+  - `tasks`: `{ id, title, description, category }`
   - `taskTags`: `Set<string>` by task id
   - `taskDependencies`: `Set<string>` by task id
   - `taskCompletion`: `true` by task id (presence = completed)
+  - `taskWarnings`: `true` by task id (presence = warning)
   - `taskHidden`: `true` by task id (presence = hidden)
   - `categories`: key `"categories"` → ordered `string[]`
   - `categoryTasks`: category → ordered task id `string[]`
@@ -88,6 +89,7 @@
   - `useCategoriesTasksQuery` → `Map<string, string[]>`
   - `useCategoryDependenciesQuery` → `Map<string, Set<TaskId>>`
   - `useTagColorsQuery` → `Map<string, TagColorKey>`
+  - `useWarningsQuery` → `Set<TaskId>`
 
 ## Import/Export
 
@@ -99,6 +101,7 @@
 - Exported task definition supports optional `type?: "task" | "warning"`; `"task"` is omitted on export.
 - Exported task definition supports optional `description?: string`; empty descriptions are omitted on export for compactness.
 - Import fills missing task descriptions as empty string when writing to IndexedDB.
+- Export/import schema for warning tasks is unchanged (`type?: "task" | "warning"`), but persistence maps this to/from `taskWarnings` store instead of `tasks.type`.
 - Exported definition supports optional `categoryDependencies?: Record<CategoryName, TaskId[]>`.
 - Imports missing `categoryDependencies` are treated as empty (no category dependencies).
 - Category dependency normalization drops dependency IDs that do not correspond to existing tasks.
@@ -131,7 +134,7 @@
   - Task and category dependency-setting both use global set-edit context and confirm from the fixed left header banner
   - Category expand/collapse state is persisted per mode in `categoryCollapsed`
   - In Task Mode, categories with unmet category dependencies are not rendered
-  - Warning tasks are treated as task by default when `type` is absent; check `task.type === "warning"` at usage sites
+  - Warning state should be read from warning queries/store (`useTaskWarningQuery` / `useWarningsQuery`), not from `StoredTask`
 - Preserve drag-reorder semantics:
   - Reorder/move tasks by updating `categoryTasks` arrays and task `category`
   - Keep `categories` order intact unless explicitly changing category-ordering behavior
@@ -145,9 +148,8 @@
 - `useMoveTaskMutation` resolves moved task from `fromCategory + fromIndex`; if source task is missing, it aborts transaction and returns without throwing.
 - `useTaskDependenciesMutation` performs cycle detection using `detectCycle` and throws when a cycle would be created.
 - `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
-- `useTaskDetailMutation` has split paths for `type` updates:
-  - Setting `type` to `warning` uses a transaction and removes completion + incoming dependency references.
-  - Non-warning detail updates use direct writes.
+- `useTaskDetailMutation` updates title/description only.
+- `useTaskWarningMutation` sets/clears warning status in `taskWarnings`; setting warning removes completion + incoming dependency references in one transaction.
 - `useTaskCompletionMutation` updates task completion and also adds the category to collapsed task categories when all tasks in the category are complete.
 
 ## Quick File Map (handoff)

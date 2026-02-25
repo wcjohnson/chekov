@@ -25,6 +25,8 @@ import {
   type StoredTask,
   useTaskDetailQuery,
   useTaskDependenciesMutation,
+  useTaskWarningMutation,
+  useTaskWarningQuery,
 } from "@/app/lib/storage";
 import { MultiSelectContext } from "@/app/lib/context";
 
@@ -81,9 +83,8 @@ export function TaskDetails({
   const selectedTaskDeps =
     useTaskDependenciesQuery(selectedTaskId ?? "").data ?? new Set();
   const completions = useCompletionsQuery().data ?? new Set();
+  const isWarningTask = useTaskWarningQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
-  const taskType = selectedTaskDetail?.type === "warning" ? "warning" : "task";
-  const isWarningTask = taskType === "warning";
   const isEffectivelyCompleted = isWarningTask
     ? tasksWithCompleteDependencies.has(selectedTaskId ?? "")
     : completions.has(selectedTaskId ?? "");
@@ -117,6 +118,7 @@ export function TaskDetails({
 
   const deleteTasksMutation = useDeleteTasksMutation();
   const taskDetailMutation = useTaskDetailMutation();
+  const taskWarningMutation = useTaskWarningMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
@@ -220,9 +222,9 @@ export function TaskDetails({
               type="checkbox"
               checked={isWarningTask}
               onChange={(event) =>
-                taskDetailMutation.mutate({
+                taskWarningMutation.mutate({
                   taskId: selectedTaskId ?? "",
-                  type: event.target.checked ? "warning" : undefined,
+                  isWarning: event.target.checked,
                 })
               }
             />

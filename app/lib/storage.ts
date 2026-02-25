@@ -6,11 +6,12 @@ import { detectCycle, fromKvPairsToMap } from "./utils";
 import { useMemo } from "react";
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 export const TASKS_STORE = "tasks";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
 export const TASK_COMPLETION_STORE = "taskCompletion";
+export const TASK_WARNINGS_STORE = "taskWarnings";
 export const TASK_HIDDEN_STORE = "taskHidden";
 export const CATEGORIES_STORE = "categories";
 export const CATEGORY_TASKS_STORE = "categoryTasks";
@@ -23,7 +24,6 @@ export type StoredTask = {
   title: string;
   description: string;
   category: CategoryName;
-  type?: "task" | "warning";
 };
 
 interface ChekovDB extends DBSchema {
@@ -40,6 +40,10 @@ interface ChekovDB extends DBSchema {
     value: Set<TaskId>;
   };
   [TASK_COMPLETION_STORE]: {
+    key: TaskId;
+    value: true;
+  };
+  [TASK_WARNINGS_STORE]: {
     key: TaskId;
     value: true;
   };
@@ -87,6 +91,7 @@ export const getDb = async () => {
         db.createObjectStore(TASK_TAGS_STORE);
         db.createObjectStore(TASK_DEPENDENCIES_STORE);
         db.createObjectStore(TASK_COMPLETION_STORE);
+        db.createObjectStore(TASK_WARNINGS_STORE);
         db.createObjectStore(TASK_HIDDEN_STORE);
         db.createObjectStore(CATEGORIES_STORE);
         db.createObjectStore(CATEGORY_TASKS_STORE);
@@ -180,6 +185,7 @@ export function useDeleteTasksMutation() {
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
           TASK_COMPLETION_STORE,
+          TASK_WARNINGS_STORE,
           TASK_HIDDEN_STORE,
           CATEGORIES_STORE,
           CATEGORY_TASKS_STORE,
@@ -191,6 +197,7 @@ export function useDeleteTasksMutation() {
       const taskTagsStore = tx.objectStore(TASK_TAGS_STORE);
       const taskDependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
       const taskCompletionStore = tx.objectStore(TASK_COMPLETION_STORE);
+      const taskWarningsStore = tx.objectStore(TASK_WARNINGS_STORE);
       const taskHiddenStore = tx.objectStore(TASK_HIDDEN_STORE);
       const categoriesStore = tx.objectStore(CATEGORIES_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
@@ -230,6 +237,7 @@ export function useDeleteTasksMutation() {
           taskTagsStore.delete(taskId),
           taskDependenciesStore.delete(taskId),
           taskCompletionStore.delete(taskId),
+          taskWarningsStore.delete(taskId),
           taskHiddenStore.delete(taskId),
         ]),
       );
@@ -298,6 +306,7 @@ export function useDeleteTasksMutation() {
         queryKey: ["dependencies"],
       });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
+      queryClient.invalidateQueries({ queryKey: ["warnings"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
 
       for (const taskId of deletedTaskIds) {
@@ -307,6 +316,7 @@ export function useDeleteTasksMutation() {
           queryKey: ["task", "completion", taskId],
         });
         queryClient.invalidateQueries({ queryKey: ["task", "hidden", taskId] });
+        queryClient.invalidateQueries({ queryKey: ["task", "warning", taskId] });
       }
     },
   });
@@ -476,9 +486,8 @@ export function useTaskDetailMutation() {
       taskId: TaskId;
       title?: string | undefined;
       description?: string | undefined;
-      type?: "task" | "warning" | undefined;
     }) => {
-      const { taskId, title, description, type } = variables;
+      const { taskId, title, description } = variables;
       const db = await getDb();
       const task = await db.get(TASKS_STORE, taskId);
       if (!task) {
@@ -487,17 +496,40 @@ export function useTaskDetailMutation() {
       if (title !== undefined) task.title = title;
       if (description !== undefined) task.description = description;
 
-      if ("type" in variables && type === "warning") {
+      await db.put(TASKS_STORE, task, taskId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["task", "detail", variables.taskId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["details"],
+      });
+    },
+  });
+}
+
+export function useTaskWarningMutation() {
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      isWarning,
+    }: {
+      taskId: TaskId;
+      isWarning: boolean;
+    }) => {
+      const db = await getDb();
+
+      if (isWarning) {
         const tx = db.transaction(
-          [TASKS_STORE, TASK_COMPLETION_STORE, TASK_DEPENDENCIES_STORE],
+          [TASK_WARNINGS_STORE, TASK_COMPLETION_STORE, TASK_DEPENDENCIES_STORE],
           "readwrite",
         );
-        const tasksStore = tx.objectStore(TASKS_STORE);
+        const warningsStore = tx.objectStore(TASK_WARNINGS_STORE);
         const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
         const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
 
-        task.type = "warning";
-
+        await warningsStore.put(true, taskId);
         await completionStore.delete(taskId);
 
         const dependencyTaskIds = await dependenciesStore.getAllKeys();
@@ -517,36 +549,22 @@ export function useTaskDetailMutation() {
           }
         }
 
-        await tasksStore.put(task, taskId);
         await tx.done;
         return;
-      } else {
-        if ("type" in variables && type !== "warning") {
-          delete task.type;
-        }
-
-        await db.put(TASKS_STORE, task, taskId);
       }
+
+      await db.delete(TASK_WARNINGS_STORE, taskId);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["task", "detail", variables.taskId],
+        queryKey: ["task", "warning", variables.taskId],
       });
+      queryClient.invalidateQueries({ queryKey: ["warnings"] });
       queryClient.invalidateQueries({
-        queryKey: ["details"],
+        queryKey: ["task", "completion", variables.taskId],
       });
-
-      if (variables.type === "warning") {
-        queryClient.invalidateQueries({
-          queryKey: ["task", "completion", variables.taskId],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["completions"],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["dependencies"],
-        });
-      }
+      queryClient.invalidateQueries({ queryKey: ["completions"] });
+      queryClient.invalidateQueries({ queryKey: ["dependencies"] });
     },
   });
 }
@@ -799,6 +817,7 @@ export function useTaskCompletionMutation() {
       const tx = db.transaction(
         [
           TASK_COMPLETION_STORE,
+          TASK_WARNINGS_STORE,
           TASKS_STORE,
           CATEGORY_TASKS_STORE,
           CATEGORY_COLLAPSED_STORE,
@@ -808,6 +827,7 @@ export function useTaskCompletionMutation() {
       );
 
       const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
+      const warningsStore = tx.objectStore(TASK_WARNINGS_STORE);
       const tasksStore = tx.objectStore(TASKS_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
       const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
@@ -831,12 +851,11 @@ export function useTaskCompletionMutation() {
       const completedTaskIds = new Set<string>(
         await completionStore.getAllKeys(),
       );
+      const warningTaskIds = new Set<string>(await warningsStore.getAllKeys());
 
       let allCategoryTasksComplete = true;
       for (const categoryTaskId of categoryTaskIds) {
-        const categoryTask = await tasksStore.get(categoryTaskId);
-
-        if (categoryTask?.type === "warning") {
+        if (warningTaskIds.has(categoryTaskId)) {
           const warningDependencies =
             (await dependenciesStore.get(categoryTaskId)) ?? new Set<string>();
           for (const dependencyId of warningDependencies) {
@@ -1051,6 +1070,27 @@ export function useCompletionsQuery() {
   return useQuery(getQueryArgs_completions());
 }
 
+function getQueryArgs_warnings() {
+  return {
+    queryKey: ["warnings"],
+    queryFn: async () => {
+      console.log("Fetching ALL task warnings");
+      const db = await getDb();
+      const allWarningTasks = new Set<string>(
+        await db.getAllKeys(TASK_WARNINGS_STORE),
+      );
+      for (const taskId of allWarningTasks) {
+        queryClient.setQueryData(["task", "warning", taskId], true);
+      }
+      return allWarningTasks;
+    },
+  };
+}
+
+export function useWarningsQuery() {
+  return useQuery(getQueryArgs_warnings());
+}
+
 function getQueryArgs_details(enabled?: boolean) {
   return {
     queryKey: ["details"],
@@ -1174,6 +1214,17 @@ export function useTaskCompletionQuery(taskId: TaskId) {
       const db = await getDb();
       const isCompleted = await db.get(TASK_COMPLETION_STORE, taskId);
       return !!isCompleted;
+    },
+  });
+}
+
+export function useTaskWarningQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "warning", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isWarning = await db.get(TASK_WARNINGS_STORE, taskId);
+      return !!isWarning;
     },
   });
 }

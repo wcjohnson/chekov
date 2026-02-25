@@ -7,6 +7,7 @@ import {
   useTaskCompletionQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
+  useTaskWarningQuery,
   useTaskTagsQuery,
 } from "@/app/lib/storage";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
@@ -39,6 +40,7 @@ export function Task({
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
+  const isWarning = useTaskWarningQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
   const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
@@ -53,8 +55,6 @@ export function Task({
   const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
   const taskIsBannedFromMultiselect = false;
 
-  const taskType = detail?.type === "warning" ? "warning" : "task";
-  const isWarning = taskType === "warning";
   const isEffectivelyComplete = isWarning ? dependenciesComplete : isComplete;
   const canDrag = mode === "edit" && !isEditingSet;
   const showTaskModeCheckbox =
