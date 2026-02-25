@@ -14,7 +14,6 @@ import { useRef, useState } from "react";
 
 type TaskProps = {
   taskId: TaskId;
-  category: string;
   index: number;
   mode: ChecklistMode;
   isSettingDependencies: boolean;
@@ -31,7 +30,6 @@ type TaskProps = {
 
 export function Task({
   taskId,
-  category,
   index,
   mode,
   isSettingDependencies,

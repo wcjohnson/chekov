@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
@@ -9,7 +9,6 @@ import {
   useCategoriesTasks,
   useCreateTaskMutation,
   useMoveCategoryMutation,
-  useMoveTaskMutation,
 } from "@/app/lib/storage";
 
 type LeftColumnProps = {

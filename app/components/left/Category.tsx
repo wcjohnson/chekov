@@ -129,7 +129,6 @@ export function Category({
             <Task
               key={taskId}
               taskId={taskId}
-              category={category}
               index={index}
               mode={mode}
               isSettingDependencies={isSettingDependencies}

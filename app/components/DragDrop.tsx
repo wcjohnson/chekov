@@ -16,7 +16,6 @@ import {
   dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import clsx from "clsx";
 import {
   attachClosestEdge,
   extractClosestEdge,
