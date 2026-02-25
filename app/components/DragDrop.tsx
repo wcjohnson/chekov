@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type Dispatch,
   type RefObject,
   type SetStateAction,
@@ -134,8 +135,13 @@ export function DragDropListItem<ElementT extends React.ElementType = "div">({
     );
   }, [index, group, onMoveItem, dragHandleRef, dragDisabled, setDragDropState]);
 
+  const nextStyle: CSSProperties = restProps.style
+    ? Object.assign({}, restProps.style)
+    : {};
+  nextStyle.position = "relative";
+
   return (
-    <Tag {...restProps} ref={divRef} style={{ position: "relative" }}>
+    <Tag {...restProps} ref={divRef} style={nextStyle}>
       {children}
       {closestEdge && <DropIndicator edge={closestEdge} />}
     </Tag>

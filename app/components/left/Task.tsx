@@ -1,6 +1,5 @@
 "use client";
 
-import { useSortable } from "@dnd-kit/react/sortable";
 import { getTagBadgeClasses } from "../../lib/tagColors";
 import type { ChecklistMode, TaskId } from "../../lib/types";
 import {
@@ -67,106 +66,112 @@ export function Task({
       index={index}
       dragHandleRef={handleRef}
       setDragDropState={setDragState}
-      role="button"
-      tabIndex={0}
-      onClick={() => {
-        if (mode === "edit" && isSettingDependencies) {
-          return;
-        }
-        onSelectTask(taskId);
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") {
-          return;
-        }
-
-        event.preventDefault();
-        if (mode === "edit" && isSettingDependencies) {
-          return;
-        }
-
-        onSelectTask(taskId);
-      }}
-      className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-left ${
-        isSelected
-          ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-          : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-      } ${dragState.isDragging ? "opacity-60" : ""}`}
+      className="py-0.5 w-full"
     >
-      {canDrag && (
-        <button
-          type="button"
-          ref={handleRef}
-          onClick={(event) => event.stopPropagation()}
-          className="cursor-grab select-none text-zinc-500 dark:text-zinc-400"
-          aria-label="Drag to reorder"
-        >
-          ⋮⋮
-        </button>
-      )}
-      {showTaskModeCheckbox && (
-        <input
-          type="checkbox"
-          checked={isComplete}
-          onChange={(event) => {
-            event.stopPropagation();
-            onToggleComplete(taskId);
-          }}
-          onClick={(event) => event.stopPropagation()}
-        />
-      )}
-      {showEditSelectionCheckbox && (
-        <input
-          type="checkbox"
-          checked={isSettingDependencies ? isPendingDependency : isEditSelected}
-          onChange={(event) => {
-            event.stopPropagation();
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          if (mode === "edit" && isSettingDependencies) {
+            return;
+          }
+          onSelectTask(taskId);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
 
-            if (isSettingDependencies) {
-              onTogglePendingDependency(taskId);
-              return;
-            }
+          event.preventDefault();
+          if (mode === "edit" && isSettingDependencies) {
+            return;
+          }
 
-            onToggleEditSelection(taskId);
-          }}
-          onClick={(event) => event.stopPropagation()}
-        />
-      )}
-      {!showTaskModeCheckbox && !showEditSelectionCheckbox && (
-        <span className="w-4" />
-      )}
-      <div className="flex min-w-0 flex-1 items-center gap-1">
-        <p
-          className={`min-w-0 flex-1 truncate text-sm font-medium ${
-            mode === "task" && isComplete ? "line-through" : ""
-          }`}
-        >
-          {detail?.title || "Untitled Task"}
-          {mode === "task" && isHidden ? " (Hidden)" : ""}
-        </p>
-        {hasDescription && (
-          <span
-            className="shrink-0 text-zinc-500 dark:text-zinc-400"
-            title="Has description"
-            aria-label="Has description"
+          onSelectTask(taskId);
+        }}
+        className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${
+          isSelected
+            ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
+            : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+        } ${dragState.isDragging ? "opacity-60" : ""}`}
+      >
+        {canDrag && (
+          <button
+            type="button"
+            ref={handleRef}
+            onClick={(event) => event.stopPropagation()}
+            className="cursor-grab select-none text-zinc-500 dark:text-zinc-400"
+            aria-label="Drag to reorder"
           >
-            ✎
-          </span>
+            ⋮⋮
+          </button>
+        )}
+        {showTaskModeCheckbox && (
+          <input
+            type="checkbox"
+            checked={isComplete}
+            onChange={(event) => {
+              event.stopPropagation();
+              onToggleComplete(taskId);
+            }}
+            onClick={(event) => event.stopPropagation()}
+          />
+        )}
+        {showEditSelectionCheckbox && (
+          <input
+            type="checkbox"
+            checked={
+              isSettingDependencies ? isPendingDependency : isEditSelected
+            }
+            onChange={(event) => {
+              event.stopPropagation();
+
+              if (isSettingDependencies) {
+                onTogglePendingDependency(taskId);
+                return;
+              }
+
+              onToggleEditSelection(taskId);
+            }}
+            onClick={(event) => event.stopPropagation()}
+          />
+        )}
+        {!showTaskModeCheckbox && !showEditSelectionCheckbox && (
+          <span className="w-4" />
+        )}
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <p
+            className={`min-w-0 flex-1 truncate text-sm font-medium ${
+              mode === "task" && isComplete ? "line-through" : ""
+            }`}
+          >
+            {detail?.title || "Untitled Task"}
+            {mode === "task" && isHidden ? " (Hidden)" : ""}
+          </p>
+          {hasDescription && (
+            <span
+              className="shrink-0 text-zinc-500 dark:text-zinc-400"
+              title="Has description"
+              aria-label="Has description"
+            >
+              ✎
+            </span>
+          )}
+        </div>
+        {tags.length > 0 && (
+          <div className="ml-auto flex max-w-[50%] items-center justify-end gap-1 overflow-hidden">
+            {tags.map((tag) => (
+              <span
+                key={`${taskId}-tag-${tag}`}
+                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                title={tag}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
         )}
       </div>
-      {tags.length > 0 && (
-        <div className="ml-auto flex max-w-[50%] items-center justify-end gap-1 overflow-hidden">
-          {tags.map((tag) => (
-            <span
-              key={`${taskId}-tag-${tag}`}
-              className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
-              title={tag}
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
     </DragDropListItem>
   );
 }

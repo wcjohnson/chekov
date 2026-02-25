@@ -123,7 +123,7 @@ export function Category({
           </span>
         )}
       </summary>
-      <div className="space-y-1 px-2 pb-2">
+      <div className="px-2 pb-2">
         {visibleTasks.map((taskId, index) => {
           return (
             <Task

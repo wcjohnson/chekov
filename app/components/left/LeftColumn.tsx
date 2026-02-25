@@ -1,6 +1,5 @@
 "use client";
 
-import { DragDropProvider } from "@dnd-kit/react";
 import { useMemo, useRef, useState } from "react";
 import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
 import { Category } from "./Category";
@@ -12,7 +11,6 @@ import {
   useMoveCategoryMutation,
   useMoveTaskMutation,
 } from "@/app/lib/storage";
-import { isSortable } from "@dnd-kit/react/sortable";
 
 type LeftColumnProps = {
   mode: ChecklistMode;
@@ -118,8 +116,6 @@ export function LeftColumn({
     categoriesTasks,
   ]);
 
-  const moveTaskMutation = useMoveTaskMutation();
-
   return (
     <>
       <LeftHeader
@@ -132,96 +128,72 @@ export function LeftColumn({
         onClearSelection={onClearSelection}
       />
 
-      <DragDropProvider
-        onDragEnd={(event) => {
-          const { source } = event.operation;
-          if (event.canceled) {
-            return;
-          }
-          if (!isSortable(source)) return;
-          const { initialIndex, index, initialGroup, group } = source;
-          if (initialIndex === index && initialGroup === group) {
-            return;
-          }
-          if (!initialGroup || !group) {
-            return;
-          }
+      <div className="space-y-2">
+        {taskBreakout.visibleCategories.map((category, index) => (
+          <Category
+            key={category}
+            category={category}
+            taskBreakout={taskBreakout}
+            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            mode={mode}
+            selectedTaskId={selectedTaskId}
+            isSettingDependencies={isSettingDependencies}
+            editSelectedTaskIds={editSelectedTaskIds}
+            pendingDependencyIds={pendingDependencyIds}
+            onSelectTask={onSelectTask}
+            onToggleComplete={onToggleComplete}
+            onToggleEditSelection={onToggleEditSelection}
+            onTogglePendingDependency={onTogglePendingDependency}
+            canMoveUp={index > 0}
+            canMoveDown={index < taskBreakout.visibleCategories.length - 1}
+            onMoveUp={() => moveCategory(index, index - 1)}
+            onMoveDown={() => moveCategory(index, index + 1)}
+          />
+        ))}
 
-          moveTaskMutation.mutate({
-            fromIndex: initialIndex,
-            fromCategory: initialGroup as string,
-            toCategory: group as string,
-            toIndex: index,
-          });
-        }}
-      >
-        <div className="space-y-2">
-          {taskBreakout.visibleCategories.map((category, index) => (
-            <Category
-              key={category}
-              category={category}
-              taskBreakout={taskBreakout}
-              tasksWithCompleteDependencies={tasksWithCompleteDependencies}
-              mode={mode}
-              selectedTaskId={selectedTaskId}
-              isSettingDependencies={isSettingDependencies}
-              editSelectedTaskIds={editSelectedTaskIds}
-              pendingDependencyIds={pendingDependencyIds}
-              onSelectTask={onSelectTask}
-              onToggleComplete={onToggleComplete}
-              onToggleEditSelection={onToggleEditSelection}
-              onTogglePendingDependency={onTogglePendingDependency}
-              canMoveUp={index > 0}
-              canMoveDown={index < taskBreakout.visibleCategories.length - 1}
-              onMoveUp={() => moveCategory(index, index - 1)}
-              onMoveDown={() => moveCategory(index, index + 1)}
+        {mode === "edit" && !isAddingCategory && (
+          <button
+            type="button"
+            onClick={() => setIsAddingCategory(true)}
+            className="w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            Add Category
+          </button>
+        )}
+
+        {mode === "edit" && isAddingCategory && (
+          <div className="flex items-center gap-2 rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(event) => setNewCategoryName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  submitNewCategory();
+                }
+              }}
+              placeholder="Category name"
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm dark:border-zinc-700"
+              autoFocus
             />
-          ))}
-
-          {mode === "edit" && !isAddingCategory && (
             <button
               type="button"
-              onClick={() => setIsAddingCategory(true)}
-              className="w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              onClick={submitNewCategory}
+              disabled={newCategoryName.trim().length === 0}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
-              Add Category
+              Confirm
             </button>
-          )}
+          </div>
+        )}
 
-          {mode === "edit" && isAddingCategory && (
-            <div className="flex items-center gap-2 rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
-              <input
-                type="text"
-                value={newCategoryName}
-                onChange={(event) => setNewCategoryName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    submitNewCategory();
-                  }
-                }}
-                placeholder="Category name"
-                className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm dark:border-zinc-700"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={submitNewCategory}
-                disabled={newCategoryName.trim().length === 0}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-              >
-                Confirm
-              </button>
-            </div>
-          )}
-
-          {taskBreakout.visibleTasks.size === 0 && (
-            <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-              {"No tasks here. Add some or change your filters."}
-            </p>
-          )}
-        </div>
-      </DragDropProvider>
+        {taskBreakout.visibleTasks.size === 0 && (
+          <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            {"No tasks here. Add some or change your filters."}
+          </p>
+        )}
+      </div>
     </>
   );
 }
