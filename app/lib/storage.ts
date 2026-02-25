@@ -2,7 +2,7 @@ import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import type { TaskId } from "./types";
-import { fromKvPairsToRecord } from "./utils";
+import { detectCycle, fromKvPairsToRecord } from "./utils";
 import { useMemo } from "react";
 
 const DB_NAME = "chekov-db";
@@ -555,11 +555,33 @@ export function useTaskDependenciesMutation() {
       dependencies: Set<string>;
     }) => {
       const db = await getDb();
-      if (dependencies.size === 0) {
-        await db.delete(TASK_DEPENDENCIES_STORE, taskId);
-      } else {
-        await db.put(TASK_DEPENDENCIES_STORE, dependencies, taskId);
+      const tx = db.transaction([TASK_DEPENDENCIES_STORE], "readwrite");
+      const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
+
+      const dependencyTaskIds = await dependenciesStore.getAllKeys();
+      const dependencyValues = await dependenciesStore.getAll();
+      const dependencyGraph = fromKvPairsToRecord(
+        dependencyTaskIds,
+        dependencyValues,
+      );
+
+      if (!dependencyGraph[taskId]) {
+        dependencyGraph[taskId] = new Set<string>();
       }
+
+      if (detectCycle(dependencyGraph, taskId, dependencies)) {
+        tx.abort();
+        await tx.done.catch(() => undefined);
+        throw new Error("Dependency cycle detected");
+      }
+
+      if (dependencies.size === 0) {
+        await dependenciesStore.delete(taskId);
+      } else {
+        await dependenciesStore.put(dependencies, taskId);
+      }
+
+      await tx.done;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
