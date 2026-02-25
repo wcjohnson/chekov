@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { BooleanOp } from "../../app/lib/types";
 import {
   exportChecklistDefinition,
   exportChecklistState,
@@ -143,6 +144,34 @@ const roundTripFixtures: Array<{
       categoryVisibilityByMode: {
         task: { Alpha: true, Beta: true },
         edit: { Gamma: true },
+      },
+    },
+  },
+  {
+    name: "non-simple dependency expression round-trip",
+    definition: {
+      categories: ["Expr"],
+      tasksByCategory: {
+        Expr: [
+          { id: "a", category: "Expr", title: "A" },
+          { id: "b", category: "Expr", title: "B" },
+          {
+            id: "expr",
+            category: "Expr",
+            title: "Expr Task",
+            dependencies: ["a", "b"],
+            dependencyExpression: [BooleanOp.Or, "a", "b"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    },
+    state: {
+      tasks: {},
+      categoryVisibilityByMode: {
+        task: {},
+        edit: {},
       },
     },
   },
@@ -295,5 +324,67 @@ describe("import/export", () => {
       t1: { completed: true, explicitlyHidden: false },
       t2: { completed: true, explicitlyHidden: true },
     });
+  });
+
+  it("omits dependencyExpression when it is a simple AND of all dependencies", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          { id: "b", category: "Main", title: "B" },
+          {
+            id: "t",
+            category: "Main",
+            title: "Target",
+            dependencies: ["a", "b"],
+            dependencyExpression: [BooleanOp.And, "a", "b"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    const targetTask = exportedDefinition.tasksByCategory.Main.find(
+      (task) => task.id === "t",
+    );
+
+    expect(targetTask?.dependencies).toEqual(["a", "b"]);
+    expect(targetTask?.dependencyExpression).toBeUndefined();
+  });
+
+  it("omits dependencyExpression when expression references IDs outside dependencies", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          { id: "b", category: "Main", title: "B" },
+          {
+            id: "t",
+            category: "Main",
+            title: "Target",
+            dependencies: ["a"],
+            dependencyExpression: [BooleanOp.Or, "a", "b"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    const targetTask = exportedDefinition.tasksByCategory.Main.find(
+      (task) => task.id === "t",
+    );
+
+    expect(targetTask?.dependencies).toEqual(["a"]);
+    expect(targetTask?.dependencyExpression).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
+import { BooleanOp } from "../../app/lib/types";
 import {
   useCompletionsWithReminders,
   queryClient,
@@ -120,6 +121,43 @@ describe("data layer", () => {
       const detail = result.current.details.get(taskId);
       expect(detail?.title).toBe("Renamed");
       expect(detail?.description).toBe("Updated description");
+    });
+  });
+
+  it("stores dependencyExpression on task details when imported", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          {
+            id: "t",
+            category: "Main",
+            title: "Target",
+            dependencies: ["a"],
+            dependencyExpression: [BooleanOp.Not, "a"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => ({
+        detail: useTaskDetailQuery("t").data,
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.detail?.dependencyExpression).toEqual([
+        BooleanOp.Not,
+        "a",
+      ]);
     });
   });
 

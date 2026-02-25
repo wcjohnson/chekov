@@ -15,7 +15,12 @@ import {
   TASKS_STORE,
 } from "./data";
 import type { TagColorKey } from "./tagColors";
-import type { CategoryName, TaskId } from "@/app/lib/types";
+import {
+  BooleanOp,
+  type BooleanExpression,
+  type CategoryName,
+  type TaskId,
+} from "./types";
 
 export type ExportedTaskDefinition = {
   id: TaskId;
@@ -24,11 +29,100 @@ export type ExportedTaskDefinition = {
   description?: string;
   type?: "task" | "warning" | "reminder";
   dependencies?: TaskId[];
+  dependencyExpression?: BooleanExpression;
   tags?: string[];
 };
 
 const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
   type === "warning" || type === "reminder";
+
+function normalizeDependencyExpression(
+  expression: unknown,
+  validDependencyIds: Set<TaskId>,
+): BooleanExpression | undefined {
+  if (typeof expression === "string") {
+    if (!validDependencyIds.has(expression)) {
+      return undefined;
+    }
+
+    return expression;
+  }
+
+  if (!Array.isArray(expression) || expression.length === 0) {
+    return undefined;
+  }
+
+  const [operator, ...operands] = expression;
+
+  if (operator === BooleanOp.Not) {
+    if (operands.length !== 1) {
+      return undefined;
+    }
+
+    const normalizedOperand = normalizeDependencyExpression(
+      operands[0],
+      validDependencyIds,
+    );
+    if (!normalizedOperand) {
+      return undefined;
+    }
+
+    return [BooleanOp.Not, normalizedOperand];
+  }
+
+  if (operator === BooleanOp.And || operator === BooleanOp.Or) {
+    const normalizedOperands: BooleanExpression[] = [];
+    for (const operand of operands) {
+      const normalizedOperand = normalizeDependencyExpression(
+        operand,
+        validDependencyIds,
+      );
+      if (!normalizedOperand) {
+        return undefined;
+      }
+
+      normalizedOperands.push(normalizedOperand);
+    }
+
+    return [operator, ...normalizedOperands];
+  }
+
+  return undefined;
+}
+
+function isSimpleAndOfDependencies(
+  expression: BooleanExpression,
+  dependencies: TaskId[],
+): boolean {
+  if (typeof expression === "string") {
+    return false;
+  }
+
+  if (expression[0] !== BooleanOp.And) {
+    return false;
+  }
+
+  const operands = expression.slice(1);
+  if (
+    !operands.every((operand): operand is TaskId => typeof operand === "string")
+  ) {
+    return false;
+  }
+
+  if (operands.length !== dependencies.length) {
+    return false;
+  }
+
+  const dependencySet = new Set(dependencies);
+  if (dependencySet.size !== dependencies.length) {
+    return false;
+  }
+
+  return (
+    new Set(operands).size === operands.length &&
+    operands.every((operand) => dependencySet.has(operand))
+  );
+}
 
 export type ExportedChecklistDefinition = {
   categories: CategoryName[];
@@ -83,6 +177,11 @@ function normalizeChecklistDefinition(
             ),
           ),
         );
+        const dependencyIdSet = new Set(normalizedDependencies);
+        const normalizedDependencyExpression = normalizeDependencyExpression(
+          task.dependencyExpression,
+          dependencyIdSet,
+        );
 
         const normalizedTags = Array.from(
           new Set(
@@ -104,6 +203,13 @@ function normalizeChecklistDefinition(
             : {}),
           ...(normalizedDependencies.length > 0
             ? { dependencies: normalizedDependencies }
+            : {}),
+          ...(normalizedDependencyExpression &&
+          !isSimpleAndOfDependencies(
+            normalizedDependencyExpression,
+            normalizedDependencies,
+          )
+            ? { dependencyExpression: normalizedDependencyExpression }
             : {}),
           ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
         };
@@ -312,6 +418,9 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(Array.from(taskDependencies).length > 0
           ? { dependencies: Array.from(taskDependencies) }
           : {}),
+        ...(task.dependencyExpression
+          ? { dependencyExpression: task.dependencyExpression }
+          : {}),
         ...(Array.from(taskTags).length > 0
           ? { tags: Array.from(taskTags) }
           : {}),
@@ -497,6 +606,9 @@ export async function importChecklistDefinition(
           title: task.title,
           description: task.description ?? "",
           category,
+          ...(task.dependencyExpression
+            ? { dependencyExpression: task.dependencyExpression }
+            : {}),
         },
         task.id,
       );

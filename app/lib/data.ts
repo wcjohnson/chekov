@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
-import type { CategoryName, TaskId } from "./types";
+import type { BooleanExpression, CategoryName, TaskId } from "./types";
 import { detectCycle, fromKvPairsToMap } from "./utils";
 import { useMemo } from "react";
 
@@ -24,6 +24,7 @@ export type StoredTask = {
   title: string;
   description: string;
   category: CategoryName;
+  dependencyExpression?: BooleanExpression;
 };
 
 interface ChekovDB extends DBSchema {
