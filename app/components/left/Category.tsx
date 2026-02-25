@@ -6,7 +6,9 @@ import {
   useCategoryHiddenMutation,
   useCreateTaskMutation,
   useHiddenCategories,
+  useMoveTaskMutation,
 } from "@/app/lib/storage";
+import { DragDropList } from "../DragDrop";
 
 type CategoryProps = {
   category: string;
@@ -49,6 +51,7 @@ export function Category({
   const hiddenCategories = useHiddenCategories().data;
   const categoryHiddenMutation = useCategoryHiddenMutation();
   const createTaskMutation = useCreateTaskMutation();
+  const moveTaskMutation = useMoveTaskMutation();
 
   if (!visibleTasks || visibleTasks.length === 0) {
     return null;
@@ -61,7 +64,20 @@ export function Category({
     (mode === "edit" && !hiddenEditCategories?.has(category));
 
   return (
-    <details
+    <DragDropList
+      as="details"
+      group={category}
+      onMoveItem={(fromGroup, fromIndex, toGroup, toIndex) => {
+        if (!fromGroup || !toGroup) {
+          return;
+        }
+        moveTaskMutation.mutate({
+          fromCategory: fromGroup,
+          fromIndex,
+          toCategory: toGroup,
+          toIndex,
+        });
+      }}
       open={isOpen}
       onToggle={(event) => {
         categoryHiddenMutation.mutate({
@@ -139,6 +155,6 @@ export function Category({
           </button>
         )}
       </div>
-    </details>
+    </DragDropList>
   );
 }

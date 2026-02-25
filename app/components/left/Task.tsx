@@ -10,6 +10,8 @@ import {
   useTaskHidden,
   useTaskTags,
 } from "@/app/lib/storage";
+import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
+import { useRef, useState } from "react";
 
 type TaskProps = {
   taskId: TaskId;
@@ -49,6 +51,10 @@ export function Task({
   const isComplete = useTaskCompletion(taskId).data ?? false;
   const isHidden = useTaskHidden(taskId).data ?? false;
   const tagColors = useTagColors().data ?? {};
+  const handleRef = useRef(null);
+  const [dragState, setDragState] = useState<DragDropItemStateType>({
+    isDragging: false,
+  });
 
   const canDrag = mode === "edit" && !isSettingDependencies;
   const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
@@ -56,19 +62,11 @@ export function Task({
     mode === "edit" && (!isSettingDependencies || taskId !== selectedTaskId);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
 
-  const { ref, handleRef, isDragSource, isDragging } = useSortable({
-    id: taskId,
-    index,
-    type: "task",
-    accept: "task",
-    group: category,
-    disabled: !canDrag,
-  });
-
   return (
-    <div
-      data-dragging={isDragging}
-      ref={ref}
+    <DragDropListItem
+      index={index}
+      dragHandleRef={handleRef}
+      setDragDropState={setDragState}
       role="button"
       tabIndex={0}
       onClick={() => {
@@ -93,7 +91,7 @@ export function Task({
         isSelected
           ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
           : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-      } ${isDragSource ? "opacity-60" : ""}`}
+      } ${dragState.isDragging ? "opacity-60" : ""}`}
     >
       {canDrag && (
         <button
@@ -169,6 +167,6 @@ export function Task({
           ))}
         </div>
       )}
-    </div>
+    </DragDropListItem>
   );
 }
