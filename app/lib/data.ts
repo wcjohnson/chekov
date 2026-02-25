@@ -172,6 +172,7 @@ export function useDeleteTasksMutation() {
   return useMutation({
     mutationFn: async (taskIds: TaskId[]) => {
       const db = await getDb();
+      const updatedDependencyEntries: Array<[TaskId, Set<string>]> = [];
 
       // In a transaction:
       // - Remove tasks from tasks store
@@ -205,7 +206,10 @@ export function useDeleteTasksMutation() {
       const deleteTaskIds = new Set(taskIds.filter(Boolean));
       if (deleteTaskIds.size === 0) {
         await tx.done;
-        return [] as TaskId[];
+        return {
+          deletedTaskIds: [] as TaskId[],
+          updatedDependencyEntries,
+        };
       }
 
       const existingTasks = await Promise.all(
@@ -225,7 +229,10 @@ export function useDeleteTasksMutation() {
 
       if (existingTaskIds.size === 0) {
         await tx.done;
-        return [] as TaskId[];
+        return {
+          deletedTaskIds: [] as TaskId[],
+          updatedDependencyEntries,
+        };
       }
 
       const dependencyTaskIds = await taskDependenciesStore.getAllKeys();
@@ -288,15 +295,23 @@ export function useDeleteTasksMutation() {
 
         if (dependencies.size === 0) {
           await taskDependenciesStore.delete(dependencyTaskId);
+          updatedDependencyEntries.push([dependencyTaskId, new Set<string>()]);
         } else {
           await taskDependenciesStore.put(dependencies, dependencyTaskId);
+          updatedDependencyEntries.push([
+            dependencyTaskId,
+            new Set<string>(dependencies),
+          ]);
         }
       }
 
       await tx.done;
-      return Array.from(existingTaskIds);
+      return {
+        deletedTaskIds: Array.from(existingTaskIds),
+        updatedDependencyEntries,
+      };
     },
-    onSuccess: (deletedTaskIds) => {
+    onSuccess: ({ deletedTaskIds, updatedDependencyEntries }) => {
       queryClient.invalidateQueries({ queryKey: ["taskSet"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["categoryTasks"] });
@@ -309,9 +324,19 @@ export function useDeleteTasksMutation() {
       queryClient.invalidateQueries({ queryKey: ["warnings"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
 
+      for (const [taskId, dependencies] of updatedDependencyEntries) {
+        queryClient.setQueryData(
+          ["task", "dependencies", taskId],
+          dependencies,
+        );
+      }
+
       for (const taskId of deletedTaskIds) {
         queryClient.invalidateQueries({ queryKey: ["task", "detail", taskId] });
         queryClient.invalidateQueries({ queryKey: ["task", "tags", taskId] });
+        queryClient.invalidateQueries({
+          queryKey: ["task", "dependencies", taskId],
+        });
         queryClient.invalidateQueries({
           queryKey: ["task", "completion", taskId],
         });
