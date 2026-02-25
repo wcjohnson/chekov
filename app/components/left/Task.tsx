@@ -53,14 +53,12 @@ export function Task({
 
   const isEditingSet = !!multiSelectState;
   const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
-  const taskIsBannedFromMultiselect = false;
 
   const isEffectivelyComplete = isReminder ? dependenciesComplete : isComplete;
   const canDrag = mode === "edit" && !isEditingSet;
   const showTaskModeCheckbox =
     mode === "task" && dependenciesComplete && !isReminder;
-  const showEditSelectionCheckbox =
-    mode === "edit" && (!isEditingSet || !taskIsBannedFromMultiselect);
+  const showEditSelectionCheckbox = mode === "edit";
   const hasDescription = (detail?.description?.length ?? 0) > 0;
   const rowInteractionClasses = isReminder
     ? isSelected
@@ -125,21 +123,11 @@ export function Task({
         {showEditSelectionCheckbox && (
           <input
             type="checkbox"
-            checked={
-              isEditingSet
-                ? isReminder
-                  ? false
-                  : isInEditedSet
-                : isEditSelected
-            }
-            disabled={isEditingSet && isReminder}
+            checked={isEditingSet ? isInEditedSet : isEditSelected}
             onChange={(event) => {
               event.stopPropagation();
 
               if (isEditingSet) {
-                if (isReminder) {
-                  return;
-                }
                 const nextSelectedSet = new Set(
                   multiSelectState.selectedTaskSet,
                 );

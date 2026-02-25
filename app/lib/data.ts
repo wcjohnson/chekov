@@ -549,36 +549,14 @@ export function useTaskReminderMutation() {
 
       if (isReminder) {
         const tx = db.transaction(
-          [
-            TASK_REMINDERS_STORE,
-            TASK_COMPLETION_STORE,
-            TASK_DEPENDENCIES_STORE,
-          ],
+          [TASK_REMINDERS_STORE, TASK_COMPLETION_STORE],
           "readwrite",
         );
         const remindersStore = tx.objectStore(TASK_REMINDERS_STORE);
         const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
-        const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
 
         await remindersStore.put(true, taskId);
         await completionStore.delete(taskId);
-
-        const dependencyTaskIds = await dependenciesStore.getAllKeys();
-        const dependencyValues = await dependenciesStore.getAll();
-
-        for (let index = 0; index < dependencyTaskIds.length; index += 1) {
-          const dependencyTaskId = dependencyTaskIds[index];
-          const dependencies = dependencyValues[index] ?? new Set<string>();
-          if (!dependencies.delete(taskId)) {
-            continue;
-          }
-
-          if (dependencies.size === 0) {
-            await dependenciesStore.delete(dependencyTaskId);
-          } else {
-            await dependenciesStore.put(dependencies, dependencyTaskId);
-          }
-        }
 
         await tx.done;
         return;
@@ -879,32 +857,28 @@ export function useTaskCompletionMutation() {
       // If this completion caused a category to become fully completed, add the category to the hidden categories list
       const categoryTaskIds =
         (await categoryTasksStore.get(task.category)) ?? [];
-      const completedTaskIds = new Set<string>(
+      const directCompletedTaskIds = new Set<string>(
         await completionStore.getAllKeys(),
       );
       const reminderTaskIds = new Set<string>(
         await remindersStore.getAllKeys(),
       );
+      const dependencyTaskIds = await dependenciesStore.getAllKeys();
+      const dependencyValues = await dependenciesStore.getAll();
+      const dependencyGraph = fromKvPairsToMap(
+        dependencyTaskIds,
+        dependencyValues,
+      );
 
-      let allCategoryTasksComplete = true;
-      for (const categoryTaskId of categoryTaskIds) {
-        if (reminderTaskIds.has(categoryTaskId)) {
-          const reminderDependencies =
-            (await dependenciesStore.get(categoryTaskId)) ?? new Set<string>();
-          for (const dependencyId of reminderDependencies) {
-            if (!completedTaskIds.has(dependencyId)) {
-              allCategoryTasksComplete = false;
-              break;
-            }
-          }
-        } else if (!completedTaskIds.has(categoryTaskId)) {
-          allCategoryTasksComplete = false;
-        }
+      const effectiveCompletedTaskIds = computeCompletionsWithReminders(
+        directCompletedTaskIds,
+        reminderTaskIds,
+        dependencyGraph,
+      );
 
-        if (!allCategoryTasksComplete) {
-          break;
-        }
-      }
+      const allCategoryTasksComplete = categoryTaskIds.every((categoryTaskId) =>
+        effectiveCompletedTaskIds.has(categoryTaskId),
+      );
 
       const hiddenTaskCategories =
         (await categoryHiddenStore.get("task")) ?? new Set<string>();
@@ -1165,6 +1139,61 @@ function getQueryArgs_reminders() {
 
 export function useRemindersQuery() {
   return useQuery(getQueryArgs_reminders());
+}
+
+function computeCompletionsWithReminders(
+  completions: Set<string>,
+  reminders: Set<string>,
+  dependencies: Map<string, Set<string>>,
+) {
+  const effectiveCompletions = new Set<string>(completions);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+
+    for (const reminderTaskId of reminders) {
+      if (effectiveCompletions.has(reminderTaskId)) {
+        continue;
+      }
+
+      const reminderDependencies =
+        dependencies.get(reminderTaskId) ?? new Set<string>();
+
+      let allDependenciesComplete = true;
+      for (const dependencyId of reminderDependencies) {
+        if (!effectiveCompletions.has(dependencyId)) {
+          allDependenciesComplete = false;
+          break;
+        }
+      }
+
+      if (allDependenciesComplete) {
+        effectiveCompletions.add(reminderTaskId);
+        changed = true;
+      }
+    }
+  }
+
+  return effectiveCompletions;
+}
+
+export function useCompletionsWithReminders(
+  completions: Set<string> | undefined,
+  reminders: Set<string> | undefined,
+  dependencies: Map<string, Set<string>> | undefined,
+) {
+  return useMemo(() => {
+    if (!completions || !reminders || !dependencies) {
+      return new Set<string>();
+    }
+
+    return computeCompletionsWithReminders(
+      completions,
+      reminders,
+      dependencies,
+    );
+  }, [completions, reminders, dependencies]);
 }
 
 function getQueryArgs_details(enabled?: boolean) {

@@ -58,7 +58,7 @@
   - Tasks can be marked as `reminder` in edit details
   - Reminder tasks cannot be directly completed
   - Reminder tasks are shown with distinct styling and treated as effectively complete when dependencies are complete
-  - Reminder tasks cannot be selected as dependencies in dependency-editing selection UX
+  - Reminder tasks can be selected as dependencies; dependent tasks resolve through reminder completion transitively
 - Layout:
   - Full viewport split pane
   - Independent scrolling in both panes
@@ -108,7 +108,7 @@
 - Exported definition supports optional `categoryDependencies?: Record<CategoryName, TaskId[]>`.
 - Imports missing `categoryDependencies` are treated as empty (no category dependencies).
 - Category dependency normalization drops dependency IDs that do not correspond to existing tasks.
-- Normalization/import enforce reminder constraints for dependencies and completion state.
+- Normalization/import enforce reminder completion-state constraints.
 - Legacy concerns outside this schema are ignored.
   - Old ad-hoc payload shapes (for example legacy flat task payloads) are no longer migration targets unless explicitly added back to `export.ts`.
 

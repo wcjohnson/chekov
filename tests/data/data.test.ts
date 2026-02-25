@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  useCompletionsWithReminders,
   queryClient,
   useCategoriesQuery,
   useCategoriesTasksQuery,
@@ -17,8 +18,10 @@ import {
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskDetailQuery,
+  useTaskStructure,
   useTaskSetQuery,
   useTaskReminderMutation,
+  useTasksWithCompleteDependencies,
 } from "../../app/lib/data";
 import {
   exportChecklistState,
@@ -122,18 +125,37 @@ describe("data layer", () => {
 
   it("applies reminder mutation semantics across completion and dependencies", async () => {
     const { result } = renderHook(
-      () => ({
-        createTask: useCreateTaskMutation(),
-        setDependencies: useTaskDependenciesMutation(),
-        setCompletion: useTaskCompletionMutation(),
-        setReminder: useTaskReminderMutation(),
-        categoriesTasks:
-          useCategoriesTasksQuery().data ?? new Map<string, string[]>(),
-        dependencies:
-          useDependenciesQuery().data ?? new Map<string, Set<string>>(),
-        completions: useCompletionsQuery().data ?? new Set<string>(),
-        reminders: useRemindersQuery().data ?? new Set<string>(),
-      }),
+      () => {
+        const categoriesTasks =
+          useCategoriesTasksQuery().data ?? new Map<string, string[]>();
+        const dependencies =
+          useDependenciesQuery().data ?? new Map<string, Set<string>>();
+        const completions = useCompletionsQuery().data ?? new Set<string>();
+        const reminders = useRemindersQuery().data ?? new Set<string>();
+        const taskStructure = useTaskStructure();
+        const completionsWithReminders = useCompletionsWithReminders(
+          completions,
+          reminders,
+          dependencies,
+        );
+        const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
+          taskStructure.taskSet,
+          dependencies,
+          completionsWithReminders,
+        );
+
+        return {
+          createTask: useCreateTaskMutation(),
+          setDependencies: useTaskDependenciesMutation(),
+          setCompletion: useTaskCompletionMutation(),
+          setReminder: useTaskReminderMutation(),
+          categoriesTasks,
+          dependencies,
+          completions,
+          reminders,
+          tasksWithCompleteDependencies,
+        };
+      },
       { wrapper },
     );
 
@@ -187,7 +209,10 @@ describe("data layer", () => {
       expect(result.current.completions.has(dependencyId)).toBe(false);
 
       const dependencySet = result.current.dependencies.get(dependentTaskId);
-      expect(dependencySet?.size ?? 0).toBe(0);
+      expect(dependencySet?.has(dependencyId)).toBe(true);
+      expect(
+        result.current.tasksWithCompleteDependencies.has(dependentTaskId),
+      ).toBe(true);
     });
   });
 

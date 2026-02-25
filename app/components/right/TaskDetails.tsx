@@ -11,7 +11,6 @@ import {
 import type { ChecklistMode, TaskId } from "../../lib/types";
 import {
   useAllKnownTagsQuery,
-  useCompletionsQuery,
   useDeleteTasksMutation,
   useTagColorMutation,
   useTagColorsQuery,
@@ -33,13 +32,14 @@ import { MultiSelectContext } from "@/app/lib/context";
 function DependencyItem({
   dependencyId,
   mode,
+  completionsWithReminders,
 }: {
   dependencyId: string;
   mode: ChecklistMode;
+  completionsWithReminders: Set<TaskId>;
 }) {
   const taskDetail = useTaskDetailQuery(dependencyId).data;
-  const completions = useCompletionsQuery().data;
-  const dependencyCompleted = completions?.has(dependencyId) ?? false;
+  const dependencyCompleted = completionsWithReminders.has(dependencyId);
   if (mode === "task") {
     return <li key={dependencyId}>{taskDetail?.title || dependencyId}</li>;
   } else if (mode === "edit") {
@@ -58,6 +58,7 @@ type TaskDetailsProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
   selectedTaskDetail: StoredTask | null | undefined;
+  completionsWithReminders: Set<TaskId>;
   tasksWithCompleteDependencies: Set<TaskId>;
 };
 
@@ -65,6 +66,7 @@ export function TaskDetails({
   mode,
   selectedTaskId,
   selectedTaskDetail,
+  completionsWithReminders,
   tasksWithCompleteDependencies,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
@@ -82,13 +84,12 @@ export function TaskDetails({
   // For dependencies display
   const selectedTaskDeps =
     useTaskDependenciesQuery(selectedTaskId ?? "").data ?? new Set();
-  const completions = useCompletionsQuery().data ?? new Set();
   const isReminderTask =
     useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
   const isEffectivelyCompleted = isReminderTask
     ? tasksWithCompleteDependencies.has(selectedTaskId ?? "")
-    : completions.has(selectedTaskId ?? "");
+    : completionsWithReminders.has(selectedTaskId ?? "");
 
   const knownTagSet = useAllKnownTagsQuery().data;
   const allKnownTags = useMemo(() => {
@@ -266,6 +267,7 @@ export function TaskDetails({
                     key={dependencyId}
                     dependencyId={dependencyId}
                     mode={mode}
+                    completionsWithReminders={completionsWithReminders}
                   />
                 ))}
               </ul>
@@ -526,6 +528,7 @@ export function TaskDetails({
                 key={dependencyId}
                 dependencyId={dependencyId}
                 mode={mode}
+                completionsWithReminders={completionsWithReminders}
               />
             ))}
           </ul>

@@ -63,14 +63,9 @@ function normalizeChecklistDefinition(
   const normalizedTasksByCategory = new Map<string, ExportedTaskDefinition[]>();
 
   const allTaskIds = new Set<TaskId>();
-  const reminderTaskIds = new Set<TaskId>();
-
   for (const [, tasks] of tasksByCategoryEntries) {
     for (const task of tasks ?? []) {
       allTaskIds.add(task.id);
-      if (isReminderType(task.type)) {
-        reminderTaskIds.add(task.id);
-      }
     }
   }
 
@@ -84,9 +79,7 @@ function normalizeChecklistDefinition(
           new Set<TaskId>(
             Array.from(task.dependencies ?? []).filter(
               (dependencyId) =>
-                dependencyId !== task.id &&
-                allTaskIds.has(dependencyId) &&
-                !reminderTaskIds.has(dependencyId),
+                dependencyId !== task.id && allTaskIds.has(dependencyId),
             ),
           ),
         );

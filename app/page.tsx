@@ -11,9 +11,11 @@ import type { ChecklistMode, TaskId } from "./lib/types";
 import {
   useClearDatabaseMutation,
   queryClient,
+  useCompletionsWithReminders,
   useCompletionsQuery,
   useDeleteTasksMutation,
   useDependenciesQuery,
+  useRemindersQuery,
   useTaskCompletionMutation,
   useTasksMatchingSearch,
   useTaskStructure,
@@ -60,8 +62,13 @@ export function AppMain() {
 
   const taskStructure = useTaskStructure();
   const allDependencies = useDependenciesQuery().data ?? new Map();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const allCompletions = useCompletionsQuery().data ?? new Set<string>();
+  const allCompletionsRaw = useCompletionsQuery().data;
+  const allReminders = useRemindersQuery().data;
+  const allCompletions = useCompletionsWithReminders(
+    allCompletionsRaw,
+    allReminders,
+    allDependencies,
+  );
 
   const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
     taskStructure.taskSet,
@@ -326,6 +333,7 @@ export function AppMain() {
           <LeftColumn
             mode={mode}
             showCompletedTasks={showCompletedTasks}
+            completionsWithReminders={allCompletions}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             tasksMatchingSearch={tasksMatchingSearch}
             selectedTaskId={selectedTaskId}
@@ -341,6 +349,7 @@ export function AppMain() {
           <RightColumn
             mode={mode}
             selectedTaskId={selectedTaskId}
+            completionsWithReminders={allCompletions}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             errorMessage={errorMessage}
           />

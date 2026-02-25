@@ -85,7 +85,7 @@ describe("import/export normalization", () => {
             id: "t1",
             category: "A",
             title: "Task 1",
-            dependencies: ["t2"],
+            dependencies: ["t2", "t3"],
             tags: ["keep", "dup"],
           },
           {
