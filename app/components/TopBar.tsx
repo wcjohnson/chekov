@@ -1,8 +1,8 @@
 "use client";
 
 import { useContext, type RefObject } from "react";
-import type { ChecklistMode } from "../lib/types";
-import { MultiSelectContext } from "../lib/utils";
+import type { ChecklistMode } from "@/app/lib/types";
+import { MultiSelectContext } from "@/app/lib/context";
 
 type TopBarProps = {
   mode: ChecklistMode;

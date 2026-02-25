@@ -1,5 +1,4 @@
 import type { TaskId } from "./types";
-import { createContext } from "react";
 
 export function fromKvPairsToRecord<K extends string, V>(
   keys: K[],
@@ -11,6 +10,15 @@ export function fromKvPairsToRecord<K extends string, V>(
     if (value !== undefined) record[key] = values[index];
   });
   return record;
+}
+
+export function fromKvPairsToMap<K, V>(keys: K[], values: V[]): Map<K, V> {
+  const map = new Map<K, V>();
+  keys.forEach((key, index) => {
+    const value = values[index];
+    if (value !== undefined) map.set(key, value);
+  });
+  return map;
 }
 
 export const detectCycle = (
@@ -60,23 +68,3 @@ export const detectCycle = (
 
   return false;
 };
-
-// Set editing
-
-export type MultiSelectState = {
-  selectionContext: string;
-  headerText: string;
-  bannedTaskSet?: Set<TaskId>;
-  onSetTasks: (taskIds: Set<TaskId>) => void;
-  selectedTaskSet: Set<TaskId>;
-};
-
-type MultiSelectContextType = {
-  setState: React.Dispatch<React.SetStateAction<MultiSelectState | null>>;
-  state: MultiSelectState | null;
-};
-
-export const MultiSelectContext = createContext<MultiSelectContextType>({
-  setState: () => {},
-  state: null,
-});

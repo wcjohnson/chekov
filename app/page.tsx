@@ -20,7 +20,7 @@ import {
   useUncompleteAllTasksMutation,
   useUnhideAllTasksMutation,
 } from "./lib/storage";
-import { MultiSelectContext, type MultiSelectState } from "./lib/utils";
+import { MultiSelectContext, type MultiSelectState } from "@/app/lib/context";
 import {
   downloadJson,
   exportChecklistDefinition,

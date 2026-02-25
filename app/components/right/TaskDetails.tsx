@@ -26,7 +26,7 @@ import {
   useTaskDetailQuery,
   useTaskDependenciesMutation,
 } from "@/app/lib/storage";
-import { MultiSelectContext } from "@/app/lib/utils";
+import { MultiSelectContext } from "@/app/lib/context";
 
 function DependencyItem({
   dependencyId,

@@ -11,7 +11,7 @@ import {
 } from "@/app/lib/storage";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
-import { MultiSelectContext } from "@/app/lib/utils";
+import { MultiSelectContext } from "@/app/lib/context";
 
 type TaskProps = {
   taskId: TaskId;

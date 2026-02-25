@@ -1,6 +1,6 @@
 "use client";
 
-import { MultiSelectContext } from "@/app/lib/utils";
+import { MultiSelectContext } from "@/app/lib/context";
 import { useContext } from "react";
 
 type LeftHeaderProps = {
