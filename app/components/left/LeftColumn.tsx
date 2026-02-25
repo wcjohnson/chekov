@@ -80,12 +80,14 @@ export function LeftColumn({
 
     for (const category of categories) {
       if (mode === "task") {
-        const dependencies = categoryDependencies?.get(category) ?? new Set();
+        const dependencies = categoryDependencies?.get(category);
         let dependenciesMet = true;
-        for (const dependencyId of dependencies) {
-          if (!allCompletions?.has(dependencyId)) {
-            dependenciesMet = false;
-            break;
+        if (dependencies) {
+          for (const dependencyId of dependencies) {
+            if (!allCompletions?.has(dependencyId)) {
+              dependenciesMet = false;
+              break;
+            }
           }
         }
 
