@@ -3,9 +3,9 @@
 import { Task } from "./Task";
 import type { ChecklistMode, TaskBreakout, TaskId } from "../../lib/types";
 import {
-  useCategoryHiddenMutation,
+  useCategoryCollapsedMutation,
   useCreateTaskMutation,
-  useHiddenCategoriesQuery,
+  useCollapsedCategoriesQuery,
   useMoveTaskMutation,
 } from "@/app/lib/storage";
 import { DragDropList } from "../DragDrop";
@@ -48,8 +48,8 @@ export function Category({
   onMoveDown,
 }: CategoryProps) {
   const visibleTasks = taskBreakout.categoryTasks.get(category);
-  const hiddenCategories = useHiddenCategoriesQuery().data;
-  const categoryHiddenMutation = useCategoryHiddenMutation();
+  const collapsedCategories = useCollapsedCategoriesQuery().data;
+  const categoryCollapsedMutation = useCategoryCollapsedMutation();
   const createTaskMutation = useCreateTaskMutation();
   const moveTaskMutation = useMoveTaskMutation();
 
@@ -57,11 +57,11 @@ export function Category({
     return null;
   }
 
-  const hiddenTaskCategories = hiddenCategories?.task;
-  const hiddenEditCategories = hiddenCategories?.edit;
+  const collapsedTaskCategories = collapsedCategories?.task;
+  const collapsedEditCategories = collapsedCategories?.edit;
   const isOpen =
-    (mode === "task" && !hiddenTaskCategories?.has(category)) ||
-    (mode === "edit" && !hiddenEditCategories?.has(category));
+    (mode === "task" && !collapsedTaskCategories?.has(category)) ||
+    (mode === "edit" && !collapsedEditCategories?.has(category));
 
   return (
     <DragDropList
@@ -80,7 +80,7 @@ export function Category({
       }}
       open={isOpen}
       onToggle={(event) => {
-        categoryHiddenMutation.mutate({
+        categoryCollapsedMutation.mutate({
           mode,
           category,
           isHidden: !event.currentTarget.open,

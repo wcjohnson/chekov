@@ -2,7 +2,7 @@ import { fromKvPairsToMap, mapToRecord, recordToMap } from "./utils";
 import {
   CATEGORIES_STORE,
   CATEGORY_DEPENDENCIES_STORE,
-  CATEGORY_HIDDEN_STORE,
+  CATEGORY_COLLAPSED_STORE,
   CATEGORY_TASKS_STORE,
   getDb,
   queryClient,
@@ -339,8 +339,8 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
   ] = await Promise.all([
     db.getAllKeys(TASK_COMPLETION_STORE),
     db.getAll(TASK_COMPLETION_STORE),
-    db.get(CATEGORY_HIDDEN_STORE, "task"),
-    db.get(CATEGORY_HIDDEN_STORE, "edit"),
+    db.get(CATEGORY_COLLAPSED_STORE, "task"),
+    db.get(CATEGORY_COLLAPSED_STORE, "edit"),
   ]);
   const visibilityTask = maybeVisibilityTask ?? new Set<string>();
   const visibilityEdit = maybeVisibilityEdit ?? new Set<string>();
@@ -413,7 +413,7 @@ export async function importChecklistDefinition(
       TAG_COLORS_STORE,
       TASK_COMPLETION_STORE,
       TASK_HIDDEN_STORE,
-      CATEGORY_HIDDEN_STORE,
+      CATEGORY_COLLAPSED_STORE,
     ],
     "readwrite",
   );
@@ -431,7 +431,7 @@ export async function importChecklistDefinition(
   const tagColorsStore = transaction.objectStore(TAG_COLORS_STORE);
   const completedTasksStore = transaction.objectStore(TASK_COMPLETION_STORE);
   const hiddenTasksStore = transaction.objectStore(TASK_HIDDEN_STORE);
-  const categoryHiddenStore = transaction.objectStore(CATEGORY_HIDDEN_STORE);
+  const categoryHiddenStore = transaction.objectStore(CATEGORY_COLLAPSED_STORE);
 
   await Promise.all([
     tasksStore.clear(),
@@ -519,13 +519,13 @@ export async function importChecklistState(state: ExportedChecklistState) {
   // Replace the content of those tables with content appropriate to the new normalized state.
   // Use a transaction.
   const transaction = db.transaction(
-    [TASK_COMPLETION_STORE, TASK_HIDDEN_STORE, CATEGORY_HIDDEN_STORE],
+    [TASK_COMPLETION_STORE, TASK_HIDDEN_STORE, CATEGORY_COLLAPSED_STORE],
     "readwrite",
   );
 
   const taskCompletionStore = transaction.objectStore(TASK_COMPLETION_STORE);
   const taskHiddenStore = transaction.objectStore(TASK_HIDDEN_STORE);
-  const categoryHiddenStore = transaction.objectStore(CATEGORY_HIDDEN_STORE);
+  const categoryHiddenStore = transaction.objectStore(CATEGORY_COLLAPSED_STORE);
 
   await Promise.all([
     taskCompletionStore.clear(),

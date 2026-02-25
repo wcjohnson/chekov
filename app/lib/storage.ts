@@ -16,7 +16,7 @@ export const CATEGORIES_STORE = "categories";
 export const CATEGORY_TASKS_STORE = "categoryTasks";
 export const CATEGORY_DEPENDENCIES_STORE = "categoryDependencies";
 export const TAG_COLORS_STORE = "tagColors";
-export const CATEGORY_HIDDEN_STORE = "categoryHidden";
+export const CATEGORY_COLLAPSED_STORE = "categoryCollapsed";
 
 export type StoredTask = {
   id: TaskId;
@@ -63,7 +63,7 @@ interface ChekovDB extends DBSchema {
     key: string;
     value: TagColorKey;
   };
-  [CATEGORY_HIDDEN_STORE]: {
+  [CATEGORY_COLLAPSED_STORE]: {
     key: "task" | "edit";
     value: Set<CategoryName>;
   };
@@ -92,7 +92,7 @@ export const getDb = async () => {
         db.createObjectStore(CATEGORY_TASKS_STORE);
         db.createObjectStore(CATEGORY_DEPENDENCIES_STORE);
         db.createObjectStore(TAG_COLORS_STORE);
-        db.createObjectStore(CATEGORY_HIDDEN_STORE);
+        db.createObjectStore(CATEGORY_COLLAPSED_STORE);
       },
     });
   }
@@ -338,7 +338,7 @@ export function useMoveTaskMutation() {
           TASKS_STORE,
           CATEGORIES_STORE,
           CATEGORY_TASKS_STORE,
-          CATEGORY_HIDDEN_STORE,
+          CATEGORY_COLLAPSED_STORE,
         ],
         "readwrite",
       );
@@ -346,7 +346,7 @@ export function useMoveTaskMutation() {
       const tasksStore = tx.objectStore(TASKS_STORE);
       const categoriesStore = tx.objectStore(CATEGORIES_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
-      const categoryHiddenStore = tx.objectStore(CATEGORY_HIDDEN_STORE);
+      const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
 
       const fromTaskIds = (await categoryTasksStore.get(fromCategory)) ?? [];
       const taskId = fromTaskIds[fromIndex];
@@ -801,7 +801,7 @@ export function useTaskCompletionMutation() {
           TASK_COMPLETION_STORE,
           TASKS_STORE,
           CATEGORY_TASKS_STORE,
-          CATEGORY_HIDDEN_STORE,
+          CATEGORY_COLLAPSED_STORE,
           TASK_DEPENDENCIES_STORE,
         ],
         "readwrite",
@@ -810,7 +810,7 @@ export function useTaskCompletionMutation() {
       const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
       const tasksStore = tx.objectStore(TASKS_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
-      const categoryHiddenStore = tx.objectStore(CATEGORY_HIDDEN_STORE);
+      const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
       const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
 
       if (isCompleted) {
@@ -868,7 +868,7 @@ export function useTaskCompletionMutation() {
         queryKey: ["task", "completion", variables.taskId],
       });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
-      queryClient.invalidateQueries({ queryKey: ["hiddenCategories"] });
+      queryClient.invalidateQueries({ queryKey: ["collapsedCategories"] });
     },
   });
 }
@@ -886,7 +886,7 @@ export function useUncompleteAllTasksMutation() {
   });
 }
 
-export function useCategoryHiddenMutation() {
+export function useCategoryCollapsedMutation() {
   return useMutation({
     mutationFn: async ({
       category,
@@ -899,7 +899,7 @@ export function useCategoryHiddenMutation() {
     }) => {
       const db = await getDb();
       const hiddenCategories =
-        (await db.get(CATEGORY_HIDDEN_STORE, mode)) ?? new Set<string>();
+        (await db.get(CATEGORY_COLLAPSED_STORE, mode)) ?? new Set<string>();
 
       if (isHidden) {
         hiddenCategories.add(category);
@@ -907,11 +907,11 @@ export function useCategoryHiddenMutation() {
         hiddenCategories.delete(category);
       }
 
-      await db.put(CATEGORY_HIDDEN_STORE, hiddenCategories, mode);
+      await db.put(CATEGORY_COLLAPSED_STORE, hiddenCategories, mode);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["hiddenCategories"],
+        queryKey: ["collapsedCategories"],
       });
     },
   });
@@ -1211,16 +1211,16 @@ export function useTaskHiddensQuery() {
   return useQuery(getQueryArgs_hiddens());
 }
 
-export function useHiddenCategoriesQuery() {
+export function useCollapsedCategoriesQuery() {
   return useQuery({
-    queryKey: ["hiddenCategories"],
+    queryKey: ["collapsedCategories"],
     queryFn: async () => {
       const db = await getDb();
 
       const hiddenTaskCategories =
-        (await db.get("categoryHidden", "task")) ?? new Set<string>();
+        (await db.get(CATEGORY_COLLAPSED_STORE, "task")) ?? new Set<string>();
       const hiddenEditCategories =
-        (await db.get("categoryHidden", "edit")) ?? new Set<string>();
+        (await db.get(CATEGORY_COLLAPSED_STORE, "edit")) ?? new Set<string>();
 
       return { task: hiddenTaskCategories, edit: hiddenEditCategories };
     },
