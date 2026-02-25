@@ -61,7 +61,7 @@ export function LeftColumn({
 
   const taskBreakout: TaskBreakout = useMemo(() => {
     const visibleCategories: string[] = [];
-    const categoryTasks = {} as Record<string, TaskId[]>;
+    const categoryTasks = new Map<string, TaskId[]>();
     const orderedCategoryTasks: TaskId[][] = [];
     const visibleTasks = new Set<TaskId>();
 
@@ -75,7 +75,7 @@ export function LeftColumn({
     }
 
     for (const category of categories) {
-      const tasks = categoriesTasks[category] ?? [];
+      const tasks = categoriesTasks.get(category) ?? [];
       const filtered = tasks.filter((taskId) => {
         const matchesSearch = tasksMatchingSearch.has(taskId);
         if (mode === "task") {
@@ -90,7 +90,7 @@ export function LeftColumn({
       // show all the categories.
       if (filtered.length > 0) {
         visibleCategories.push(category);
-        categoryTasks[category] = filtered;
+        categoryTasks.set(category, filtered);
         orderedCategoryTasks.push(filtered);
         filtered.forEach((taskId) => visibleTasks.add(taskId));
       }

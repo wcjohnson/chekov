@@ -4,7 +4,7 @@ export type ChecklistMode = "task" | "edit";
 
 export type TaskBreakout = {
   visibleCategories: string[];
-  categoryTasks: Record<string, TaskId[]>;
+  categoryTasks: Map<string, TaskId[]>;
   orderedCategoryTasks: TaskId[][];
   visibleTasks: Set<TaskId>;
 };

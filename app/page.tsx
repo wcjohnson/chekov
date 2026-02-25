@@ -57,7 +57,7 @@ export function AppMain() {
   ///////////////////////////////////////// Data slicing
 
   const taskStructure = useTaskStructure();
-  const allDependencies = useDependenciesQuery().data ?? {};
+  const allDependencies = useDependenciesQuery().data ?? new Map();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const allCompletions = useCompletionsQuery().data ?? new Set<string>();
 

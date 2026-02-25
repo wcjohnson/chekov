@@ -2,7 +2,7 @@ import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import type { TaskId } from "./types";
-import { detectCycle, fromKvPairsToRecord } from "./utils";
+import { detectCycle, fromKvPairsToMap, fromKvPairsToRecord } from "./utils";
 import { useMemo } from "react";
 
 const DB_NAME = "chekov-db";
@@ -569,13 +569,13 @@ export function useTaskDependenciesMutation() {
       console.log("Fetching ALL task dependencies for cycle detection");
       const dependencyTaskIds = await dependenciesStore.getAllKeys();
       const dependencyValues = await dependenciesStore.getAll();
-      const dependencyGraph = fromKvPairsToRecord(
+      const dependencyGraph = fromKvPairsToMap(
         dependencyTaskIds,
         dependencyValues,
       );
 
-      if (!dependencyGraph[taskId]) {
-        dependencyGraph[taskId] = new Set<string>();
+      if (!dependencyGraph.has(taskId)) {
+        dependencyGraph.set(taskId, new Set<string>());
       }
 
       if (detectCycle(dependencyGraph, taskId, dependencies)) {
@@ -593,7 +593,7 @@ export function useTaskDependenciesMutation() {
     onSuccess: ([taskId, dependencies, dependencyGraph]) => {
       queryClient.setQueryData(["task", "dependencies", taskId], dependencies);
       if (dependencyGraph) {
-        dependencyGraph[taskId] = dependencies;
+        dependencyGraph.set(taskId, dependencies);
         queryClient.setQueryData(["dependencies"], dependencyGraph);
       } else {
         queryClient.invalidateQueries({
@@ -908,7 +908,7 @@ function getQueryArgs_categoriesTasks() {
       const db = await getDb();
       const categoryKeys = await db.getAllKeys(CATEGORY_TASKS_STORE);
       const categoryValues = await db.getAll(CATEGORY_TASKS_STORE);
-      return fromKvPairsToRecord(categoryKeys, categoryValues);
+      return fromKvPairsToMap(categoryKeys, categoryValues);
     },
   };
 }
@@ -925,15 +925,15 @@ function getQueryArgs_dependencies() {
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASK_DEPENDENCIES_STORE);
       const dependencies = await db.getAll(TASK_DEPENDENCIES_STORE);
-      const record = fromKvPairsToRecord(taskIds, dependencies);
-      for (const [taskId, dependencies] of Object.entries(record)) {
+      const map = fromKvPairsToMap(taskIds, dependencies);
+      for (const [taskId, dependencies] of map.entries()) {
         queryClient.setQueryData(
           ["task", "dependencies", taskId],
           dependencies,
         );
       }
 
-      return record;
+      return map;
     },
   };
 }
@@ -972,11 +972,11 @@ function getQueryArgs_details(enabled?: boolean) {
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASKS_STORE);
       const details = await db.getAll(TASKS_STORE);
-      const record = fromKvPairsToRecord(taskIds, details);
-      for (const [taskId, detail] of Object.entries(record)) {
+      const map = fromKvPairsToMap(taskIds, details);
+      for (const [taskId, detail] of map.entries()) {
         queryClient.setQueryData(["task", "detail", taskId], detail);
       }
-      return record;
+      return map;
     },
   };
 }
@@ -1011,11 +1011,11 @@ export function getQueryArgs_tags(enabled?: boolean) {
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASK_TAGS_STORE);
       const tags = await db.getAll(TASK_TAGS_STORE);
-      const record = fromKvPairsToRecord(taskIds, tags);
-      for (const [taskId, tags] of Object.entries(record)) {
+      const map = fromKvPairsToMap(taskIds, tags);
+      for (const [taskId, tags] of map.entries()) {
         queryClient.setQueryData(["task", "tags", taskId], tags);
       }
-      return record;
+      return map;
     },
   };
 }
@@ -1154,16 +1154,6 @@ export function useAllKnownTagsQuery() {
 
 //////////// DERIVED DATA
 
-export function useTaskSet() {
-  const detailsQuery = useDetailsQuery();
-  return useMemo(() => {
-    if (detailsQuery.data) {
-      return new Set<string>(Object.keys(detailsQuery.data));
-    }
-    return new Set<string>();
-  }, [detailsQuery.data]);
-}
-
 export function useTaskStructure() {
   const taskSet = useTaskSetQuery();
   const categories = useCategoriesQuery();
@@ -1172,13 +1162,13 @@ export function useTaskStructure() {
   return {
     taskSet: taskSet.data ?? new Set<string>(),
     categories: categories.data ?? [],
-    categoryTasks: categoryTasks.data ?? {},
+    categoryTasks: categoryTasks.data ?? new Map<string, string[]>(),
   };
 }
 
 export function useTasksWithCompleteDependencies(
   taskSet: Set<string> | undefined,
-  dependencies: Record<string, Set<string>> | undefined,
+  dependencies: Map<string, Set<string>> | undefined,
   completions: Set<string> | undefined,
 ) {
   return useMemo(() => {
@@ -1189,7 +1179,7 @@ export function useTasksWithCompleteDependencies(
     const tasksWithCompleteDependencies = new Set<string>();
 
     for (const taskId of taskSet) {
-      const taskDependencies = dependencies[taskId] ?? new Set<string>();
+      const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
       let hasIncompleteDependency = false;
       for (const depId of taskDependencies) {
         if (!completions.has(depId)) {
@@ -1232,8 +1222,8 @@ export function useTasksMatchingSearch(searchQuery: string) {
     const matchingTasks = new Set<string>();
 
     for (const taskId of taskSet) {
-      const detail = details ? details[taskId] : undefined;
-      const taskTags = tags ? tags[taskId] : undefined;
+      const detail = details?.get(taskId);
+      const taskTags = tags?.get(taskId);
 
       const categoryMatch = detail?.category
         .toLowerCase()

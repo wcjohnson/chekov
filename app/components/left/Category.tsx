@@ -47,7 +47,7 @@ export function Category({
   onMoveUp,
   onMoveDown,
 }: CategoryProps) {
-  const visibleTasks = taskBreakout.categoryTasks[category];
+  const visibleTasks = taskBreakout.categoryTasks.get(category);
   const hiddenCategories = useHiddenCategoriesQuery().data;
   const categoryHiddenMutation = useCategoryHiddenMutation();
   const createTaskMutation = useCreateTaskMutation();

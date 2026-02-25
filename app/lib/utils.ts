@@ -22,7 +22,7 @@ export function fromKvPairsToMap<K, V>(keys: K[], values: V[]): Map<K, V> {
 }
 
 export const detectCycle = (
-  graph: Record<TaskId, Set<TaskId>>,
+  graph: Map<TaskId, Set<TaskId>>,
   changedNode?: TaskId,
   changedNodeEdges?: Set<TaskId>,
 ): boolean => {
@@ -34,7 +34,7 @@ export const detectCycle = (
       return changedNodeEdges;
     }
 
-    return graph[node];
+    return graph.get(node);
   };
 
   const visit = (node: TaskId): boolean => {
@@ -60,7 +60,7 @@ export const detectCycle = (
     return false;
   };
 
-  for (const taskId of Object.keys(graph)) {
+  for (const taskId of graph.keys()) {
     if (visit(taskId)) {
       return true;
     }
