@@ -1,11 +1,6 @@
 import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
-import {
-  QueryClient,
-  useMutation,
-  useQueries,
-  useQuery,
-} from "@tanstack/react-query";
+import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import type { TaskId } from "./types";
 import { fromKvPairsToRecord } from "./utils";
 import { useMemo } from "react";
@@ -98,7 +93,13 @@ export const getDb = async () => {
   return dbPromise;
 };
 
-export const queryClient = new QueryClient();
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: Infinity,
+    },
+  },
+});
 
 //////////////////////////// MUTTS
 
@@ -735,21 +736,6 @@ export function useTagColorMutation() {
 
 //////////////// QUERIES
 
-function getQueryArgs_taskSet() {
-  return {
-    queryKey: ["taskSet"],
-    queryFn: async () => {
-      const db = await getDb();
-      const allTasks = await db.getAllKeys(TASKS_STORE);
-      return new Set<string>(allTasks);
-    },
-  };
-}
-
-export function useTaskSet() {
-  return useQuery(getQueryArgs_taskSet());
-}
-
 function getQueryArgs_categories() {
   return {
     queryKey: ["categories"],
@@ -793,6 +779,16 @@ function getQueryArgs_dependencies() {
       const dependencies = await db.getAll(TASK_DEPENDENCIES_STORE);
       return fromKvPairsToRecord(taskIds, dependencies);
     },
+    onSuccess: (dependenciesByTaskId: Record<string, Set<string>>) => {
+      for (const [taskId, dependencies] of Object.entries(
+        dependenciesByTaskId,
+      )) {
+        queryClient.setQueryData(
+          ["task", "dependencies", taskId],
+          dependencies,
+        );
+      }
+    },
   };
 }
 
@@ -810,6 +806,11 @@ function getQueryArgs_completions() {
       );
       return allTasks;
     },
+    onSuccess: (completedTaskIds: Set<string>) => {
+      for (const taskId of completedTaskIds) {
+        queryClient.setQueryData(["task", "completion", taskId], true);
+      }
+    },
   };
 }
 
@@ -826,11 +827,26 @@ function getQueryArgs_details() {
       const details = await db.getAll(TASKS_STORE);
       return fromKvPairsToRecord(taskIds, details);
     },
+    onSuccess: (detailsByTaskId: Record<string, StoredTask>) => {
+      for (const [taskId, detail] of Object.entries(detailsByTaskId)) {
+        queryClient.setQueryData(["task", "detail", taskId], detail);
+      }
+    },
   };
 }
 
 export function useDetails() {
   return useQuery(getQueryArgs_details());
+}
+
+export function useTaskSet() {
+  const detailsQuery = useDetails();
+  return useMemo(() => {
+    if (detailsQuery.data) {
+      return new Set<string>(Object.keys(detailsQuery.data));
+    }
+    return new Set<string>();
+  }, [detailsQuery.data]);
 }
 
 export function getQueryArgs_tags() {
@@ -841,6 +857,11 @@ export function getQueryArgs_tags() {
       const taskIds = await db.getAllKeys(TASK_TAGS_STORE);
       const tags = await db.getAll(TASK_TAGS_STORE);
       return fromKvPairsToRecord(taskIds, tags);
+    },
+    onSuccess: (tagsByTaskId: Record<string, Set<string>>) => {
+      for (const [taskId, tags] of Object.entries(tagsByTaskId)) {
+        queryClient.setQueryData(["task", "tags", taskId], tags);
+      }
     },
   };
 }
@@ -947,6 +968,7 @@ export function useTaskDetail(taskId: TaskId) {
     queryFn: async () => {
       if (!taskId) return null;
       const db = await getDb();
+      console.log("Fetching task detail for", taskId);
       const res = await db.get(TASKS_STORE, taskId);
       return res === undefined ? null : res;
     },
@@ -1003,8 +1025,8 @@ export function useTaskHidden(taskId: TaskId) {
   });
 }
 
-export function useTaskHiddens() {
-  return useQuery({
+function getQueryArgs_hiddens() {
+  return {
     queryKey: ["hiddens"],
     queryFn: async () => {
       const db = await getDb();
@@ -1013,7 +1035,16 @@ export function useTaskHiddens() {
       );
       return allHiddenTasks;
     },
-  });
+    onSuccess: (hiddenTaskIds: Set<string>) => {
+      for (const taskId of hiddenTaskIds) {
+        queryClient.setQueryData(["task", "hidden", taskId], true);
+      }
+    },
+  };
+}
+
+export function useTaskHiddens() {
+  return useQuery(getQueryArgs_hiddens());
 }
 
 export function useHiddenCategories() {
@@ -1059,24 +1090,14 @@ export function useAllKnownTags() {
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function combineTaskStructureQueries(results: any[]) {
-  const [taskSet, categories, categoryTasks] = results;
-  return {
-    taskSet: (taskSet.data as Set<string>) ?? new Set<string>(),
-    categories: (categories.data as string[]) ?? [],
-    categoryTasks: (categoryTasks.data as Record<string, string[]>) ?? {},
-    pending: results.some((result) => result.isPending),
-  };
-}
-
 export function useTaskStructure() {
-  return useQueries({
-    queries: [
-      getQueryArgs_taskSet(),
-      getQueryArgs_categories(),
-      getQueryArgs_categoriesTasks(),
-    ],
-    combine: combineTaskStructureQueries,
-  });
+  const taskSet = useTaskSet();
+  const categories = useCategories();
+  const categoryTasks = useCategoriesTasks();
+
+  return {
+    taskSet,
+    categories: categories.data ?? [],
+    categoryTasks: categoryTasks.data ?? {},
+  };
 }
