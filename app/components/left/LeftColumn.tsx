@@ -116,7 +116,7 @@ export function LeftColumn({
   ]);
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <LeftHeader
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
@@ -127,7 +127,10 @@ export function LeftColumn({
         onClearSelection={onClearSelection}
       />
 
-      <div className="space-y-2">
+      <div
+        data-left-pane-scroll="true"
+        className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto"
+      >
         {taskBreakout.visibleCategories.map((category, index) => (
           <Category
             key={category}
@@ -193,6 +196,6 @@ export function LeftColumn({
           </p>
         )}
       </div>
-    </>
+    </div>
   );
 }
