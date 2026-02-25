@@ -122,6 +122,20 @@
 - `idb`
 - `react-markdown`
 - `remark-gfm`
+- `vitest`
+- `jsdom`
+- `fake-indexeddb`
+
+## Testing
+
+- Test files live under `tests/`.
+- Run tests with:
+  - `npm test` (single run)
+  - `npm run test:watch` (watch mode)
+- Test environment is configured for browser-like behavior (`jsdom`) and IndexedDB simulation (`fake-indexeddb`) so data-layer and import/export logic can be unit tested without a real browser.
+- `tests/setup.ts` is the shared setup file and is the right place for test-wide browser/indexeddb shims.
+- Start new coverage by adding `*.test.ts` files in `tests/` (for example `tests/data/*.test.ts` or `tests/export/*.test.ts`).
+- Any change to the data model (stores, query/mutation behavior, import/export normalization, or dependency/completion semantics) must run the full test suite before handoff.
 
 ## Notes for Future Agents
 
@@ -129,6 +143,7 @@
 - Avoid introducing backend persistence unless explicitly requested.
 - Treat IndexedDB as the canonical, untainted source of truth on read paths; avoid defensive read-time filtering/checks in query logic when reading from DB stores.
 - Place defensive validation/guardrails at mutation boundaries instead: UX actions that write data and import/export normalization in `app/lib/export.ts`.
+- Run `npm test` for every data-model-affecting change, especially changes in `app/lib/data.ts` and `app/lib/export.ts`.
 - Keep storage/query contracts in `data.ts` and export/import schema contracts in `export.ts` aligned.
 - Keep dependency cycle prevention enforced when changing dependency logic (`detectCycle` in `app/lib/utils.ts`).
 - Preserve current interaction contracts:

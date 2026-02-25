@@ -1,0 +1,210 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  exportChecklistDefinition,
+  exportChecklistState,
+  importChecklistDefinition,
+  importChecklistState,
+  type ExportedChecklistDefinition,
+  type ExportedChecklistState,
+} from "../../app/lib/export";
+
+const EMPTY_DEFINITION: ExportedChecklistDefinition = {
+  categories: [],
+  tasksByCategory: {},
+  tagColors: {},
+  categoryDependencies: {},
+};
+
+const EMPTY_STATE: ExportedChecklistState = {
+  tasks: {},
+  categoryVisibilityByMode: {
+    task: {},
+    edit: {},
+  },
+};
+
+const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+describe("import/export normalization", () => {
+  beforeEach(async () => {
+    await importChecklistDefinition(asJson(EMPTY_DEFINITION));
+    await importChecklistState(asJson(EMPTY_STATE));
+  });
+
+  it("normalizes definition shape and cross-references", async () => {
+    const rawDefinition = {
+      categories: ["A", "B", "Empty"],
+      tasksByCategory: {
+        A: [
+          {
+            id: "t1",
+            category: "A",
+            title: "Task 1",
+            description: "",
+            dependencies: ["t1", "t2", "t2", "missing", "t3"],
+            tags: ["keep", "dup", "dup", ""],
+          },
+          {
+            id: "t3",
+            category: "A",
+            title: "Reminder",
+            type: "reminder",
+            tags: ["keep"],
+          },
+        ],
+        B: [
+          {
+            id: "t2",
+            category: "B",
+            title: "Task 2",
+            tags: ["other"],
+          },
+        ],
+        Empty: [],
+      },
+      tagColors: {
+        keep: "red",
+        dup: "blue",
+        other: "green",
+        unused: "purple",
+      },
+      categoryDependencies: {
+        B: ["t1", "missing", "t1"],
+        Empty: ["t2"],
+      },
+    } as unknown as ExportedChecklistDefinition;
+
+    await importChecklistDefinition(asJson(rawDefinition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition).toEqual({
+      categories: ["A", "B"],
+      tasksByCategory: {
+        A: [
+          {
+            id: "t1",
+            category: "A",
+            title: "Task 1",
+            dependencies: ["t2"],
+            tags: ["keep", "dup"],
+          },
+          {
+            id: "t3",
+            category: "A",
+            title: "Reminder",
+            type: "reminder",
+            tags: ["keep"],
+          },
+        ],
+        B: [
+          {
+            id: "t2",
+            category: "B",
+            title: "Task 2",
+            tags: ["other"],
+          },
+        ],
+      },
+      tagColors: {
+        keep: "red",
+        dup: "blue",
+        other: "green",
+      },
+      categoryDependencies: {
+        B: ["t1"],
+      },
+    });
+  });
+
+  it("normalizes imported state by dropping unknown and reminder completion", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          {
+            id: "normal",
+            category: "Main",
+            title: "Normal",
+          },
+          {
+            id: "rem",
+            category: "Main",
+            title: "Reminder",
+            type: "reminder",
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    const rawState: ExportedChecklistState = {
+      tasks: {
+        normal: { completed: true, explicitlyHidden: true },
+        rem: { completed: true, explicitlyHidden: true },
+        ghost: { completed: true, explicitlyHidden: true },
+      },
+      categoryVisibilityByMode: {
+        task: {
+          Main: true,
+          GhostCategory: true,
+        },
+        edit: {
+          Main: true,
+          UnknownCategory: true,
+        },
+      },
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    await importChecklistState(asJson(rawState));
+
+    const exportedState = await exportChecklistState();
+
+    expect(exportedState).toEqual({
+      tasks: {
+        normal: { completed: true, explicitlyHidden: false },
+      },
+      categoryVisibilityByMode: {
+        task: {
+          Main: true,
+        },
+        edit: {
+          Main: true,
+        },
+      },
+    });
+  });
+
+  it("accepts legacy warning type and normalizes to reminder on export", async () => {
+    const legacyDefinition: ExportedChecklistDefinition = {
+      categories: ["Legacy"],
+      tasksByCategory: {
+        Legacy: [
+          {
+            id: "w1",
+            category: "Legacy",
+            title: "Legacy warning",
+            type: "warning",
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(legacyDefinition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.tasksByCategory).toEqual({
+      Legacy: [
+        {
+          id: "w1",
+          category: "Legacy",
+          title: "Legacy warning",
+          type: "reminder",
+        },
+      ],
+    });
+  });
+});
