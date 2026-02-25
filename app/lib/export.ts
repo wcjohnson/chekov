@@ -353,16 +353,19 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
   const [
     taskCompletionKeys,
     taskCompletionValues,
+    hiddenTaskKeys,
     maybeVisibilityTask,
     maybeVisibilityEdit,
   ] = await Promise.all([
     db.getAllKeys(TASK_COMPLETION_STORE),
     db.getAll(TASK_COMPLETION_STORE),
+    db.getAllKeys(TASK_HIDDEN_STORE),
     db.get(CATEGORY_COLLAPSED_STORE, "task"),
     db.get(CATEGORY_COLLAPSED_STORE, "edit"),
   ]);
   const visibilityTask = maybeVisibilityTask ?? new Set<string>();
   const visibilityEdit = maybeVisibilityEdit ?? new Set<string>();
+  const hiddenTaskSet = new Set(hiddenTaskKeys);
 
   const taskCompletionMap = fromKvPairsToMap(
     taskCompletionKeys,
@@ -386,7 +389,7 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
     }
 
     const completed = Boolean(taskCompletionMap.get(taskId));
-    const explicitlyHidden = visibilityTask.has(taskId);
+    const explicitlyHidden = hiddenTaskSet.has(taskId);
     tasks.set(taskId, { completed, explicitlyHidden });
   });
 

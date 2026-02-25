@@ -163,7 +163,7 @@ describe("import/export normalization", () => {
 
     expect(exportedState).toEqual({
       tasks: {
-        normal: { completed: true, explicitlyHidden: false },
+        normal: { completed: true, explicitlyHidden: true },
       },
       categoryVisibilityByMode: {
         task: {

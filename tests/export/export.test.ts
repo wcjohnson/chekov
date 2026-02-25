@@ -253,4 +253,47 @@ describe("import/export", () => {
       normal: { completed: true, explicitlyHidden: false },
     });
   });
+
+  it("computes explicitlyHidden from task hidden state, not category visibility", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          {
+            id: "t1",
+            category: "Main",
+            title: "Task one",
+          },
+          {
+            id: "t2",
+            category: "Main",
+            title: "Task two",
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    const importedState: ExportedChecklistState = {
+      tasks: {
+        t1: { completed: true, explicitlyHidden: false },
+        t2: { completed: true, explicitlyHidden: true },
+      },
+      categoryVisibilityByMode: {
+        task: { Main: true },
+        edit: {},
+      },
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    await importChecklistState(asJson(importedState));
+
+    const exportedState = await exportChecklistState();
+
+    expect(exportedState.tasks).toEqual({
+      t1: { completed: true, explicitlyHidden: false },
+      t2: { completed: true, explicitlyHidden: true },
+    });
+  });
 });
