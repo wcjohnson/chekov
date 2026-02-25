@@ -456,11 +456,13 @@ export function TaskDetails({
 
   return (
     <>
-      <article className="prose prose-zinc max-w-none dark:prose-invert">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {selectedTaskDetail?.description || "No description."}
-        </ReactMarkdown>
-      </article>
+      {(selectedTaskDetail?.description?.length ?? 0) > 0 && (
+        <article className="prose prose-zinc max-w-none dark:prose-invert">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {selectedTaskDetail?.description ?? ""}
+          </ReactMarkdown>
+        </article>
+      )}
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Category: {selectedTaskDetail?.category ?? "Uncategorized"}
       </p>
