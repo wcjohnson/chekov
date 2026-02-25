@@ -1,4 +1,4 @@
-import { fromKvPairsToRecord } from "./utils";
+import { fromKvPairsToMap, mapToRecord, recordToMap } from "./utils";
 import {
   CATEGORIES_STORE,
   CATEGORY_HIDDEN_STORE,
@@ -53,13 +53,13 @@ function normalizeChecklistDefinition(
   // Remove dependencies for tasks that don't exist
   // Remove empty categories.
   // Remove tag colors for tags which arent used by any task.
-  const normalizedTasksByCategory: Record<string, ExportedTaskDefinition[]> =
-    {};
+  const tasksByCategoryEntries = Object.entries(definition.tasksByCategory);
+  const normalizedTasksByCategory = new Map<string, ExportedTaskDefinition[]>();
 
   const allTaskIds = new Set<TaskId>();
   const warningTaskIds = new Set<TaskId>();
 
-  for (const tasks of Object.values(definition.tasksByCategory)) {
+  for (const [, tasks] of tasksByCategoryEntries) {
     for (const task of tasks ?? []) {
       allTaskIds.add(task.id);
       if (task.type === "warning") {
@@ -68,54 +68,59 @@ function normalizeChecklistDefinition(
     }
   }
 
-  for (const [category, tasks] of Object.entries(definition.tasksByCategory)) {
-    normalizedTasksByCategory[category] = (tasks ?? []).map((task) => {
-      const normalizedType = task.type === "warning" ? "warning" : "task";
-      const normalizedDependencies = Array.from(
-        new Set<TaskId>(
-          Array.from(task.dependencies ?? []).filter(
-            (dependencyId) =>
-              dependencyId !== task.id &&
-              allTaskIds.has(dependencyId) &&
-              !warningTaskIds.has(dependencyId),
+  for (const [category, tasks] of tasksByCategoryEntries) {
+    normalizedTasksByCategory.set(
+      category,
+      (tasks ?? []).map((task) => {
+        const normalizedType = task.type === "warning" ? "warning" : "task";
+        const normalizedDependencies = Array.from(
+          new Set<TaskId>(
+            Array.from(task.dependencies ?? []).filter(
+              (dependencyId) =>
+                dependencyId !== task.id &&
+                allTaskIds.has(dependencyId) &&
+                !warningTaskIds.has(dependencyId),
+            ),
           ),
-        ),
-      );
+        );
 
-      const normalizedTags = Array.from(
-        new Set(
-          Array.from(task.tags ?? []).filter(
-            (tag): tag is string => typeof tag === "string" && tag.length > 0,
+        const normalizedTags = Array.from(
+          new Set(
+            Array.from(task.tags ?? []).filter(
+              (tag): tag is string => typeof tag === "string" && tag.length > 0,
+            ),
           ),
-        ),
-      );
+        );
 
-      return {
-        id: task.id,
-        category: task.category,
-        title: task.title,
-        description: task.description,
-        ...(normalizedType === "warning" ? { type: "warning" as const } : {}),
-        ...(normalizedDependencies.length > 0
-          ? { dependencies: normalizedDependencies }
-          : {}),
-        ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
-      };
-    });
+        return {
+          id: task.id,
+          category: task.category,
+          title: task.title,
+          description: task.description,
+          ...(normalizedType === "warning" ? { type: "warning" as const } : {}),
+          ...(normalizedDependencies.length > 0
+            ? { dependencies: normalizedDependencies }
+            : {}),
+          ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
+        };
+      }),
+    );
   }
 
   const categories = definition.categories.filter(
-    (category) => (normalizedTasksByCategory[category] ?? []).length > 0,
+    (category) => (normalizedTasksByCategory.get(category) ?? []).length > 0,
   );
 
-  const filteredTasksByCategory: Record<string, ExportedTaskDefinition[]> = {};
+  const filteredTasksByCategory = new Map<string, ExportedTaskDefinition[]>();
   for (const category of categories) {
-    filteredTasksByCategory[category] =
-      normalizedTasksByCategory[category] ?? [];
+    filteredTasksByCategory.set(
+      category,
+      normalizedTasksByCategory.get(category) ?? [],
+    );
   }
 
   const usedTags = new Set<string>();
-  for (const tasks of Object.values(filteredTasksByCategory)) {
+  for (const tasks of filteredTasksByCategory.values()) {
     for (const task of tasks) {
       for (const tag of task.tags ?? []) {
         usedTags.add(tag);
@@ -123,17 +128,18 @@ function normalizeChecklistDefinition(
     }
   }
 
-  const normalizedTagColors: Record<string, TagColorKey> = {};
-  for (const [tag, color] of Object.entries(definition.tagColors ?? {})) {
+  const tagColorEntries = Object.entries(definition.tagColors ?? {});
+  const normalizedTagColors = new Map<string, TagColorKey>();
+  for (const [tag, color] of tagColorEntries) {
     if (usedTags.has(tag)) {
-      normalizedTagColors[tag] = color;
+      normalizedTagColors.set(tag, color);
     }
   }
 
   return {
     categories,
-    tasksByCategory: filteredTasksByCategory,
-    tagColors: normalizedTagColors,
+    tasksByCategory: mapToRecord(filteredTasksByCategory),
+    tagColors: mapToRecord(normalizedTagColors),
   };
 }
 
@@ -143,52 +149,57 @@ function normalizeChecklistState(
 ): ExportedChecklistState {
   // Remove state for tasks that don't exist in the definition.
   // Remove category visibility state for categories that don't exist in the definition.
+  const definitionTasksByCategory = recordToMap(
+    normalizedDefinition.tasksByCategory,
+  );
+
   const validTaskIds = new Set<TaskId>();
-  for (const tasks of Object.values(normalizedDefinition.tasksByCategory)) {
+  for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
       validTaskIds.add(task.id);
     }
   }
 
-  const normalizedTasks: Record<TaskId, ExportedChecklistTaskState> = {};
-  for (const [taskId, taskState] of Object.entries(state.tasks ?? {})) {
+  const taskStateMap = recordToMap(state.tasks ?? {});
+
+  const normalizedTasks = new Map<TaskId, ExportedChecklistTaskState>();
+  for (const [taskId, taskState] of taskStateMap.entries()) {
     if (!validTaskIds.has(taskId)) {
       continue;
     }
 
-    normalizedTasks[taskId] = {
+    normalizedTasks.set(taskId, {
       completed: Boolean(taskState?.completed),
       explicitlyHidden: Boolean(taskState?.explicitlyHidden),
-    };
+    });
   }
 
   const validCategories = new Set(normalizedDefinition.categories);
 
-  const normalizedCategoryVisibilityByMode: ExportedChecklistCategoryVisibilityByMode =
-    {
-      task: {},
-      edit: {},
-    };
+  const taskVisibilityMap = recordToMap(state.categoryVisibilityByMode?.task);
+  const editVisibilityMap = recordToMap(state.categoryVisibilityByMode?.edit);
 
-  for (const [category, isVisible] of Object.entries(
-    state.categoryVisibilityByMode?.task ?? {},
-  )) {
+  const normalizedTaskVisibility = new Map<string, boolean>();
+  const normalizedEditVisibility = new Map<string, boolean>();
+
+  for (const [category, isVisible] of taskVisibilityMap.entries()) {
     if (validCategories.has(category)) {
-      normalizedCategoryVisibilityByMode.task[category] = Boolean(isVisible);
+      normalizedTaskVisibility.set(category, Boolean(isVisible));
     }
   }
 
-  for (const [category, isVisible] of Object.entries(
-    state.categoryVisibilityByMode?.edit ?? {},
-  )) {
+  for (const [category, isVisible] of editVisibilityMap.entries()) {
     if (validCategories.has(category)) {
-      normalizedCategoryVisibilityByMode.edit[category] = Boolean(isVisible);
+      normalizedEditVisibility.set(category, Boolean(isVisible));
     }
   }
 
   return {
-    tasks: normalizedTasks,
-    categoryVisibilityByMode: normalizedCategoryVisibilityByMode,
+    tasks: mapToRecord(normalizedTasks),
+    categoryVisibilityByMode: {
+      task: mapToRecord(normalizedTaskVisibility),
+      edit: mapToRecord(normalizedEditVisibility),
+    },
   };
 }
 
@@ -222,28 +233,32 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
   ]);
 
   const categories = maybeCategories ?? [];
-  const taskRecord = fromKvPairsToRecord(taskKeys, taskValues);
-  const taskTagsRecord = fromKvPairsToRecord(taskTagKeys, taskTagValues);
-  const taskDependenciesRecord = fromKvPairsToRecord(
+  const taskMap = fromKvPairsToMap(taskKeys, taskValues);
+  const taskTagsMap = fromKvPairsToMap(taskTagKeys, taskTagValues);
+  const taskDependenciesMap = fromKvPairsToMap(
     taskDependencyKeys,
     taskDependencyValues,
   );
-  const categoryTasksRecord = fromKvPairsToRecord(
+  const categoryTasksMap = fromKvPairsToMap(
     categoryTaskKeys,
     categoryTaskValues,
   );
-  const tagColorsRecord = fromKvPairsToRecord(tagColorKeys, tagColorValues);
+  const tagColorsMap = fromKvPairsToMap(tagColorKeys, tagColorValues);
 
-  const tasksByCategory: Record<string, ExportedTaskDefinition[]> = {};
+  const tasksByCategory = new Map<string, ExportedTaskDefinition[]>();
   categories.forEach((category) => {
-    const taskIds = categoryTasksRecord[category] ?? [];
+    const taskIds = categoryTasksMap.get(category) ?? [];
     const categoryTasks: ExportedTaskDefinition[] = [];
 
     for (const taskId of taskIds) {
-      const task = taskRecord[taskId];
+      const task = taskMap.get(taskId);
       if (!task) {
         continue;
       }
+
+      const taskDependencies =
+        taskDependenciesMap.get(taskId) ?? new Set<string>();
+      const taskTags = taskTagsMap.get(taskId) ?? new Set<string>();
 
       categoryTasks.push({
         id: taskId,
@@ -251,22 +266,22 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         title: task.title,
         description: task.description,
         ...(task.type === "warning" ? { type: "warning" as const } : {}),
-        ...(Array.from(taskDependenciesRecord[taskId] ?? []).length > 0
-          ? { dependencies: Array.from(taskDependenciesRecord[taskId] ?? []) }
+        ...(Array.from(taskDependencies).length > 0
+          ? { dependencies: Array.from(taskDependencies) }
           : {}),
-        ...(Array.from(taskTagsRecord[taskId] ?? []).length > 0
-          ? { tags: Array.from(taskTagsRecord[taskId] ?? []) }
+        ...(Array.from(taskTags).length > 0
+          ? { tags: Array.from(taskTags) }
           : {}),
       });
     }
 
-    tasksByCategory[category] = categoryTasks;
+    tasksByCategory.set(category, categoryTasks);
   });
 
   return normalizeChecklistDefinition({
     categories,
-    tasksByCategory,
-    tagColors: tagColorsRecord,
+    tasksByCategory: mapToRecord(tasksByCategory),
+    tagColors: mapToRecord(tagColorsMap),
   });
 }
 
@@ -288,12 +303,14 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
   const visibilityTask = maybeVisibilityTask ?? new Set<string>();
   const visibilityEdit = maybeVisibilityEdit ?? new Set<string>();
 
-  const taskCompletionRecord = fromKvPairsToRecord(
+  const taskCompletionMap = fromKvPairsToMap(
     taskCompletionKeys,
     taskCompletionValues,
   );
+  const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
+
   const warningTaskIds = new Set<TaskId>();
-  for (const tasks of Object.values(definition.tasksByCategory)) {
+  for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
       if (task.type === "warning") {
         warningTaskIds.add(task.id);
@@ -301,30 +318,34 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
     }
   }
 
-  const tasks: Record<TaskId, ExportedChecklistTaskState> = {};
+  const tasks = new Map<TaskId, ExportedChecklistTaskState>();
   taskCompletionKeys.forEach((taskId) => {
     if (warningTaskIds.has(taskId)) {
       return;
     }
 
-    const completed = taskCompletionRecord[taskId] ?? false;
+    const completed = Boolean(taskCompletionMap.get(taskId));
     const explicitlyHidden = visibilityTask.has(taskId);
-    tasks[taskId] = { completed, explicitlyHidden };
+    tasks.set(taskId, { completed, explicitlyHidden });
   });
 
-  const categoryVisibilityByMode: ExportedChecklistCategoryVisibilityByMode = {
-    task: {},
-    edit: {},
-  };
+  const taskVisibility = new Map<string, boolean>();
+  const editVisibility = new Map<string, boolean>();
   visibilityTask.forEach((category) => {
-    categoryVisibilityByMode.task[category] = true;
+    taskVisibility.set(category, true);
   });
   visibilityEdit.forEach((category) => {
-    categoryVisibilityByMode.edit[category] = true;
+    editVisibility.set(category, true);
   });
 
   return normalizeChecklistState(
-    { tasks, categoryVisibilityByMode },
+    {
+      tasks: mapToRecord(tasks),
+      categoryVisibilityByMode: {
+        task: mapToRecord(taskVisibility),
+        edit: mapToRecord(editVisibility),
+      },
+    },
     definition,
   );
 }
@@ -380,12 +401,16 @@ export async function importChecklistDefinition(
 
   await categoriesStore.put(normalizedDefinition.categories, "categories");
 
-  for (const [tag, color] of Object.entries(normalizedDefinition.tagColors)) {
+  const tagColorsMap = recordToMap(normalizedDefinition.tagColors);
+
+  for (const [tag, color] of tagColorsMap.entries()) {
     await tagColorsStore.put(color, tag);
   }
 
+  const tasksByCategoryMap = recordToMap(normalizedDefinition.tasksByCategory);
+
   for (const category of normalizedDefinition.categories) {
-    const tasks = normalizedDefinition.tasksByCategory[category] ?? [];
+    const tasks = tasksByCategoryMap.get(category) ?? [];
     const taskIds = tasks.map((task) => task.id);
 
     await categoryTasksStore.put(taskIds, category);
@@ -420,8 +445,10 @@ export async function importChecklistDefinition(
 export async function importChecklistState(state: ExportedChecklistState) {
   const db = await getDb();
   const definition = await exportChecklistDefinition();
+  const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
+
   const warningTaskIds = new Set<TaskId>();
-  for (const tasks of Object.values(definition.tasksByCategory)) {
+  for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
       if (task.type === "warning") {
         warningTaskIds.add(task.id);
@@ -449,7 +476,9 @@ export async function importChecklistState(state: ExportedChecklistState) {
     categoryHiddenStore.clear(),
   ]);
 
-  for (const [taskId, taskState] of Object.entries(normalizedState.tasks)) {
+  const stateTaskMap = recordToMap(normalizedState.tasks);
+
+  for (const [taskId, taskState] of stateTaskMap.entries()) {
     if (taskState.completed && !warningTaskIds.has(taskId)) {
       await taskCompletionStore.put(true, taskId);
     }
@@ -462,17 +491,21 @@ export async function importChecklistState(state: ExportedChecklistState) {
   const taskVisibleCategories = new Set<string>();
   const editVisibleCategories = new Set<string>();
 
-  for (const [category, isVisible] of Object.entries(
+  const taskVisibilityMap = recordToMap(
     normalizedState.categoryVisibilityByMode.task,
-  )) {
+  );
+
+  for (const [category, isVisible] of taskVisibilityMap.entries()) {
     if (isVisible) {
       taskVisibleCategories.add(category);
     }
   }
 
-  for (const [category, isVisible] of Object.entries(
+  const editVisibilityMap = recordToMap(
     normalizedState.categoryVisibilityByMode.edit,
-  )) {
+  );
+
+  for (const [category, isVisible] of editVisibilityMap.entries()) {
     if (isVisible) {
       editVisibleCategories.add(category);
     }

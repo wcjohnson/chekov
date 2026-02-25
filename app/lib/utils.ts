@@ -21,6 +21,16 @@ export function fromKvPairsToMap<K, V>(keys: K[], values: V[]): Map<K, V> {
   return map;
 }
 
+export function mapToRecord<K extends string, V>(map: Map<K, V>): Record<K, V> {
+  return Object.fromEntries(map.entries()) as Record<K, V>;
+}
+
+export function recordToMap<K extends string, V>(
+  record: Record<K, V> | Partial<Record<K, V>> | undefined,
+): Map<K, V> {
+  return new Map(Object.entries(record ?? {}) as [K, V][]);
+}
+
 export const detectCycle = (
   graph: Map<TaskId, Set<TaskId>>,
   changedNode?: TaskId,
