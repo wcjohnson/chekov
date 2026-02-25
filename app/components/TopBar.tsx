@@ -14,6 +14,8 @@ type TopBarProps = {
   onDeleteAll: () => void;
   onUnhideAll: () => void;
   onResetCompleted: () => void;
+  showCompletedTasks: boolean;
+  onToggleShowCompletedTasks: () => void;
   onClearDatabase: () => void;
   onSearchTextChange: (value: string) => void;
   onExportDefinition: () => void;
@@ -34,6 +36,8 @@ export function TopBar({
   onDeleteAll,
   onUnhideAll,
   onResetCompleted,
+  showCompletedTasks,
+  onToggleShowCompletedTasks,
   onClearDatabase,
   onSearchTextChange,
   onExportDefinition,
@@ -85,6 +89,15 @@ export function TopBar({
           >
             Reset Completed
           </button>
+          {mode === "task" && (
+            <button
+              type="button"
+              onClick={onToggleShowCompletedTasks}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              {showCompletedTasks ? "Hide Completed" : "Show Completed"}
+            </button>
+          )}
           <button
             type="button"
             onClick={onClearDatabase}

@@ -37,6 +37,7 @@ const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
 
 export function AppMain() {
   const [mode, setMode] = useState<ChecklistMode>("task");
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [stateSelectedTaskId, setSelectedTaskId] = useState<TaskId | null>(
     null,
@@ -301,6 +302,10 @@ export function AppMain() {
             onDeleteAll={deleteSelectedTasks}
             onUnhideAll={unhideAllTasks}
             onResetCompleted={resetAllCompletedTasks}
+            showCompletedTasks={showCompletedTasks}
+            onToggleShowCompletedTasks={() =>
+              setShowCompletedTasks((current) => !current)
+            }
             onClearDatabase={clearDatabase}
             onSearchTextChange={setSearchText}
             onExportDefinition={handleExportDefinition}
@@ -320,6 +325,7 @@ export function AppMain() {
         leftColumn={
           <LeftColumn
             mode={mode}
+            showCompletedTasks={showCompletedTasks}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             tasksMatchingSearch={tasksMatchingSearch}
             selectedTaskId={selectedTaskId}

@@ -16,6 +16,7 @@ import {
 
 type LeftColumnProps = {
   mode: ChecklistMode;
+  showCompletedTasks: boolean;
   tasksWithCompleteDependencies: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
@@ -29,6 +30,7 @@ type LeftColumnProps = {
 
 export function LeftColumn({
   mode,
+  showCompletedTasks,
   tasksWithCompleteDependencies,
   tasksMatchingSearch,
   selectedTaskId,
@@ -106,9 +108,14 @@ export function LeftColumn({
         if (mode === "task") {
           const hasCompleteDependencies =
             tasksWithCompleteDependencies.has(taskId);
+          if (isWarning) {
+            const shouldShow = !hasCompleteDependencies;
+            return shouldShow && matchesSearch;
+          }
+
+          const isCompleted = allCompletions?.has(taskId) ?? false;
           const shouldShow =
-            (isWarning && !hasCompleteDependencies) ||
-            (!isWarning && hasCompleteDependencies);
+            hasCompleteDependencies && (showCompletedTasks || !isCompleted);
           return shouldShow && matchesSearch;
         } else {
           return matchesSearch;
@@ -138,6 +145,7 @@ export function LeftColumn({
     categoryDependencies,
     allCompletions,
     allWarnings,
+    showCompletedTasks,
   ]);
 
   return (
