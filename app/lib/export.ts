@@ -11,7 +11,7 @@ import {
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
   TASK_TAGS_STORE,
-  TASK_WARNINGS_STORE,
+  TASK_REMINDERS_STORE,
   TASKS_STORE,
 } from "./data";
 import type { TagColorKey } from "./tagColors";
@@ -22,10 +22,13 @@ export type ExportedTaskDefinition = {
   category: CategoryName;
   title: string;
   description?: string;
-  type?: "task" | "warning";
+  type?: "task" | "warning" | "reminder";
   dependencies?: TaskId[];
   tags?: string[];
 };
+
+const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
+  type === "warning" || type === "reminder";
 
 export type ExportedChecklistDefinition = {
   categories: CategoryName[];
@@ -60,13 +63,13 @@ function normalizeChecklistDefinition(
   const normalizedTasksByCategory = new Map<string, ExportedTaskDefinition[]>();
 
   const allTaskIds = new Set<TaskId>();
-  const warningTaskIds = new Set<TaskId>();
+  const reminderTaskIds = new Set<TaskId>();
 
   for (const [, tasks] of tasksByCategoryEntries) {
     for (const task of tasks ?? []) {
       allTaskIds.add(task.id);
-      if (task.type === "warning") {
-        warningTaskIds.add(task.id);
+      if (isReminderType(task.type)) {
+        reminderTaskIds.add(task.id);
       }
     }
   }
@@ -75,7 +78,7 @@ function normalizeChecklistDefinition(
     normalizedTasksByCategory.set(
       category,
       (tasks ?? []).map((task) => {
-        const normalizedType = task.type === "warning" ? "warning" : "task";
+        const normalizedType = isReminderType(task.type) ? "reminder" : "task";
         const normalizedDescription = task.description ?? "";
         const normalizedDependencies = Array.from(
           new Set<TaskId>(
@@ -83,7 +86,7 @@ function normalizeChecklistDefinition(
               (dependencyId) =>
                 dependencyId !== task.id &&
                 allTaskIds.has(dependencyId) &&
-                !warningTaskIds.has(dependencyId),
+                !reminderTaskIds.has(dependencyId),
             ),
           ),
         );
@@ -103,7 +106,9 @@ function normalizeChecklistDefinition(
           ...(normalizedDescription.length > 0
             ? { description: normalizedDescription }
             : {}),
-          ...(normalizedType === "warning" ? { type: "warning" as const } : {}),
+          ...(normalizedType === "reminder"
+            ? { type: "reminder" as const }
+            : {}),
           ...(normalizedDependencies.length > 0
             ? { dependencies: normalizedDependencies }
             : {}),
@@ -240,8 +245,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskTagValues,
     taskDependencyKeys,
     taskDependencyValues,
-    warningTaskKeys,
-    warningTaskValues,
+    reminderTaskKeys,
+    reminderTaskValues,
     maybeCategories,
     categoryTaskKeys,
     categoryTaskValues,
@@ -256,8 +261,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.getAll(TASK_TAGS_STORE),
     db.getAllKeys(TASK_DEPENDENCIES_STORE),
     db.getAll(TASK_DEPENDENCIES_STORE),
-    db.getAllKeys(TASK_WARNINGS_STORE),
-    db.getAll(TASK_WARNINGS_STORE),
+    db.getAllKeys(TASK_REMINDERS_STORE),
+    db.getAll(TASK_REMINDERS_STORE),
     db.get(CATEGORIES_STORE, "categories"),
     db.getAllKeys(CATEGORY_TASKS_STORE),
     db.getAll(CATEGORY_TASKS_STORE),
@@ -274,7 +279,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskDependencyKeys,
     taskDependencyValues,
   );
-  const warningTasksMap = fromKvPairsToMap(warningTaskKeys, warningTaskValues);
+  const reminderTasksMap = fromKvPairsToMap(
+    reminderTaskKeys,
+    reminderTaskValues,
+  );
   const categoryTasksMap = fromKvPairsToMap(
     categoryTaskKeys,
     categoryTaskValues,
@@ -307,7 +315,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(task.description.length > 0
           ? { description: task.description }
           : {}),
-        ...(warningTasksMap.has(taskId) ? { type: "warning" as const } : {}),
+        ...(reminderTasksMap.has(taskId) ? { type: "reminder" as const } : {}),
         ...(Array.from(taskDependencies).length > 0
           ? { dependencies: Array.from(taskDependencies) }
           : {}),
@@ -362,18 +370,18 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
   );
   const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
 
-  const warningTaskIds = new Set<TaskId>();
+  const reminderTaskIds = new Set<TaskId>();
   for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
-      if (task.type === "warning") {
-        warningTaskIds.add(task.id);
+      if (isReminderType(task.type)) {
+        reminderTaskIds.add(task.id);
       }
     }
   }
 
   const tasks = new Map<TaskId, ExportedChecklistTaskState>();
   taskCompletionKeys.forEach((taskId) => {
-    if (warningTaskIds.has(taskId)) {
+    if (reminderTaskIds.has(taskId)) {
       return;
     }
 
@@ -418,7 +426,7 @@ export async function importChecklistDefinition(
       TASKS_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
-      TASK_WARNINGS_STORE,
+      TASK_REMINDERS_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
       CATEGORY_DEPENDENCIES_STORE,
@@ -435,7 +443,7 @@ export async function importChecklistDefinition(
   const taskDependenciesStore = transaction.objectStore(
     TASK_DEPENDENCIES_STORE,
   );
-  const taskWarningsStore = transaction.objectStore(TASK_WARNINGS_STORE);
+  const taskRemindersStore = transaction.objectStore(TASK_REMINDERS_STORE);
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
   const categoryDependenciesStore = transaction.objectStore(
@@ -450,7 +458,7 @@ export async function importChecklistDefinition(
     tasksStore.clear(),
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
-    taskWarningsStore.clear(),
+    taskRemindersStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
     categoryDependenciesStore.clear(),
@@ -497,8 +505,8 @@ export async function importChecklistDefinition(
         task.id,
       );
 
-      if (task.type === "warning") {
-        await taskWarningsStore.put(true, task.id);
+      if (isReminderType(task.type)) {
+        await taskRemindersStore.put(true, task.id);
       }
 
       if (task.dependencies && task.dependencies.length > 0) {
@@ -521,11 +529,11 @@ export async function importChecklistState(state: ExportedChecklistState) {
   const definition = await exportChecklistDefinition();
   const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
 
-  const warningTaskIds = new Set<TaskId>();
+  const reminderTaskIds = new Set<TaskId>();
   for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
-      if (task.type === "warning") {
-        warningTaskIds.add(task.id);
+      if (isReminderType(task.type)) {
+        reminderTaskIds.add(task.id);
       }
     }
   }
@@ -553,7 +561,7 @@ export async function importChecklistState(state: ExportedChecklistState) {
   const stateTaskMap = recordToMap(normalizedState.tasks);
 
   for (const [taskId, taskState] of stateTaskMap.entries()) {
-    if (taskState.completed && !warningTaskIds.has(taskId)) {
+    if (taskState.completed && !reminderTaskIds.has(taskId)) {
       await taskCompletionStore.put(true, taskId);
     }
 

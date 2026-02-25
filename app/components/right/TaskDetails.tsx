@@ -25,8 +25,8 @@ import {
   type StoredTask,
   useTaskDetailQuery,
   useTaskDependenciesMutation,
-  useTaskWarningMutation,
-  useTaskWarningQuery,
+  useTaskReminderMutation,
+  useTaskReminderQuery,
 } from "@/app/lib/data";
 import { MultiSelectContext } from "@/app/lib/context";
 
@@ -83,9 +83,10 @@ export function TaskDetails({
   const selectedTaskDeps =
     useTaskDependenciesQuery(selectedTaskId ?? "").data ?? new Set();
   const completions = useCompletionsQuery().data ?? new Set();
-  const isWarningTask = useTaskWarningQuery(selectedTaskId ?? "").data ?? false;
+  const isReminderTask =
+    useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
-  const isEffectivelyCompleted = isWarningTask
+  const isEffectivelyCompleted = isReminderTask
     ? tasksWithCompleteDependencies.has(selectedTaskId ?? "")
     : completions.has(selectedTaskId ?? "");
 
@@ -118,7 +119,7 @@ export function TaskDetails({
 
   const deleteTasksMutation = useDeleteTasksMutation();
   const taskDetailMutation = useTaskDetailMutation();
-  const taskWarningMutation = useTaskWarningMutation();
+  const taskReminderMutation = useTaskReminderMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
@@ -237,18 +238,18 @@ export function TaskDetails({
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
-              checked={isWarningTask}
+              checked={isReminderTask}
               onChange={(event) =>
-                taskWarningMutation.mutate({
+                taskReminderMutation.mutate({
                   taskId: selectedTaskId ?? "",
-                  isWarning: event.target.checked,
+                  isReminder: event.target.checked,
                 })
               }
             />
-            <span className="font-medium">Warning task</span>
+            <span className="font-medium">Reminder task</span>
           </label>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Warnings cannot be completed directly and are treated as completed
+            Reminders cannot be completed directly and are treated as completed
             when all dependencies are completed.
           </p>
         </div>

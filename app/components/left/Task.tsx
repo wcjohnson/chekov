@@ -7,7 +7,7 @@ import {
   useTaskCompletionQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
-  useTaskWarningQuery,
+  useTaskReminderQuery,
   useTaskTagsQuery,
 } from "@/app/lib/data";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
@@ -40,7 +40,7 @@ export function Task({
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
-  const isWarning = useTaskWarningQuery(taskId).data ?? false;
+  const isReminder = useTaskReminderQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
   const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
@@ -55,14 +55,14 @@ export function Task({
   const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
   const taskIsBannedFromMultiselect = false;
 
-  const isEffectivelyComplete = isWarning ? dependenciesComplete : isComplete;
+  const isEffectivelyComplete = isReminder ? dependenciesComplete : isComplete;
   const canDrag = mode === "edit" && !isEditingSet;
   const showTaskModeCheckbox =
-    mode === "task" && dependenciesComplete && !isWarning;
+    mode === "task" && dependenciesComplete && !isReminder;
   const showEditSelectionCheckbox =
     mode === "edit" && (!isEditingSet || !taskIsBannedFromMultiselect);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
-  const rowInteractionClasses = isWarning
+  const rowInteractionClasses = isReminder
     ? isSelected
       ? "border-amber-400 bg-amber-100 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900/40 dark:hover:bg-amber-900/40"
       : "border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/25 dark:hover:bg-amber-900/35"
@@ -127,17 +127,17 @@ export function Task({
             type="checkbox"
             checked={
               isEditingSet
-                ? isWarning
+                ? isReminder
                   ? false
                   : isInEditedSet
                 : isEditSelected
             }
-            disabled={isEditingSet && isWarning}
+            disabled={isEditingSet && isReminder}
             onChange={(event) => {
               event.stopPropagation();
 
               if (isEditingSet) {
-                if (isWarning) {
+                if (isReminder) {
                   return;
                 }
                 const nextSelectedSet = new Set(

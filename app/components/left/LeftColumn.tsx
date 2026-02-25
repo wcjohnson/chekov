@@ -11,7 +11,7 @@ import {
   useCompletionsQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
-  useWarningsQuery,
+  useRemindersQuery,
 } from "@/app/lib/data";
 
 type LeftColumnProps = {
@@ -65,7 +65,7 @@ export function LeftColumn({
   const categoriesTasks = useCategoriesTasksQuery().data;
   const categoryDependencies = useCategoryDependenciesQuery().data;
   const allCompletions = useCompletionsQuery().data;
-  const allWarnings = useWarningsQuery().data;
+  const allReminders = useRemindersQuery().data;
 
   const taskBreakout: TaskBreakout = useMemo(() => {
     const visibleCategories: string[] = [];
@@ -104,11 +104,11 @@ export function LeftColumn({
       const tasks = categoriesTasks.get(category) ?? [];
       const filtered = tasks.filter((taskId) => {
         const matchesSearch = tasksMatchingSearch.has(taskId);
-        const isWarning = allWarnings?.has(taskId);
+        const isReminder = allReminders?.has(taskId);
         if (mode === "task") {
           const hasCompleteDependencies =
             tasksWithCompleteDependencies.has(taskId);
-          if (isWarning) {
+          if (isReminder) {
             const shouldShow = !hasCompleteDependencies;
             return shouldShow && matchesSearch;
           }
@@ -144,7 +144,7 @@ export function LeftColumn({
     categoriesTasks,
     categoryDependencies,
     allCompletions,
-    allWarnings,
+    allReminders,
     showCompletedTasks,
   ]);
 

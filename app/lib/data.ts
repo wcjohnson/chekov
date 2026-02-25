@@ -11,7 +11,7 @@ export const TASKS_STORE = "tasks";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
 export const TASK_COMPLETION_STORE = "taskCompletion";
-export const TASK_WARNINGS_STORE = "taskWarnings";
+export const TASK_REMINDERS_STORE = "taskWarnings";
 export const TASK_HIDDEN_STORE = "taskHidden";
 export const CATEGORIES_STORE = "categories";
 export const CATEGORY_TASKS_STORE = "categoryTasks";
@@ -43,7 +43,7 @@ interface ChekovDB extends DBSchema {
     key: TaskId;
     value: true;
   };
-  [TASK_WARNINGS_STORE]: {
+  [TASK_REMINDERS_STORE]: {
     key: TaskId;
     value: true;
   };
@@ -91,7 +91,7 @@ export const getDb = async () => {
         db.createObjectStore(TASK_TAGS_STORE);
         db.createObjectStore(TASK_DEPENDENCIES_STORE);
         db.createObjectStore(TASK_COMPLETION_STORE);
-        db.createObjectStore(TASK_WARNINGS_STORE);
+        db.createObjectStore(TASK_REMINDERS_STORE);
         db.createObjectStore(TASK_HIDDEN_STORE);
         db.createObjectStore(CATEGORIES_STORE);
         db.createObjectStore(CATEGORY_TASKS_STORE);
@@ -186,7 +186,7 @@ export function useDeleteTasksMutation() {
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
           TASK_COMPLETION_STORE,
-          TASK_WARNINGS_STORE,
+          TASK_REMINDERS_STORE,
           TASK_HIDDEN_STORE,
           CATEGORIES_STORE,
           CATEGORY_TASKS_STORE,
@@ -198,7 +198,7 @@ export function useDeleteTasksMutation() {
       const taskTagsStore = tx.objectStore(TASK_TAGS_STORE);
       const taskDependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
       const taskCompletionStore = tx.objectStore(TASK_COMPLETION_STORE);
-      const taskWarningsStore = tx.objectStore(TASK_WARNINGS_STORE);
+      const taskRemindersStore = tx.objectStore(TASK_REMINDERS_STORE);
       const taskHiddenStore = tx.objectStore(TASK_HIDDEN_STORE);
       const categoriesStore = tx.objectStore(CATEGORIES_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
@@ -244,7 +244,7 @@ export function useDeleteTasksMutation() {
           taskTagsStore.delete(taskId),
           taskDependenciesStore.delete(taskId),
           taskCompletionStore.delete(taskId),
-          taskWarningsStore.delete(taskId),
+          taskRemindersStore.delete(taskId),
           taskHiddenStore.delete(taskId),
         ]),
       );
@@ -321,7 +321,7 @@ export function useDeleteTasksMutation() {
         queryKey: ["dependencies"],
       });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
-      queryClient.invalidateQueries({ queryKey: ["warnings"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
 
       for (const [taskId, dependencies] of updatedDependencyEntries) {
@@ -342,7 +342,7 @@ export function useDeleteTasksMutation() {
         });
         queryClient.invalidateQueries({ queryKey: ["task", "hidden", taskId] });
         queryClient.invalidateQueries({
-          queryKey: ["task", "warning", taskId],
+          queryKey: ["task", "reminder", taskId],
         });
       }
     },
@@ -536,27 +536,31 @@ export function useTaskDetailMutation() {
   });
 }
 
-export function useTaskWarningMutation() {
+export function useTaskReminderMutation() {
   return useMutation({
     mutationFn: async ({
       taskId,
-      isWarning,
+      isReminder,
     }: {
       taskId: TaskId;
-      isWarning: boolean;
+      isReminder: boolean;
     }) => {
       const db = await getDb();
 
-      if (isWarning) {
+      if (isReminder) {
         const tx = db.transaction(
-          [TASK_WARNINGS_STORE, TASK_COMPLETION_STORE, TASK_DEPENDENCIES_STORE],
+          [
+            TASK_REMINDERS_STORE,
+            TASK_COMPLETION_STORE,
+            TASK_DEPENDENCIES_STORE,
+          ],
           "readwrite",
         );
-        const warningsStore = tx.objectStore(TASK_WARNINGS_STORE);
+        const remindersStore = tx.objectStore(TASK_REMINDERS_STORE);
         const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
         const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
 
-        await warningsStore.put(true, taskId);
+        await remindersStore.put(true, taskId);
         await completionStore.delete(taskId);
 
         const dependencyTaskIds = await dependenciesStore.getAllKeys();
@@ -580,13 +584,13 @@ export function useTaskWarningMutation() {
         return;
       }
 
-      await db.delete(TASK_WARNINGS_STORE, taskId);
+      await db.delete(TASK_REMINDERS_STORE, taskId);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["task", "warning", variables.taskId],
+        queryKey: ["task", "reminder", variables.taskId],
       });
-      queryClient.invalidateQueries({ queryKey: ["warnings"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
       queryClient.invalidateQueries({
         queryKey: ["task", "completion", variables.taskId],
       });
@@ -844,7 +848,7 @@ export function useTaskCompletionMutation() {
       const tx = db.transaction(
         [
           TASK_COMPLETION_STORE,
-          TASK_WARNINGS_STORE,
+          TASK_REMINDERS_STORE,
           TASKS_STORE,
           CATEGORY_TASKS_STORE,
           CATEGORY_COLLAPSED_STORE,
@@ -854,7 +858,7 @@ export function useTaskCompletionMutation() {
       );
 
       const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
-      const warningsStore = tx.objectStore(TASK_WARNINGS_STORE);
+      const remindersStore = tx.objectStore(TASK_REMINDERS_STORE);
       const tasksStore = tx.objectStore(TASKS_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
       const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
@@ -878,14 +882,16 @@ export function useTaskCompletionMutation() {
       const completedTaskIds = new Set<string>(
         await completionStore.getAllKeys(),
       );
-      const warningTaskIds = new Set<string>(await warningsStore.getAllKeys());
+      const reminderTaskIds = new Set<string>(
+        await remindersStore.getAllKeys(),
+      );
 
       let allCategoryTasksComplete = true;
       for (const categoryTaskId of categoryTaskIds) {
-        if (warningTaskIds.has(categoryTaskId)) {
-          const warningDependencies =
+        if (reminderTaskIds.has(categoryTaskId)) {
+          const reminderDependencies =
             (await dependenciesStore.get(categoryTaskId)) ?? new Set<string>();
-          for (const dependencyId of warningDependencies) {
+          for (const dependencyId of reminderDependencies) {
             if (!completedTaskIds.has(dependencyId)) {
               allCategoryTasksComplete = false;
               break;
@@ -942,7 +948,7 @@ export function useClearDatabaseMutation() {
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
           TASK_COMPLETION_STORE,
-          TASK_WARNINGS_STORE,
+          TASK_REMINDERS_STORE,
           TASK_HIDDEN_STORE,
           CATEGORIES_STORE,
           CATEGORY_TASKS_STORE,
@@ -958,7 +964,7 @@ export function useClearDatabaseMutation() {
         tx.objectStore(TASK_TAGS_STORE).clear(),
         tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
         tx.objectStore(TASK_COMPLETION_STORE).clear(),
-        tx.objectStore(TASK_WARNINGS_STORE).clear(),
+        tx.objectStore(TASK_REMINDERS_STORE).clear(),
         tx.objectStore(TASK_HIDDEN_STORE).clear(),
         tx.objectStore(CATEGORIES_STORE).clear(),
         tx.objectStore(CATEGORY_TASKS_STORE).clear(),
@@ -1140,25 +1146,25 @@ export function useCompletionsQuery() {
   return useQuery(getQueryArgs_completions());
 }
 
-function getQueryArgs_warnings() {
+function getQueryArgs_reminders() {
   return {
-    queryKey: ["warnings"],
+    queryKey: ["reminders"],
     queryFn: async () => {
-      console.log("Fetching ALL task warnings");
+      console.log("Fetching ALL task reminders");
       const db = await getDb();
-      const allWarningTasks = new Set<string>(
-        await db.getAllKeys(TASK_WARNINGS_STORE),
+      const allReminderTasks = new Set<string>(
+        await db.getAllKeys(TASK_REMINDERS_STORE),
       );
-      for (const taskId of allWarningTasks) {
-        queryClient.setQueryData(["task", "warning", taskId], true);
+      for (const taskId of allReminderTasks) {
+        queryClient.setQueryData(["task", "reminder", taskId], true);
       }
-      return allWarningTasks;
+      return allReminderTasks;
     },
   };
 }
 
-export function useWarningsQuery() {
-  return useQuery(getQueryArgs_warnings());
+export function useRemindersQuery() {
+  return useQuery(getQueryArgs_reminders());
 }
 
 function getQueryArgs_details(enabled?: boolean) {
@@ -1288,13 +1294,13 @@ export function useTaskCompletionQuery(taskId: TaskId) {
   });
 }
 
-export function useTaskWarningQuery(taskId: TaskId) {
+export function useTaskReminderQuery(taskId: TaskId) {
   return useQuery({
-    queryKey: ["task", "warning", taskId],
+    queryKey: ["task", "reminder", taskId],
     queryFn: async () => {
       const db = await getDb();
-      const isWarning = await db.get(TASK_WARNINGS_STORE, taskId);
-      return !!isWarning;
+      const isReminder = await db.get(TASK_REMINDERS_STORE, taskId);
+      return !!isReminder;
     },
   });
 }
