@@ -1,12 +1,12 @@
 import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
-import type { TaskId } from "./types";
+import type { CategoryName, TaskId } from "./types";
 import { detectCycle, fromKvPairsToMap } from "./utils";
 import { useMemo } from "react";
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 export const TASKS_STORE = "tasks";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
@@ -14,45 +14,50 @@ export const TASK_COMPLETION_STORE = "taskCompletion";
 export const TASK_HIDDEN_STORE = "taskHidden";
 export const CATEGORIES_STORE = "categories";
 export const CATEGORY_TASKS_STORE = "categoryTasks";
+export const CATEGORY_DEPENDENCIES_STORE = "categoryDependencies";
 export const TAG_COLORS_STORE = "tagColors";
 export const CATEGORY_HIDDEN_STORE = "categoryHidden";
 
 export type StoredTask = {
-  id: string;
+  id: TaskId;
   title: string;
   description: string;
-  category: string;
+  category: CategoryName;
   type?: "task" | "warning";
 };
 
 interface ChekovDB extends DBSchema {
   [TASKS_STORE]: {
-    key: string;
+    key: TaskId;
     value: StoredTask;
   };
   [TASK_TAGS_STORE]: {
-    key: string;
+    key: TaskId;
     value: Set<string>;
   };
   [TASK_DEPENDENCIES_STORE]: {
-    key: string;
-    value: Set<string>;
+    key: TaskId;
+    value: Set<TaskId>;
   };
   [TASK_COMPLETION_STORE]: {
-    key: string;
+    key: TaskId;
     value: true;
   };
   [TASK_HIDDEN_STORE]: {
-    key: string;
+    key: TaskId;
     value: true;
   };
   [CATEGORIES_STORE]: {
     key: "categories";
-    value: string[];
+    value: CategoryName[];
   };
   [CATEGORY_TASKS_STORE]: {
-    key: string;
-    value: string[];
+    key: CategoryName;
+    value: TaskId[];
+  };
+  [CATEGORY_DEPENDENCIES_STORE]: {
+    key: CategoryName;
+    value: Set<TaskId>;
   };
   [TAG_COLORS_STORE]: {
     key: string;
@@ -60,7 +65,7 @@ interface ChekovDB extends DBSchema {
   };
   [CATEGORY_HIDDEN_STORE]: {
     key: "task" | "edit";
-    value: Set<string>;
+    value: Set<CategoryName>;
   };
 }
 
@@ -85,6 +90,7 @@ export const getDb = async () => {
         db.createObjectStore(TASK_HIDDEN_STORE);
         db.createObjectStore(CATEGORIES_STORE);
         db.createObjectStore(CATEGORY_TASKS_STORE);
+        db.createObjectStore(CATEGORY_DEPENDENCIES_STORE);
         db.createObjectStore(TAG_COLORS_STORE);
         db.createObjectStore(CATEGORY_HIDDEN_STORE);
       },
@@ -604,6 +610,62 @@ export function useTaskDependenciesMutation() {
   });
 }
 
+export function useCategoryDependenciesMutation() {
+  return useMutation({
+    mutationFn: async ({
+      category,
+      dependencies,
+    }: {
+      category: CategoryName;
+      dependencies: Set<TaskId>;
+    }) => {
+      const db = await getDb();
+
+      if (dependencies.size === 0) {
+        await db.delete(CATEGORY_DEPENDENCIES_STORE, category);
+        return [category, new Set<TaskId>(), null] as const;
+      }
+
+      const tx = db.transaction([CATEGORY_DEPENDENCIES_STORE], "readwrite");
+      const categoryDependenciesStore = tx.objectStore(
+        CATEGORY_DEPENDENCIES_STORE,
+      );
+
+      await categoryDependenciesStore.put(dependencies, category);
+
+      const categoryDependencyKeys =
+        await categoryDependenciesStore.getAllKeys();
+      const categoryDependencyValues = await categoryDependenciesStore.getAll();
+      const categoryDependencyMap = fromKvPairsToMap(
+        categoryDependencyKeys,
+        categoryDependencyValues,
+      );
+
+      await tx.done;
+
+      return [category, dependencies, categoryDependencyMap] as const;
+    },
+    onSuccess: ([category, dependencies, categoryDependencyMap]) => {
+      queryClient.setQueryData(
+        ["category", "dependencies", category],
+        dependencies,
+      );
+
+      if (categoryDependencyMap) {
+        categoryDependencyMap.set(category, dependencies);
+        queryClient.setQueryData(
+          ["categoryDependencies"],
+          categoryDependencyMap,
+        );
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ["categoryDependencies"],
+        });
+      }
+    },
+  });
+}
+
 export function useTaskTagsMutation() {
   return useMutation({
     mutationFn: async ({
@@ -917,6 +979,32 @@ export function useCategoriesTasksQuery() {
   return useQuery(getQueryArgs_categoriesTasks());
 }
 
+function getQueryArgs_categoryDependencies() {
+  return {
+    queryKey: ["categoryDependencies"],
+    queryFn: async () => {
+      console.log("Fetching ALL category dependencies");
+      const db = await getDb();
+      const categoryKeys = await db.getAllKeys(CATEGORY_DEPENDENCIES_STORE);
+      const dependencyValues = await db.getAll(CATEGORY_DEPENDENCIES_STORE);
+      const map = fromKvPairsToMap(categoryKeys, dependencyValues);
+
+      for (const [category, dependencies] of map.entries()) {
+        queryClient.setQueryData(
+          ["category", "dependencies", category],
+          dependencies,
+        );
+      }
+
+      return map;
+    },
+  };
+}
+
+export function useCategoryDependenciesQuery() {
+  return useQuery(getQueryArgs_categoryDependencies());
+}
+
 function getQueryArgs_dependencies() {
   return {
     queryKey: ["dependencies"],
@@ -1059,6 +1147,20 @@ export function useTaskDependenciesQuery(taskId: TaskId) {
       const dependencies = await db.get(TASK_DEPENDENCIES_STORE, taskId);
       if (dependencies === undefined) {
         return new Set<string>();
+      }
+      return dependencies;
+    },
+  });
+}
+
+export function useCategoryDependencyQuery(category: CategoryName) {
+  return useQuery({
+    queryKey: ["category", "dependencies", category],
+    queryFn: async () => {
+      const db = await getDb();
+      const dependencies = await db.get(CATEGORY_DEPENDENCIES_STORE, category);
+      if (dependencies === undefined) {
+        return new Set<TaskId>();
       }
       return dependencies;
     },

@@ -1,6 +1,7 @@
 import { fromKvPairsToMap, mapToRecord, recordToMap } from "./utils";
 import {
   CATEGORIES_STORE,
+  CATEGORY_DEPENDENCIES_STORE,
   CATEGORY_HIDDEN_STORE,
   CATEGORY_TASKS_STORE,
   getDb,
@@ -13,22 +14,23 @@ import {
   TASKS_STORE,
 } from "./storage";
 import type { TagColorKey } from "./tagColors";
-import type { TaskId } from "./types";
+import type { CategoryName, TaskId } from "@/app/lib/types";
 
 export type ExportedTaskDefinition = {
   id: TaskId;
-  category: string;
+  category: CategoryName;
   title: string;
   description: string;
   type?: "task" | "warning";
-  dependencies?: string[];
+  dependencies?: TaskId[];
   tags?: string[];
 };
 
 export type ExportedChecklistDefinition = {
-  categories: string[];
-  tasksByCategory: Record<string, ExportedTaskDefinition[]>;
+  categories: CategoryName[];
+  tasksByCategory: Record<CategoryName, ExportedTaskDefinition[]>;
   tagColors: Record<string, TagColorKey>;
+  categoryDependencies?: Record<CategoryName, TaskId[]>;
 };
 
 export type ExportedChecklistTaskState = {
@@ -37,8 +39,8 @@ export type ExportedChecklistTaskState = {
 };
 
 export type ExportedChecklistCategoryVisibilityByMode = {
-  task: Record<string, boolean>;
-  edit: Record<string, boolean>;
+  task: Record<CategoryName, boolean>;
+  edit: Record<CategoryName, boolean>;
 };
 
 export type ExportedChecklistState = {
@@ -136,10 +138,31 @@ function normalizeChecklistDefinition(
     }
   }
 
+  const normalizedCategoryDependencies = new Map<CategoryName, TaskId[]>();
+  const inputCategoryDependencies = recordToMap(
+    definition.categoryDependencies ?? {},
+  );
+
+  for (const category of categories) {
+    const categoryDependencies = inputCategoryDependencies.get(category) ?? [];
+    const normalizedDependencies = Array.from(
+      new Set(
+        categoryDependencies.filter((taskId): taskId is TaskId =>
+          allTaskIds.has(taskId),
+        ),
+      ),
+    );
+
+    if (normalizedDependencies.length > 0) {
+      normalizedCategoryDependencies.set(category, normalizedDependencies);
+    }
+  }
+
   return {
     categories,
     tasksByCategory: mapToRecord(filteredTasksByCategory),
     tagColors: mapToRecord(normalizedTagColors),
+    categoryDependencies: mapToRecord(normalizedCategoryDependencies),
   };
 }
 
@@ -216,6 +239,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     maybeCategories,
     categoryTaskKeys,
     categoryTaskValues,
+    categoryDependencyKeys,
+    categoryDependencyValues,
     tagColorKeys,
     tagColorValues,
   ] = await Promise.all([
@@ -228,6 +253,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.get(CATEGORIES_STORE, "categories"),
     db.getAllKeys(CATEGORY_TASKS_STORE),
     db.getAll(CATEGORY_TASKS_STORE),
+    db.getAllKeys(CATEGORY_DEPENDENCIES_STORE),
+    db.getAll(CATEGORY_DEPENDENCIES_STORE),
     db.getAllKeys(TAG_COLORS_STORE),
     db.getAll(TAG_COLORS_STORE),
   ]);
@@ -242,6 +269,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
   const categoryTasksMap = fromKvPairsToMap(
     categoryTaskKeys,
     categoryTaskValues,
+  );
+  const categoryDependenciesMap = fromKvPairsToMap(
+    categoryDependencyKeys,
+    categoryDependencyValues,
   );
   const tagColorsMap = fromKvPairsToMap(tagColorKeys, tagColorValues);
 
@@ -278,10 +309,21 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     tasksByCategory.set(category, categoryTasks);
   });
 
+  const categoryDependencies = new Map<CategoryName, TaskId[]>();
+  for (const category of categories) {
+    const dependencies =
+      categoryDependenciesMap.get(category) ?? new Set<TaskId>();
+    const dependencyList = Array.from(dependencies);
+    if (dependencyList.length > 0) {
+      categoryDependencies.set(category, dependencyList);
+    }
+  }
+
   return normalizeChecklistDefinition({
     categories,
     tasksByCategory: mapToRecord(tasksByCategory),
     tagColors: mapToRecord(tagColorsMap),
+    categoryDependencies: mapToRecord(categoryDependencies),
   });
 }
 
@@ -367,6 +409,7 @@ export async function importChecklistDefinition(
       TASK_DEPENDENCIES_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
+      CATEGORY_DEPENDENCIES_STORE,
       TAG_COLORS_STORE,
       TASK_COMPLETION_STORE,
       TASK_HIDDEN_STORE,
@@ -382,6 +425,9 @@ export async function importChecklistDefinition(
   );
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
+  const categoryDependenciesStore = transaction.objectStore(
+    CATEGORY_DEPENDENCIES_STORE,
+  );
   const tagColorsStore = transaction.objectStore(TAG_COLORS_STORE);
   const completedTasksStore = transaction.objectStore(TASK_COMPLETION_STORE);
   const hiddenTasksStore = transaction.objectStore(TASK_HIDDEN_STORE);
@@ -393,6 +439,7 @@ export async function importChecklistDefinition(
     taskDependenciesStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
+    categoryDependenciesStore.clear(),
     tagColorsStore.clear(),
     completedTasksStore.clear(),
     hiddenTasksStore.clear(),
@@ -408,12 +455,22 @@ export async function importChecklistDefinition(
   }
 
   const tasksByCategoryMap = recordToMap(normalizedDefinition.tasksByCategory);
+  const categoryDependenciesMap = recordToMap(
+    normalizedDefinition.categoryDependencies ?? {},
+  );
 
   for (const category of normalizedDefinition.categories) {
     const tasks = tasksByCategoryMap.get(category) ?? [];
     const taskIds = tasks.map((task) => task.id);
+    const categoryDependencies = categoryDependenciesMap.get(category) ?? [];
 
     await categoryTasksStore.put(taskIds, category);
+    if (categoryDependencies.length > 0) {
+      await categoryDependenciesStore.put(
+        new Set(categoryDependencies),
+        category,
+      );
+    }
 
     for (const task of tasks) {
       await tasksStore.put(

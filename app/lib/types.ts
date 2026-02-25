@@ -1,4 +1,5 @@
 export type TaskId = string;
+export type CategoryName = string;
 
 export type ChecklistMode = "task" | "edit";
 
