@@ -13,7 +13,6 @@ import {
   useAllKnownTagsQuery,
   useCompletionsQuery,
   useDeleteTasksMutation,
-  useDetailsQuery,
   useTagColorMutation,
   useTagColorsQuery,
   useTaskAddTagMutation,
@@ -24,7 +23,32 @@ import {
   useTaskRemoveTagMutation,
   useTaskTagsQuery,
   type StoredTask,
+  useTaskDetailQuery,
 } from "@/app/lib/storage";
+
+function DependencyItem({
+  dependencyId,
+  mode,
+}: {
+  dependencyId: string;
+  mode: ChecklistMode;
+}) {
+  const taskDetail = useTaskDetailQuery(dependencyId).data;
+  const completions = useCompletionsQuery().data;
+  const dependencyCompleted = completions?.has(dependencyId) ?? false;
+  if (mode === "task") {
+    return <li key={dependencyId}>{taskDetail?.title || dependencyId}</li>;
+  } else if (mode === "edit") {
+    return (
+      <li key={dependencyId}>
+        <span className={dependencyCompleted ? "line-through" : ""}>
+          {taskDetail?.title || dependencyId}
+        </span>
+        {dependencyCompleted ? " (completed)" : ""}
+      </li>
+    );
+  } else return null;
+}
 
 type TaskDetailsProps = {
   mode: ChecklistMode;
@@ -56,7 +80,6 @@ export function TaskDetails({
   // For dependencies display
   const selectedTaskDeps =
     useTaskDependenciesQuery(selectedTaskId ?? "").data ?? new Set();
-  const allTaskDetails = useDetailsQuery().data ?? {};
   const completions = useCompletionsQuery().data ?? new Set();
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
 
@@ -168,14 +191,13 @@ export function TaskDetails({
               <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
             ) : (
               <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
-                {Array.from(selectedTaskDeps).map((dependencyId) => {
-                  const dependencyTask = allTaskDetails[dependencyId];
-                  return (
-                    <li key={dependencyId}>
-                      {dependencyTask?.title || dependencyId}
-                    </li>
-                  );
-                })}
+                {Array.from(selectedTaskDeps).map((dependencyId) => (
+                  <DependencyItem
+                    key={dependencyId}
+                    dependencyId={dependencyId}
+                    mode={mode}
+                  />
+                ))}
               </ul>
             )}
           </div>
@@ -423,19 +445,13 @@ export function TaskDetails({
           <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
         ) : (
           <ul className="list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-300">
-            {Array.from(selectedTaskDeps).map((dependencyId) => {
-              const dependencyTask = allTaskDetails[dependencyId];
-              const dependencyCompleted = completions.has(dependencyId);
-
-              return (
-                <li key={dependencyId}>
-                  <span className={dependencyCompleted ? "line-through" : ""}>
-                    {dependencyTask?.title || dependencyId}
-                  </span>
-                  {dependencyCompleted ? " (completed)" : ""}
-                </li>
-              );
-            })}
+            {Array.from(selectedTaskDeps).map((dependencyId) => (
+              <DependencyItem
+                key={dependencyId}
+                dependencyId={dependencyId}
+                mode={mode}
+              />
+            ))}
           </ul>
         )}
       </div>

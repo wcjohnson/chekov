@@ -13,8 +13,6 @@ import {
   useCompletionsQuery,
   useDeleteTasksMutation,
   useDependenciesQuery,
-  useDetailsQuery,
-  useTagsQuery,
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
   useTasksMatchingSearch,
@@ -66,20 +64,13 @@ export function AppMain() {
   const allDependencies = useDependenciesQuery().data ?? {};
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const allCompletions = useCompletionsQuery().data ?? new Set<string>();
-  const allTags = useTagsQuery().data ?? {};
-  const allDetails = useDetailsQuery().data ?? {};
 
   const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
     taskStructure.taskSet,
     allDependencies,
     allCompletions,
   );
-  const tasksMatchingSearch = useTasksMatchingSearch(
-    taskStructure.taskSet,
-    allDetails,
-    allTags,
-    searchText,
-  );
+  const tasksMatchingSearch = useTasksMatchingSearch(searchText);
 
   ///////////////////////////////////////// Events
 

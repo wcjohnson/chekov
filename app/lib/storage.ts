@@ -740,6 +740,7 @@ function getQueryArgs_categories() {
   return {
     queryKey: ["categories"],
     queryFn: async () => {
+      console.log("Fetching category order");
       const db = await getDb();
       const categories = await db.get(CATEGORIES_STORE, "categories");
       if (categories === undefined) {
@@ -758,6 +759,7 @@ function getQueryArgs_categoriesTasks() {
   return {
     queryKey: ["categoryTasks"],
     queryFn: async () => {
+      console.log("Fetching ALL category task maps");
       const db = await getDb();
       const categoryKeys = await db.getAllKeys(CATEGORY_TASKS_STORE);
       const categoryValues = await db.getAll(CATEGORY_TASKS_STORE);
@@ -774,20 +776,18 @@ function getQueryArgs_dependencies() {
   return {
     queryKey: ["dependencies"],
     queryFn: async () => {
+      console.log("Fetching ALL task dependencies");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASK_DEPENDENCIES_STORE);
       const dependencies = await db.getAll(TASK_DEPENDENCIES_STORE);
-      return fromKvPairsToRecord(taskIds, dependencies);
-    },
-    onSuccess: (dependenciesByTaskId: Record<string, Set<string>>) => {
-      for (const [taskId, dependencies] of Object.entries(
-        dependenciesByTaskId,
-      )) {
+      const record = fromKvPairsToRecord(taskIds, dependencies);
+      for (const [taskId, dependencies] of Object.entries(record)) {
         queryClient.setQueryData(
           ["task", "dependencies", taskId],
           dependencies,
         );
       }
+      return record;
     },
   };
 }
@@ -800,16 +800,15 @@ function getQueryArgs_completions() {
   return {
     queryKey: ["completions"],
     queryFn: async () => {
+      console.log("Fetching ALL task completions");
       const db = await getDb();
       const allTasks = new Set<string>(
         await db.getAllKeys(TASK_COMPLETION_STORE),
       );
-      return allTasks;
-    },
-    onSuccess: (completedTaskIds: Set<string>) => {
-      for (const taskId of completedTaskIds) {
+      for (const taskId of allTasks) {
         queryClient.setQueryData(["task", "completion", taskId], true);
       }
+      return allTasks;
     },
   };
 }
@@ -818,9 +817,10 @@ export function useCompletionsQuery() {
   return useQuery(getQueryArgs_completions());
 }
 
-function getQueryArgs_details() {
+function getQueryArgs_details(enabled?: boolean) {
   return {
     queryKey: ["details"],
+    enabled: enabled === undefined ? true : enabled,
     queryFn: async () => {
       console.log("Fetching ALL task details");
       const db = await getDb();
@@ -830,20 +830,20 @@ function getQueryArgs_details() {
       for (const [taskId, detail] of Object.entries(record)) {
         queryClient.setQueryData(["task", "detail", taskId], detail);
       }
-      console.log("Got the details");
       return record;
     },
   };
 }
 
-export function useDetailsQuery() {
-  return useQuery(getQueryArgs_details());
+export function useDetailsQuery(enabled?: boolean) {
+  return useQuery(getQueryArgs_details(enabled));
 }
 
 function getQueryArgs_taskSet() {
   return {
     queryKey: ["taskSet"],
     queryFn: async () => {
+      console.log("Fetching taskSet");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASKS_STORE);
       const taskSet = new Set<string>(taskIds);
@@ -856,25 +856,26 @@ export function useTaskSetQuery() {
   return useQuery(getQueryArgs_taskSet());
 }
 
-export function getQueryArgs_tags() {
+export function getQueryArgs_tags(enabled?: boolean) {
   return {
     queryKey: ["tags"],
+    enabled: enabled === undefined ? true : enabled,
     queryFn: async () => {
+      console.log("Fetching ALL tags");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASK_TAGS_STORE);
       const tags = await db.getAll(TASK_TAGS_STORE);
-      return fromKvPairsToRecord(taskIds, tags);
-    },
-    onSuccess: (tagsByTaskId: Record<string, Set<string>>) => {
-      for (const [taskId, tags] of Object.entries(tagsByTaskId)) {
+      const record = fromKvPairsToRecord(taskIds, tags);
+      for (const [taskId, tags] of Object.entries(record)) {
         queryClient.setQueryData(["task", "tags", taskId], tags);
       }
+      return record;
     },
   };
 }
 
-export function useTagsQuery() {
-  return useQuery(getQueryArgs_tags());
+export function useTagsQuery(enabled?: boolean) {
+  return useQuery(getQueryArgs_tags(enabled));
 }
 
 export function useTaskDetailQuery(taskId: TaskId) {
@@ -1059,16 +1060,21 @@ export function useTasksWithCompleteDependencies(
   }, [taskSet, dependencies, completions]);
 }
 
-export function useTasksMatchingSearch(
-  taskSet: Set<string> | undefined,
-  details: Record<string, StoredTask> | undefined,
-  tags: Record<string, Set<string>> | undefined,
-  searchQuery: string,
-) {
+export function useTasksMatchingSearch(searchQuery: string) {
+  const taskSetQuery = useTaskSetQuery();
+  const taskSet = taskSetQuery.data;
+  const trimmedQuery = searchQuery.trim();
+  const searchEnabled = trimmedQuery.length > 2;
+
+  const detailsQuery = useDetailsQuery(searchEnabled);
+  const tagsQuery = useTagsQuery(searchEnabled);
+
   return useMemo(() => {
     if (!taskSet) {
       return new Set<string>();
     }
+    const details = detailsQuery.data;
+    const tags = tagsQuery.data;
 
     // No search query, return all tasks
     if (!searchQuery) return taskSet;
@@ -1118,5 +1124,5 @@ export function useTasksMatchingSearch(
     }
 
     return matchingTasks;
-  }, [taskSet, details, tags, searchQuery]);
+  }, [searchQuery, taskSet, detailsQuery.data, tagsQuery.data]);
 }
