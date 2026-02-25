@@ -137,6 +137,7 @@
 - Start new coverage by adding `*.test.ts` files in `tests/` (for example `tests/data/*.test.ts` or `tests/export/*.test.ts`).
 - Any change to the data model must be accompanied by corresponding unit tests for data, referential integrity, and import/export.
 - Any change to the data model (stores, query/mutation behavior, import/export normalization, or dependency/completion semantics) must run the full test suite before handoff.
+- Any change to the data model must audit query return sentinels in `app/lib/data.ts` so query functions never return `undefined` for missing records (use explicit `null` / empty collections / booleans as appropriate).
 - Purely UX-only updates that do not affect data model behavior do not require running unit tests.
 
 ## Notes for Future Agents

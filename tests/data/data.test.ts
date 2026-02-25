@@ -17,10 +17,16 @@ import {
   useRemindersQuery,
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
+  useTaskDependenciesQuery,
   useTaskDetailMutation,
   useTaskDetailQuery,
   useTaskDependencyExpressions,
   useTaskDependencyExpressionQuery,
+  useTaskTagsQuery,
+  useCategoryDependencyQuery,
+  useTaskCompletionQuery,
+  useTaskReminderQuery,
+  useTaskHiddenQuery,
   useTaskStructure,
   useTaskSetQuery,
   useTaskReminderMutation,
@@ -53,6 +59,26 @@ const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
+function assertMissingPerItemQuerySentinels(result: {
+  detail: unknown;
+  tags: Set<string> | undefined;
+  dependencies: Set<string> | undefined;
+  dependencyExpression: unknown;
+  categoryDependencies: Set<string> | undefined;
+  completion: boolean | undefined;
+  reminder: boolean | undefined;
+  hidden: boolean | undefined;
+}) {
+  expect(result.detail).toBeNull();
+  expect(result.tags).toEqual(new Set<string>());
+  expect(result.dependencies).toEqual(new Set<string>());
+  expect(result.dependencyExpression).toBeNull();
+  expect(result.categoryDependencies).toEqual(new Set<string>());
+  expect(result.completion).toBe(false);
+  expect(result.reminder).toBe(false);
+  expect(result.hidden).toBe(false);
 }
 
 describe("data layer", () => {
@@ -157,6 +183,27 @@ describe("data layer", () => {
 
     await waitFor(() => {
       expect(result.current.dependencyExpression).toEqual([BooleanOp.Not, "a"]);
+    });
+  });
+
+  it("returns non-undefined sentinels for missing per-item query records", async () => {
+    const { result } = renderHook(
+      () => ({
+        detail: useTaskDetailQuery("missing").data,
+        tags: useTaskTagsQuery("missing").data,
+        dependencies: useTaskDependenciesQuery("missing").data,
+        dependencyExpression: useTaskDependencyExpressionQuery("missing").data,
+        categoryDependencies:
+          useCategoryDependencyQuery("missing-category").data,
+        completion: useTaskCompletionQuery("missing").data,
+        reminder: useTaskReminderQuery("missing").data,
+        hidden: useTaskHiddenQuery("missing").data,
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      assertMissingPerItemQuerySentinels(result.current);
     });
   });
 
