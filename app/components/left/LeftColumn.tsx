@@ -5,8 +5,10 @@ import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
 import {
+  useCategoryDependenciesQuery,
   useCategoriesQuery,
   useCategoriesTasksQuery,
+  useCompletionsQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
 } from "@/app/lib/storage";
@@ -58,6 +60,8 @@ export function LeftColumn({
 
   const categories = useCategoriesQuery().data;
   const categoriesTasks = useCategoriesTasksQuery().data;
+  const categoryDependencies = useCategoryDependenciesQuery().data;
+  const allCompletions = useCompletionsQuery().data;
 
   const taskBreakout: TaskBreakout = useMemo(() => {
     const visibleCategories: string[] = [];
@@ -75,6 +79,21 @@ export function LeftColumn({
     }
 
     for (const category of categories) {
+      if (mode === "task") {
+        const dependencies = categoryDependencies?.get(category) ?? new Set();
+        let dependenciesMet = true;
+        for (const dependencyId of dependencies) {
+          if (!allCompletions?.has(dependencyId)) {
+            dependenciesMet = false;
+            break;
+          }
+        }
+
+        if (!dependenciesMet) {
+          continue;
+        }
+      }
+
       const tasks = categoriesTasks.get(category) ?? [];
       const filtered = tasks.filter((taskId) => {
         const matchesSearch = tasksMatchingSearch.has(taskId);
@@ -107,6 +126,8 @@ export function LeftColumn({
     categories,
     mode,
     categoriesTasks,
+    categoryDependencies,
+    allCompletions,
   ]);
 
   return (

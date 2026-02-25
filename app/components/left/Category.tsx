@@ -3,12 +3,16 @@
 import { Task } from "./Task";
 import type { ChecklistMode, TaskBreakout, TaskId } from "../../lib/types";
 import {
+  useCategoryDependenciesMutation,
+  useCategoryDependencyQuery,
   useCategoryCollapsedMutation,
   useCreateTaskMutation,
   useCollapsedCategoriesQuery,
   useMoveTaskMutation,
 } from "@/app/lib/storage";
 import { DragDropList } from "../DragDrop";
+import { MultiSelectContext } from "@/app/lib/context";
+import { useContext } from "react";
 
 type CategoryProps = {
   category: string;
@@ -50,8 +54,26 @@ export function Category({
   const visibleTasks = taskBreakout.categoryTasks.get(category);
   const collapsedCategories = useCollapsedCategoriesQuery().data;
   const categoryCollapsedMutation = useCategoryCollapsedMutation();
+  const categoryDependencies = useCategoryDependencyQuery(category).data;
+  const categoryDependenciesMutation = useCategoryDependenciesMutation();
   const createTaskMutation = useCreateTaskMutation();
   const moveTaskMutation = useMoveTaskMutation();
+  const setEditContext = useContext(MultiSelectContext);
+  const isEditingSet = !!setEditContext.state;
+
+  const onEditDependencies = () => {
+    setEditContext.setState({
+      selectionContext: "categoryDependencies",
+      headerText: `Editing dependencies for category ${category}`,
+      selectedTaskSet: new Set(categoryDependencies ?? new Set()),
+      onSetTasks: (taskIds) => {
+        categoryDependenciesMutation.mutate({
+          category,
+          dependencies: taskIds,
+        });
+      },
+    });
+  };
 
   if (!visibleTasks || visibleTasks.length === 0) {
     return null;
@@ -96,6 +118,18 @@ export function Category({
         </span>
         {mode === "edit" && (
           <span className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onEditDependencies();
+              }}
+              disabled={isEditingSet}
+              className="rounded border border-zinc-300 px-2 py-0.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Deps
+            </button>
             <button
               type="button"
               onClick={(event) => {
