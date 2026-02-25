@@ -2,14 +2,20 @@ import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import type { BooleanExpression, CategoryName, TaskId } from "./types";
-import { detectCycle, fromKvPairsToMap } from "./utils";
+import {
+  detectCycle,
+  evaluateBooleanExpression,
+  fromKvPairsToMap,
+} from "./utils";
 import { useMemo } from "react";
+import { BooleanOp } from "./types";
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 export const TASKS_STORE = "tasks";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
+export const TASK_DEPENDENCY_EXPRESSION_STORE = "taskDependencyExpressions";
 export const TASK_COMPLETION_STORE = "taskCompletion";
 export const TASK_REMINDERS_STORE = "taskWarnings";
 export const TASK_HIDDEN_STORE = "taskHidden";
@@ -24,7 +30,6 @@ export type StoredTask = {
   title: string;
   description: string;
   category: CategoryName;
-  dependencyExpression?: BooleanExpression;
 };
 
 interface ChekovDB extends DBSchema {
@@ -39,6 +44,10 @@ interface ChekovDB extends DBSchema {
   [TASK_DEPENDENCIES_STORE]: {
     key: TaskId;
     value: Set<TaskId>;
+  };
+  [TASK_DEPENDENCY_EXPRESSION_STORE]: {
+    key: TaskId;
+    value: BooleanExpression;
   };
   [TASK_COMPLETION_STORE]: {
     key: TaskId;
@@ -75,6 +84,7 @@ interface ChekovDB extends DBSchema {
 }
 
 let dbPromise: ReturnType<typeof openDB<ChekovDB>> | null = null;
+const EMPTY_DEPENDENCY_EXPRESSIONS = new Map<string, BooleanExpression>();
 
 export const getDb = async () => {
   if (typeof window === "undefined") {
@@ -91,6 +101,7 @@ export const getDb = async () => {
         db.createObjectStore(TASKS_STORE);
         db.createObjectStore(TASK_TAGS_STORE);
         db.createObjectStore(TASK_DEPENDENCIES_STORE);
+        db.createObjectStore(TASK_DEPENDENCY_EXPRESSION_STORE);
         db.createObjectStore(TASK_COMPLETION_STORE);
         db.createObjectStore(TASK_REMINDERS_STORE);
         db.createObjectStore(TASK_HIDDEN_STORE);
@@ -186,6 +197,7 @@ export function useDeleteTasksMutation() {
           TASKS_STORE,
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
+          TASK_DEPENDENCY_EXPRESSION_STORE,
           TASK_COMPLETION_STORE,
           TASK_REMINDERS_STORE,
           TASK_HIDDEN_STORE,
@@ -198,6 +210,9 @@ export function useDeleteTasksMutation() {
       const tasksStore = tx.objectStore(TASKS_STORE);
       const taskTagsStore = tx.objectStore(TASK_TAGS_STORE);
       const taskDependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
+      const taskDependencyExpressionStore = tx.objectStore(
+        TASK_DEPENDENCY_EXPRESSION_STORE,
+      );
       const taskCompletionStore = tx.objectStore(TASK_COMPLETION_STORE);
       const taskRemindersStore = tx.objectStore(TASK_REMINDERS_STORE);
       const taskHiddenStore = tx.objectStore(TASK_HIDDEN_STORE);
@@ -244,6 +259,7 @@ export function useDeleteTasksMutation() {
           tasksStore.delete(taskId),
           taskTagsStore.delete(taskId),
           taskDependenciesStore.delete(taskId),
+          taskDependencyExpressionStore.delete(taskId),
           taskCompletionStore.delete(taskId),
           taskRemindersStore.delete(taskId),
           taskHiddenStore.delete(taskId),
@@ -321,6 +337,7 @@ export function useDeleteTasksMutation() {
       queryClient.invalidateQueries({
         queryKey: ["dependencies"],
       });
+      queryClient.invalidateQueries({ queryKey: ["dependencyExpressions"] });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
       queryClient.invalidateQueries({ queryKey: ["reminders"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
@@ -337,6 +354,9 @@ export function useDeleteTasksMutation() {
         queryClient.invalidateQueries({ queryKey: ["task", "tags", taskId] });
         queryClient.invalidateQueries({
           queryKey: ["task", "dependencies", taskId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["task", "dependencyExpression", taskId],
         });
         queryClient.invalidateQueries({
           queryKey: ["task", "completion", taskId],
@@ -831,7 +851,6 @@ export function useTaskCompletionMutation() {
           TASKS_STORE,
           CATEGORY_TASKS_STORE,
           CATEGORY_COLLAPSED_STORE,
-          TASK_DEPENDENCIES_STORE,
         ],
         "readwrite",
       );
@@ -841,7 +860,6 @@ export function useTaskCompletionMutation() {
       const tasksStore = tx.objectStore(TASKS_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
       const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
-      const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
 
       if (isCompleted) {
         await completionStore.put(true, taskId);
@@ -858,27 +876,16 @@ export function useTaskCompletionMutation() {
       // If this completion caused a category to become fully completed, add the category to the hidden categories list
       const categoryTaskIds =
         (await categoryTasksStore.get(task.category)) ?? [];
-      const directCompletedTaskIds = new Set<string>(
+      const completedTaskIds = new Set<string>(
         await completionStore.getAllKeys(),
       );
       const reminderTaskIds = new Set<string>(
         await remindersStore.getAllKeys(),
       );
-      const dependencyTaskIds = await dependenciesStore.getAllKeys();
-      const dependencyValues = await dependenciesStore.getAll();
-      const dependencyGraph = fromKvPairsToMap(
-        dependencyTaskIds,
-        dependencyValues,
-      );
-
-      const effectiveCompletedTaskIds = computeCompletionsWithReminders(
-        directCompletedTaskIds,
-        reminderTaskIds,
-        dependencyGraph,
-      );
-
-      const allCategoryTasksComplete = categoryTaskIds.every((categoryTaskId) =>
-        effectiveCompletedTaskIds.has(categoryTaskId),
+      const allCategoryTasksComplete = categoryTaskIds.every(
+        (categoryTaskId) =>
+          reminderTaskIds.has(categoryTaskId) ||
+          completedTaskIds.has(categoryTaskId),
       );
 
       const hiddenTaskCategories =
@@ -922,6 +929,7 @@ export function useClearDatabaseMutation() {
           TASKS_STORE,
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
+          TASK_DEPENDENCY_EXPRESSION_STORE,
           TASK_COMPLETION_STORE,
           TASK_REMINDERS_STORE,
           TASK_HIDDEN_STORE,
@@ -938,6 +946,7 @@ export function useClearDatabaseMutation() {
         tx.objectStore(TASKS_STORE).clear(),
         tx.objectStore(TASK_TAGS_STORE).clear(),
         tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
+        tx.objectStore(TASK_DEPENDENCY_EXPRESSION_STORE).clear(),
         tx.objectStore(TASK_COMPLETION_STORE).clear(),
         tx.objectStore(TASK_REMINDERS_STORE).clear(),
         tx.objectStore(TASK_HIDDEN_STORE).clear(),
@@ -1100,6 +1109,31 @@ export function useDependenciesQuery() {
   return useQuery(getQueryArgs_dependencies());
 }
 
+function getQueryArgs_dependencyExpressions() {
+  return {
+    queryKey: ["dependencyExpressions"],
+    queryFn: async () => {
+      console.log("Fetching ALL task dependency expressions");
+      const db = await getDb();
+      const taskIds = await db.getAllKeys(TASK_DEPENDENCY_EXPRESSION_STORE);
+      const expressions = await db.getAll(TASK_DEPENDENCY_EXPRESSION_STORE);
+      const map = fromKvPairsToMap(taskIds, expressions);
+      for (const [taskId, expression] of map.entries()) {
+        queryClient.setQueryData(
+          ["task", "dependencyExpression", taskId],
+          expression,
+        );
+      }
+
+      return map;
+    },
+  };
+}
+
+export function useDependencyExpressionsQuery() {
+  return useQuery(getQueryArgs_dependencyExpressions());
+}
+
 function getQueryArgs_completions() {
   return {
     queryKey: ["completions"],
@@ -1143,58 +1177,119 @@ export function useRemindersQuery() {
 }
 
 function computeCompletionsWithReminders(
+  taskSet: Set<string>,
   completions: Set<string>,
   reminders: Set<string>,
   dependencies: Map<string, Set<string>>,
+  dependencyExpressions: Map<string, BooleanExpression>,
+  evaluatedReminderCompletions: Map<TaskId, true | false>,
 ) {
   const effectiveCompletions = new Set<string>(completions);
-  let changed = true;
 
-  while (changed) {
-    changed = false;
-
-    for (const reminderTaskId of reminders) {
-      if (effectiveCompletions.has(reminderTaskId)) {
-        continue;
-      }
-
-      const reminderDependencies =
-        dependencies.get(reminderTaskId) ?? new Set<string>();
-
-      let allDependenciesComplete = true;
-      for (const dependencyId of reminderDependencies) {
-        if (!effectiveCompletions.has(dependencyId)) {
-          allDependenciesComplete = false;
-          break;
-        }
-      }
-
-      if (allDependenciesComplete) {
-        effectiveCompletions.add(reminderTaskId);
-        changed = true;
-      }
+  const evaluateTaskCompletion = (taskId: TaskId): boolean => {
+    if (!taskSet.has(taskId)) {
+      return false;
     }
+
+    if (!reminders.has(taskId)) {
+      return completions.has(taskId);
+    }
+
+    const existingReminderCompletion = evaluatedReminderCompletions.get(taskId);
+    if (existingReminderCompletion !== undefined) {
+      return existingReminderCompletion;
+    }
+
+    const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
+    const taskDependencyExpression = dependencyExpressions.get(taskId) ?? [
+      BooleanOp.And,
+      ...taskDependencies,
+    ];
+
+    const evaluateExpression = (expression: BooleanExpression): boolean => {
+      if (typeof expression === "string") {
+        return evaluateTaskCompletion(expression);
+      }
+
+      const [operator, ...operands] = expression;
+
+      if (operator === BooleanOp.Not) {
+        return !evaluateExpression(operands[0]);
+      }
+
+      if (operator === BooleanOp.And) {
+        if (operands.length === 0) {
+          return true;
+        }
+
+        return operands.every((operand) => evaluateExpression(operand));
+      }
+
+      if (operator === BooleanOp.Or) {
+        if (operands.length === 0) {
+          return true;
+        }
+
+        return operands.some((operand) => evaluateExpression(operand));
+      }
+
+      return false;
+    };
+
+    const reminderCompletion = evaluateExpression(taskDependencyExpression);
+    evaluatedReminderCompletions.set(taskId, reminderCompletion);
+
+    if (reminderCompletion) {
+      effectiveCompletions.add(taskId);
+    }
+
+    return reminderCompletion;
+  };
+
+  for (const reminderTaskId of reminders) {
+    if (!taskSet.has(reminderTaskId)) {
+      continue;
+    }
+
+    evaluateTaskCompletion(reminderTaskId);
   }
 
   return effectiveCompletions;
 }
 
+export function useTaskDependencyExpressions() {
+  return useDependencyExpressionsQuery().data ?? EMPTY_DEPENDENCY_EXPRESSIONS;
+}
+
 export function useCompletionsWithReminders(
+  taskSet: Set<string> | undefined,
   completions: Set<string> | undefined,
   reminders: Set<string> | undefined,
   dependencies: Map<string, Set<string>> | undefined,
+  dependencyExpressions: Map<string, BooleanExpression> | undefined,
 ) {
   return useMemo(() => {
-    if (!completions || !reminders || !dependencies) {
+    if (
+      !taskSet ||
+      !completions ||
+      !reminders ||
+      !dependencies ||
+      !dependencyExpressions
+    ) {
       return new Set<string>();
     }
 
+    const evaluatedReminderCompletions = new Map<TaskId, true | false>();
+
     return computeCompletionsWithReminders(
+      taskSet,
       completions,
       reminders,
       dependencies,
+      dependencyExpressions,
+      evaluatedReminderCompletions,
     );
-  }, [completions, reminders, dependencies]);
+  }, [taskSet, completions, reminders, dependencies, dependencyExpressions]);
 }
 
 function getQueryArgs_details(enabled?: boolean) {
@@ -1295,6 +1390,17 @@ export function useTaskDependenciesQuery(taskId: TaskId) {
         return new Set<string>();
       }
       return dependencies;
+    },
+  });
+}
+
+export function useTaskDependencyExpressionQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "dependencyExpression", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const expression = await db.get(TASK_DEPENDENCY_EXPRESSION_STORE, taskId);
+      return expression === undefined ? null : expression;
     },
   });
 }
@@ -1429,9 +1535,10 @@ export function useTasksWithCompleteDependencies(
   taskSet: Set<string> | undefined,
   dependencies: Map<string, Set<string>> | undefined,
   completions: Set<string> | undefined,
+  dependencyExpressions: Map<string, BooleanExpression> | undefined,
 ) {
   return useMemo(() => {
-    if (!taskSet || !dependencies || !completions) {
+    if (!taskSet || !dependencies || !completions || !dependencyExpressions) {
       return new Set<string>();
     }
 
@@ -1439,20 +1546,23 @@ export function useTasksWithCompleteDependencies(
 
     for (const taskId of taskSet) {
       const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
-      let hasIncompleteDependency = false;
-      for (const depId of taskDependencies) {
-        if (!completions.has(depId)) {
-          hasIncompleteDependency = true;
-          break;
-        }
-      }
-      if (!hasIncompleteDependency) {
+      const taskDependencyExpression = dependencyExpressions.get(taskId) ?? [
+        BooleanOp.And,
+        ...taskDependencies,
+      ];
+
+      const dependenciesSatisfied = evaluateBooleanExpression(
+        taskDependencyExpression,
+        completions,
+      );
+
+      if (dependenciesSatisfied) {
         tasksWithCompleteDependencies.add(taskId);
       }
     }
 
     return tasksWithCompleteDependencies;
-  }, [taskSet, dependencies, completions]);
+  }, [taskSet, dependencies, completions, dependencyExpressions]);
 }
 
 export function useTasksMatchingSearch(searchQuery: string) {

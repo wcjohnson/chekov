@@ -35,13 +35,13 @@ describe("evaluateBooleanExpression", () => {
     );
   });
 
-  it("evaluates empty AND as false", () => {
+  it("evaluates empty AND as true", () => {
     const expression: BooleanExpression = [BooleanOp.And];
 
-    expect(evaluateBooleanExpression(expression, new Set())).toBe(false);
+    expect(evaluateBooleanExpression(expression, new Set())).toBe(true);
     expect(
       evaluateBooleanExpression(expression, new Set(["a", "b", "c"])),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("evaluates empty OR as true", () => {

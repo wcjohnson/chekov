@@ -8,7 +8,6 @@ import {
   useCategoryDependenciesQuery,
   useCategoriesQuery,
   useCategoriesTasksQuery,
-  useCompletionsQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
   useRemindersQuery,
@@ -66,7 +65,6 @@ export function LeftColumn({
   const categories = useCategoriesQuery().data;
   const categoriesTasks = useCategoriesTasksQuery().data;
   const categoryDependencies = useCategoryDependenciesQuery().data;
-  const allCompletions = useCompletionsQuery().data;
   const allReminders = useRemindersQuery().data;
 
   const taskBreakout: TaskBreakout = useMemo(() => {
@@ -115,7 +113,7 @@ export function LeftColumn({
             return shouldShow && matchesSearch;
           }
 
-          const isCompleted = allCompletions?.has(taskId) ?? false;
+          const isCompleted = completionsWithReminders.has(taskId);
           const shouldShow =
             hasCompleteDependencies && (showCompletedTasks || !isCompleted);
           return shouldShow && matchesSearch;
@@ -145,7 +143,6 @@ export function LeftColumn({
     mode,
     categoriesTasks,
     categoryDependencies,
-    allCompletions,
     allReminders,
     completionsWithReminders,
     showCompletedTasks,

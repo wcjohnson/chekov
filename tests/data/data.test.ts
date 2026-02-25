@@ -19,6 +19,8 @@ import {
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskDetailQuery,
+  useTaskDependencyExpressions,
+  useTaskDependencyExpressionQuery,
   useTaskStructure,
   useTaskSetQuery,
   useTaskReminderMutation,
@@ -124,7 +126,7 @@ describe("data layer", () => {
     });
   });
 
-  it("stores dependencyExpression on task details when imported", async () => {
+  it("stores dependencyExpression in the dedicated expression store when imported", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["Main"],
       tasksByCategory: {
@@ -148,16 +150,108 @@ describe("data layer", () => {
 
     const { result } = renderHook(
       () => ({
-        detail: useTaskDetailQuery("t").data,
+        dependencyExpression: useTaskDependencyExpressionQuery("t").data,
       }),
       { wrapper },
     );
 
     await waitFor(() => {
-      expect(result.current.detail?.dependencyExpression).toEqual([
+      expect(result.current.dependencyExpression).toEqual([BooleanOp.Not, "a"]);
+    });
+  });
+
+  it("clears per-task dependencyExpression query after deleting the task", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          {
+            id: "t",
+            category: "Main",
+            title: "Target",
+            dependencies: ["a"],
+            dependencyExpression: [BooleanOp.Not, "a"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => ({
+        deleteTasks: useDeleteTasksMutation(),
+        taskSet: useTaskSetQuery().data ?? new Set<string>(),
+        dependencyExpression: useTaskDependencyExpressionQuery("t").data,
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.dependencyExpression).toEqual([BooleanOp.Not, "a"]);
+      expect(result.current.taskSet.has("t")).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.deleteTasks.mutateAsync(["t"]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.has("t")).toBe(false);
+      expect(result.current.dependencyExpression).toBeNull();
+    });
+  });
+
+  it("removes deleted task from aggregate dependencyExpressions query", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          {
+            id: "t",
+            category: "Main",
+            title: "Target",
+            dependencies: ["a"],
+            dependencyExpression: [BooleanOp.Not, "a"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => ({
+        deleteTasks: useDeleteTasksMutation(),
+        taskSet: useTaskSetQuery().data ?? new Set<string>(),
+        dependencyExpressions: useTaskDependencyExpressions(),
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.taskSet.has("t")).toBe(true);
+      expect(result.current.dependencyExpressions.get("t")).toEqual([
         BooleanOp.Not,
         "a",
       ]);
+    });
+
+    await act(async () => {
+      await result.current.deleteTasks.mutateAsync(["t"]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.has("t")).toBe(false);
+      expect(result.current.dependencyExpressions.has("t")).toBe(false);
     });
   });
 
@@ -171,15 +265,19 @@ describe("data layer", () => {
         const completions = useCompletionsQuery().data ?? new Set<string>();
         const reminders = useRemindersQuery().data ?? new Set<string>();
         const taskStructure = useTaskStructure();
+        const dependencyExpressions = useTaskDependencyExpressions();
         const completionsWithReminders = useCompletionsWithReminders(
+          taskStructure.taskSet,
           completions,
           reminders,
           dependencies,
+          dependencyExpressions,
         );
         const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
           taskStructure.taskSet,
           dependencies,
           completionsWithReminders,
+          dependencyExpressions,
         );
 
         return {

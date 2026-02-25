@@ -95,7 +95,7 @@ export function evaluateBooleanExpression(
 
   if (operator === BooleanOp.And) {
     if (operands.length === 0) {
-      return false;
+      return true;
     }
 
     return operands.every((operand) =>

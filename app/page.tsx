@@ -16,6 +16,7 @@ import {
   useDeleteTasksMutation,
   useDependenciesQuery,
   useRemindersQuery,
+  useTaskDependencyExpressions,
   useTaskCompletionMutation,
   useTasksMatchingSearch,
   useTaskStructure,
@@ -62,18 +63,22 @@ export function AppMain() {
 
   const taskStructure = useTaskStructure();
   const allDependencies = useDependenciesQuery().data ?? new Map();
+  const dependencyExpressions = useTaskDependencyExpressions();
   const allCompletionsRaw = useCompletionsQuery().data;
   const allReminders = useRemindersQuery().data;
   const allCompletions = useCompletionsWithReminders(
+    taskStructure.taskSet,
     allCompletionsRaw,
     allReminders,
     allDependencies,
+    dependencyExpressions,
   );
 
   const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
     taskStructure.taskSet,
     allDependencies,
     allCompletions,
+    dependencyExpressions,
   );
   const tasksMatchingSearch = useTasksMatchingSearch(searchText);
 

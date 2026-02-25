@@ -8,6 +8,7 @@ import {
   queryClient,
   TAG_COLORS_STORE,
   TASK_COMPLETION_STORE,
+  TASK_DEPENDENCY_EXPRESSION_STORE,
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
   TASK_TAGS_STORE,
@@ -344,6 +345,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskTagValues,
     taskDependencyKeys,
     taskDependencyValues,
+    taskDependencyExpressionKeys,
+    taskDependencyExpressionValues,
     reminderTaskKeys,
     reminderTaskValues,
     maybeCategories,
@@ -360,6 +363,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.getAll(TASK_TAGS_STORE),
     db.getAllKeys(TASK_DEPENDENCIES_STORE),
     db.getAll(TASK_DEPENDENCIES_STORE),
+    db.getAllKeys(TASK_DEPENDENCY_EXPRESSION_STORE),
+    db.getAll(TASK_DEPENDENCY_EXPRESSION_STORE),
     db.getAllKeys(TASK_REMINDERS_STORE),
     db.getAll(TASK_REMINDERS_STORE),
     db.get(CATEGORIES_STORE, "categories"),
@@ -377,6 +382,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
   const taskDependenciesMap = fromKvPairsToMap(
     taskDependencyKeys,
     taskDependencyValues,
+  );
+  const taskDependencyExpressionsMap = fromKvPairsToMap(
+    taskDependencyExpressionKeys,
+    taskDependencyExpressionValues,
   );
   const reminderTasksMap = fromKvPairsToMap(
     reminderTaskKeys,
@@ -406,6 +415,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
       const taskDependencies =
         taskDependenciesMap.get(taskId) ?? new Set<string>();
       const taskTags = taskTagsMap.get(taskId) ?? new Set<string>();
+      const taskDependencyExpression = taskDependencyExpressionsMap.get(taskId);
 
       categoryTasks.push({
         id: taskId,
@@ -418,8 +428,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(Array.from(taskDependencies).length > 0
           ? { dependencies: Array.from(taskDependencies) }
           : {}),
-        ...(task.dependencyExpression
-          ? { dependencyExpression: task.dependencyExpression }
+        ...(taskDependencyExpression !== undefined
+          ? { dependencyExpression: taskDependencyExpression }
           : {}),
         ...(Array.from(taskTags).length > 0
           ? { tags: Array.from(taskTags) }
@@ -523,7 +533,7 @@ export async function importChecklistDefinition(
 
   const normalizedDefinition = normalizeChecklistDefinition(definition);
 
-  // Clear existing IndexedDB tables relating to checklist definition (TASKS_STORE, TASK_TAGS_STORE, TASK_DEPENDENCIES_STORE, CATEGORIES_STORE, CATEGORY_TASKS_STORE, TAG_COLORS_STORE)
+  // Clear existing IndexedDB tables relating to checklist definition (TASKS_STORE, TASK_TAGS_STORE, TASK_DEPENDENCIES_STORE, TASK_DEPENDENCY_EXPRESSION_STORE, CATEGORIES_STORE, CATEGORY_TASKS_STORE, TAG_COLORS_STORE)
   // Replace the content of those tables with content appropriate to the new normalized definition.
   // Use a transaction.
   const transaction = db.transaction(
@@ -531,6 +541,7 @@ export async function importChecklistDefinition(
       TASKS_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
+      TASK_DEPENDENCY_EXPRESSION_STORE,
       TASK_REMINDERS_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
@@ -548,6 +559,9 @@ export async function importChecklistDefinition(
   const taskDependenciesStore = transaction.objectStore(
     TASK_DEPENDENCIES_STORE,
   );
+  const taskDependencyExpressionsStore = transaction.objectStore(
+    TASK_DEPENDENCY_EXPRESSION_STORE,
+  );
   const taskRemindersStore = transaction.objectStore(TASK_REMINDERS_STORE);
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
@@ -563,6 +577,7 @@ export async function importChecklistDefinition(
     tasksStore.clear(),
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
+    taskDependencyExpressionsStore.clear(),
     taskRemindersStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
@@ -606,12 +621,16 @@ export async function importChecklistDefinition(
           title: task.title,
           description: task.description ?? "",
           category,
-          ...(task.dependencyExpression
-            ? { dependencyExpression: task.dependencyExpression }
-            : {}),
         },
         task.id,
       );
+
+      if (task.dependencyExpression) {
+        await taskDependencyExpressionsStore.put(
+          task.dependencyExpression,
+          task.id,
+        );
+      }
 
       if (isReminderType(task.type)) {
         await taskRemindersStore.put(true, task.id);
