@@ -822,21 +822,38 @@ function getQueryArgs_details() {
   return {
     queryKey: ["details"],
     queryFn: async () => {
+      console.log("Fetching ALL task details");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASKS_STORE);
       const details = await db.getAll(TASKS_STORE);
-      return fromKvPairsToRecord(taskIds, details);
-    },
-    onSuccess: (detailsByTaskId: Record<string, StoredTask>) => {
-      for (const [taskId, detail] of Object.entries(detailsByTaskId)) {
+      const record = fromKvPairsToRecord(taskIds, details);
+      for (const [taskId, detail] of Object.entries(record)) {
         queryClient.setQueryData(["task", "detail", taskId], detail);
       }
+      console.log("Got the details");
+      return record;
     },
   };
 }
 
 export function useDetailsQuery() {
   return useQuery(getQueryArgs_details());
+}
+
+function getQueryArgs_taskSet() {
+  return {
+    queryKey: ["taskSet"],
+    queryFn: async () => {
+      const db = await getDb();
+      const taskIds = await db.getAllKeys(TASKS_STORE);
+      const taskSet = new Set<string>(taskIds);
+      return taskSet;
+    },
+  };
+}
+
+export function useTaskSetQuery() {
+  return useQuery(getQueryArgs_taskSet());
 }
 
 export function getQueryArgs_tags() {
@@ -1001,12 +1018,12 @@ export function useTaskSet() {
 }
 
 export function useTaskStructure() {
-  const taskSet = useTaskSet();
+  const taskSet = useTaskSetQuery();
   const categories = useCategoriesQuery();
   const categoryTasks = useCategoriesTasksQuery();
 
   return {
-    taskSet,
+    taskSet: taskSet.data ?? new Set<string>(),
     categories: categories.data ?? [],
     categoryTasks: categoryTasks.data ?? {},
   };
