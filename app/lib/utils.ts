@@ -1,4 +1,4 @@
-import type { TaskId } from "./types";
+import { BooleanOp, type BooleanExpression, type TaskId } from "./types";
 
 export function fromKvPairsToRecord<K extends string, V>(
   keys: K[],
@@ -78,3 +78,40 @@ export const detectCycle = (
 
   return false;
 };
+
+export function evaluateBooleanExpression(
+  expression: BooleanExpression,
+  truthyTaskIds: Set<TaskId>,
+): boolean {
+  if (typeof expression === "string") {
+    return truthyTaskIds.has(expression);
+  }
+
+  const [operator, ...operands] = expression;
+
+  if (operator === BooleanOp.Not) {
+    return !evaluateBooleanExpression(operands[0], truthyTaskIds);
+  }
+
+  if (operator === BooleanOp.And) {
+    if (operands.length === 0) {
+      return false;
+    }
+
+    return operands.every((operand) =>
+      evaluateBooleanExpression(operand, truthyTaskIds),
+    );
+  }
+
+  if (operator === BooleanOp.Or) {
+    if (operands.length === 0) {
+      return true;
+    }
+
+    return operands.some((operand) =>
+      evaluateBooleanExpression(operand, truthyTaskIds),
+    );
+  }
+
+  return false;
+}
