@@ -14,6 +14,7 @@ type TopBarProps = {
   onDeleteAll: () => void;
   onUnhideAll: () => void;
   onResetCompleted: () => void;
+  onClearDatabase: () => void;
   onSearchTextChange: (value: string) => void;
   onExportDefinition: () => void;
   onImportDefinitionClick: () => void;
@@ -33,6 +34,7 @@ export function TopBar({
   onDeleteAll,
   onUnhideAll,
   onResetCompleted,
+  onClearDatabase,
   onSearchTextChange,
   onExportDefinition,
   onImportDefinitionClick,
@@ -82,6 +84,13 @@ export function TopBar({
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Reset Completed
+          </button>
+          <button
+            type="button"
+            onClick={onClearDatabase}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            Clear DB
           </button>
           <input
             type="search"

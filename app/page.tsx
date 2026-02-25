@@ -9,6 +9,7 @@ import { RightColumn } from "./components/right/RightColumn";
 import { TopBar } from "./components/TopBar";
 import type { ChecklistMode, TaskId } from "./lib/types";
 import {
+  useClearDatabaseMutation,
   queryClient,
   useCompletionsQuery,
   useDeleteTasksMutation,
@@ -234,6 +235,15 @@ export function AppMain() {
     uncompleteAllTasksMutation.mutate();
   };
 
+  const clearDatabaseMutation = useClearDatabaseMutation();
+  const clearDatabase = () => {
+    clearDatabaseMutation.mutate();
+    setSelectedTaskId(null);
+    setEditSelectedTaskIds(new Set());
+    setMultiSelectState(null);
+    setErrorMessage(null);
+  };
+
   const handleImportDefinition = async (file: File) => {
     try {
       const parsed = await uploadJson(file);
@@ -291,6 +301,7 @@ export function AppMain() {
             onDeleteAll={deleteSelectedTasks}
             onUnhideAll={unhideAllTasks}
             onResetCompleted={resetAllCompletedTasks}
+            onClearDatabase={clearDatabase}
             onSearchTextChange={setSearchText}
             onExportDefinition={handleExportDefinition}
             onImportDefinitionClick={() =>
