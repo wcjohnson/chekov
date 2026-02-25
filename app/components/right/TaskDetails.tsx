@@ -205,13 +205,30 @@ export function TaskDetails({
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Title</span>
           <input
-            value={selectedTaskDetail?.title ?? ""}
-            onChange={(event) =>
+            key={selectedTaskId ?? ""}
+            defaultValue={selectedTaskDetail?.title ?? ""}
+            onBlur={(event) => {
+              if (!selectedTaskId) {
+                return;
+              }
+
+              const nextTitle = event.currentTarget.value;
+              const persistedTitle = selectedTaskDetail?.title ?? "";
+              if (nextTitle === persistedTitle) {
+                return;
+              }
+
               taskDetailMutation.mutate({
-                taskId: selectedTaskId ?? "",
-                title: event.target.value,
-              })
-            }
+                taskId: selectedTaskId,
+                title: nextTitle,
+              });
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+            }}
             className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
           />
         </label>
@@ -283,13 +300,25 @@ export function TaskDetails({
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Description (Markdown)</span>
           <textarea
-            value={selectedTaskDetail?.description ?? ""}
-            onChange={(event) =>
+            key={`description-${selectedTaskId ?? ""}`}
+            defaultValue={selectedTaskDetail?.description ?? ""}
+            onBlur={(event) => {
+              if (!selectedTaskId) {
+                return;
+              }
+
+              const nextDescription = event.currentTarget.value;
+              const persistedDescription =
+                selectedTaskDetail?.description ?? "";
+              if (nextDescription === persistedDescription) {
+                return;
+              }
+
               taskDetailMutation.mutate({
-                taskId: selectedTaskId ?? "",
-                description: event.target.value,
-              })
-            }
+                taskId: selectedTaskId,
+                description: nextDescription,
+              });
+            }}
             rows={10}
             className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 font-mono text-sm dark:border-zinc-700"
           />
