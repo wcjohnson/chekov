@@ -658,6 +658,83 @@ export function useTaskDependenciesMutation() {
   });
 }
 
+function isSimpleAndOfDependencies(
+  expression: BooleanExpression,
+  dependencies: Set<TaskId>,
+): boolean {
+  if (typeof expression === "string") {
+    return false;
+  }
+
+  if (expression[0] !== BooleanOp.And) {
+    return false;
+  }
+
+  const operands = expression.slice(1);
+  if (
+    !operands.every((operand): operand is TaskId => typeof operand === "string")
+  ) {
+    return false;
+  }
+
+  if (operands.length !== dependencies.size) {
+    return false;
+  }
+
+  const operandSet = new Set(operands);
+  if (operandSet.size !== operands.length) {
+    return false;
+  }
+
+  for (const dependencyId of dependencies) {
+    if (!operandSet.has(dependencyId)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function useTaskDependencyExpressionMutation() {
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      dependencyExpression,
+    }: {
+      taskId: TaskId;
+      dependencyExpression: BooleanExpression | null;
+    }) => {
+      if (!taskId) {
+        return;
+      }
+
+      const db = await getDb();
+      const taskDependencies =
+        (await db.get(TASK_DEPENDENCIES_STORE, taskId)) ?? new Set<TaskId>();
+
+      if (
+        dependencyExpression === null ||
+        isSimpleAndOfDependencies(dependencyExpression, taskDependencies)
+      ) {
+        await db.delete(TASK_DEPENDENCY_EXPRESSION_STORE, taskId);
+        return;
+      }
+
+      await db.put(
+        TASK_DEPENDENCY_EXPRESSION_STORE,
+        dependencyExpression,
+        taskId,
+      );
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["task", "dependencyExpression", variables.taskId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["dependencyExpressions"] });
+    },
+  });
+}
+
 export function useCategoryDependenciesMutation() {
   return useMutation({
     mutationFn: async ({

@@ -22,6 +22,7 @@ import {
   useTaskDetailQuery,
   useTaskDependencyExpressions,
   useTaskDependencyExpressionQuery,
+  useTaskDependencyExpressionMutation,
   useTaskTagsQuery,
   useCategoryDependencyQuery,
   useTaskCompletionQuery,
@@ -250,6 +251,71 @@ describe("data layer", () => {
     await waitFor(() => {
       expect(result.current.taskSet.has("t")).toBe(false);
       expect(result.current.dependencyExpression).toBeNull();
+    });
+  });
+
+  it("stores custom dependencyExpression and omits implicit AND expression", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          { id: "b", category: "Main", title: "B" },
+          {
+            id: "t",
+            category: "Main",
+            title: "Target",
+            dependencies: ["a", "b"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => ({
+        setDependencyExpression: useTaskDependencyExpressionMutation(),
+        perTaskExpression: useTaskDependencyExpressionQuery("t").data,
+        allExpressions: useTaskDependencyExpressions(),
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.perTaskExpression).toBeNull();
+      expect(result.current.allExpressions.has("t")).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.setDependencyExpression.mutateAsync({
+        taskId: "t",
+        dependencyExpression: [BooleanOp.Or, "a", "b"],
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.perTaskExpression).toEqual([BooleanOp.Or, "a", "b"]);
+      expect(result.current.allExpressions.get("t")).toEqual([
+        BooleanOp.Or,
+        "a",
+        "b",
+      ]);
+    });
+
+    await act(async () => {
+      await result.current.setDependencyExpression.mutateAsync({
+        taskId: "t",
+        dependencyExpression: [BooleanOp.And, "a", "b"],
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.perTaskExpression).toBeNull();
+      expect(result.current.allExpressions.has("t")).toBe(false);
     });
   });
 

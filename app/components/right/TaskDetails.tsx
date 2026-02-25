@@ -8,7 +8,7 @@ import {
   getTagSwatchClasses,
   TAG_COLOR_OPTIONS,
 } from "../../lib/tagColors";
-import type { ChecklistMode, TaskId } from "../../lib/types";
+import { type ChecklistMode, type TaskId } from "../../lib/types";
 import {
   useAllKnownTagsQuery,
   useDeleteTasksMutation,
@@ -28,6 +28,7 @@ import {
   useTaskReminderQuery,
 } from "@/app/lib/data";
 import { MultiSelectContext } from "@/app/lib/context";
+import { ExpressionEditor } from "../ExpressionEditor";
 
 function DependencyItem({
   dependencyId,
@@ -299,6 +300,11 @@ export function TaskDetails({
             )}
           </div>
         </div>
+
+        <ExpressionEditor
+          taskId={selectedTaskId}
+          dependencyIds={selectedTaskDeps}
+        />
 
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Description (Markdown)</span>
