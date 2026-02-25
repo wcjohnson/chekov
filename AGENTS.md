@@ -135,6 +135,7 @@
 - Test environment is configured for browser-like behavior (`jsdom`) and IndexedDB simulation (`fake-indexeddb`) so data-layer and import/export logic can be unit tested without a real browser.
 - `tests/setup.ts` is the shared setup file and is the right place for test-wide browser/indexeddb shims.
 - Start new coverage by adding `*.test.ts` files in `tests/` (for example `tests/data/*.test.ts` or `tests/export/*.test.ts`).
+- Any change to the data model must be accompanied by corresponding unit tests for data, referential integrity, and import/export.
 - Any change to the data model (stores, query/mutation behavior, import/export normalization, or dependency/completion semantics) must run the full test suite before handoff.
 - Purely UX-only updates that do not affect data model behavior do not require running unit tests.
 
