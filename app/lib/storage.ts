@@ -750,7 +750,7 @@ function getQueryArgs_categories() {
   };
 }
 
-export function useCategories() {
+export function useCategoriesQuery() {
   return useQuery(getQueryArgs_categories());
 }
 
@@ -766,7 +766,7 @@ function getQueryArgs_categoriesTasks() {
   };
 }
 
-export function useCategoriesTasks() {
+export function useCategoriesTasksQuery() {
   return useQuery(getQueryArgs_categoriesTasks());
 }
 
@@ -792,7 +792,7 @@ function getQueryArgs_dependencies() {
   };
 }
 
-export function useDependencies() {
+export function useDependenciesQuery() {
   return useQuery(getQueryArgs_dependencies());
 }
 
@@ -814,7 +814,7 @@ function getQueryArgs_completions() {
   };
 }
 
-export function useCompletions() {
+export function useCompletionsQuery() {
   return useQuery(getQueryArgs_completions());
 }
 
@@ -835,18 +835,8 @@ function getQueryArgs_details() {
   };
 }
 
-export function useDetails() {
+export function useDetailsQuery() {
   return useQuery(getQueryArgs_details());
-}
-
-export function useTaskSet() {
-  const detailsQuery = useDetails();
-  return useMemo(() => {
-    if (detailsQuery.data) {
-      return new Set<string>(Object.keys(detailsQuery.data));
-    }
-    return new Set<string>();
-  }, [detailsQuery.data]);
 }
 
 export function getQueryArgs_tags() {
@@ -866,8 +856,160 @@ export function getQueryArgs_tags() {
   };
 }
 
-export function useTags() {
+export function useTagsQuery() {
   return useQuery(getQueryArgs_tags());
+}
+
+export function useTaskDetailQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "detail", taskId],
+    queryFn: async () => {
+      if (!taskId) return null;
+      const db = await getDb();
+      console.log("Fetching task detail for", taskId);
+      const res = await db.get(TASKS_STORE, taskId);
+      return res === undefined ? null : res;
+    },
+  });
+}
+
+export function useTaskTagsQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "tags", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const tags = await db.get(TASK_TAGS_STORE, taskId);
+      if (tags === undefined) {
+        return new Set<string>();
+      }
+      return tags;
+    },
+  });
+}
+
+export function useTaskDependenciesQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "dependencies", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const dependencies = await db.get(TASK_DEPENDENCIES_STORE, taskId);
+      if (dependencies === undefined) {
+        return new Set<string>();
+      }
+      return dependencies;
+    },
+  });
+}
+
+export function useTaskCompletionQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "completion", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isCompleted = await db.get(TASK_COMPLETION_STORE, taskId);
+      return !!isCompleted;
+    },
+  });
+}
+
+export function useTaskHiddenQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "hidden", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isHidden = await db.get(TASK_HIDDEN_STORE, taskId);
+      return !!isHidden;
+    },
+  });
+}
+
+function getQueryArgs_hiddens() {
+  return {
+    queryKey: ["hiddens"],
+    queryFn: async () => {
+      const db = await getDb();
+      const allHiddenTasks = new Set<string>(
+        await db.getAllKeys(TASK_HIDDEN_STORE),
+      );
+      return allHiddenTasks;
+    },
+    onSuccess: (hiddenTaskIds: Set<string>) => {
+      for (const taskId of hiddenTaskIds) {
+        queryClient.setQueryData(["task", "hidden", taskId], true);
+      }
+    },
+  };
+}
+
+export function useTaskHiddensQuery() {
+  return useQuery(getQueryArgs_hiddens());
+}
+
+export function useHiddenCategoriesQuery() {
+  return useQuery({
+    queryKey: ["hiddenCategories"],
+    queryFn: async () => {
+      const db = await getDb();
+
+      const hiddenTaskCategories =
+        (await db.get("categoryHidden", "task")) ?? new Set<string>();
+      const hiddenEditCategories =
+        (await db.get("categoryHidden", "edit")) ?? new Set<string>();
+
+      return { task: hiddenTaskCategories, edit: hiddenEditCategories };
+    },
+  });
+}
+
+export function useTagColorsQuery() {
+  return useQuery({
+    queryKey: ["tagColors"],
+    queryFn: async () => {
+      const db = await getDb();
+      const colorKeys = await db.getAllKeys(TAG_COLORS_STORE);
+      const colorValues = await db.getAll(TAG_COLORS_STORE);
+      return fromKvPairsToRecord(colorKeys, colorValues);
+    },
+  });
+}
+
+export function useAllKnownTagsQuery() {
+  return useQuery({
+    queryKey: ["allKnownTags"],
+    queryFn: async () => {
+      const db = await getDb();
+      const tags = await db.getAll(TASK_TAGS_STORE);
+      let allTags = new Set<string>();
+      for (const tagSet of tags) {
+        allTags = allTags.union(tagSet);
+      }
+      return allTags;
+    },
+  });
+}
+
+//////////// DERIVED DATA
+
+export function useTaskSet() {
+  const detailsQuery = useDetailsQuery();
+  return useMemo(() => {
+    if (detailsQuery.data) {
+      return new Set<string>(Object.keys(detailsQuery.data));
+    }
+    return new Set<string>();
+  }, [detailsQuery.data]);
+}
+
+export function useTaskStructure() {
+  const taskSet = useTaskSet();
+  const categories = useCategoriesQuery();
+  const categoryTasks = useCategoriesTasksQuery();
+
+  return {
+    taskSet,
+    categories: categories.data ?? [],
+    categoryTasks: categoryTasks.data ?? {},
+  };
 }
 
 export function useTasksWithCompleteDependencies(
@@ -960,144 +1102,4 @@ export function useTasksMatchingSearch(
 
     return matchingTasks;
   }, [taskSet, details, tags, searchQuery]);
-}
-
-export function useTaskDetail(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "detail", taskId],
-    queryFn: async () => {
-      if (!taskId) return null;
-      const db = await getDb();
-      console.log("Fetching task detail for", taskId);
-      const res = await db.get(TASKS_STORE, taskId);
-      return res === undefined ? null : res;
-    },
-  });
-}
-
-export function useTaskTags(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "tags", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const tags = await db.get(TASK_TAGS_STORE, taskId);
-      if (tags === undefined) {
-        return new Set<string>();
-      }
-      return tags;
-    },
-  });
-}
-
-export function useTaskDependencies(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "dependencies", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const dependencies = await db.get(TASK_DEPENDENCIES_STORE, taskId);
-      if (dependencies === undefined) {
-        return new Set<string>();
-      }
-      return dependencies;
-    },
-  });
-}
-
-export function useTaskCompletion(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "completion", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const isCompleted = await db.get(TASK_COMPLETION_STORE, taskId);
-      return !!isCompleted;
-    },
-  });
-}
-
-export function useTaskHidden(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "hidden", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const isHidden = await db.get(TASK_HIDDEN_STORE, taskId);
-      return !!isHidden;
-    },
-  });
-}
-
-function getQueryArgs_hiddens() {
-  return {
-    queryKey: ["hiddens"],
-    queryFn: async () => {
-      const db = await getDb();
-      const allHiddenTasks = new Set<string>(
-        await db.getAllKeys(TASK_HIDDEN_STORE),
-      );
-      return allHiddenTasks;
-    },
-    onSuccess: (hiddenTaskIds: Set<string>) => {
-      for (const taskId of hiddenTaskIds) {
-        queryClient.setQueryData(["task", "hidden", taskId], true);
-      }
-    },
-  };
-}
-
-export function useTaskHiddens() {
-  return useQuery(getQueryArgs_hiddens());
-}
-
-export function useHiddenCategories() {
-  return useQuery({
-    queryKey: ["hiddenCategories"],
-    queryFn: async () => {
-      const db = await getDb();
-
-      const hiddenTaskCategories =
-        (await db.get("categoryHidden", "task")) ?? new Set<string>();
-      const hiddenEditCategories =
-        (await db.get("categoryHidden", "edit")) ?? new Set<string>();
-
-      return { task: hiddenTaskCategories, edit: hiddenEditCategories };
-    },
-  });
-}
-
-export function useTagColors() {
-  return useQuery({
-    queryKey: ["tagColors"],
-    queryFn: async () => {
-      const db = await getDb();
-      const colorKeys = await db.getAllKeys(TAG_COLORS_STORE);
-      const colorValues = await db.getAll(TAG_COLORS_STORE);
-      return fromKvPairsToRecord(colorKeys, colorValues);
-    },
-  });
-}
-
-export function useAllKnownTags() {
-  return useQuery({
-    queryKey: ["allKnownTags"],
-    queryFn: async () => {
-      const db = await getDb();
-      const tags = await db.getAll(TASK_TAGS_STORE);
-      let allTags = new Set<string>();
-      for (const tagSet of tags) {
-        allTags = allTags.union(tagSet);
-      }
-      return allTags;
-    },
-  });
-}
-
-export function useTaskStructure() {
-  const taskSet = useTaskSet();
-  const categories = useCategories();
-  const categoryTasks = useCategoriesTasks();
-
-  return {
-    taskSet,
-    categories: categories.data ?? [],
-    categoryTasks: categoryTasks.data ?? {},
-  };
 }

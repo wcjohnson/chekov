@@ -3,11 +3,11 @@
 import { getTagBadgeClasses } from "../../lib/tagColors";
 import type { ChecklistMode, TaskId } from "../../lib/types";
 import {
-  useTagColors,
-  useTaskCompletion,
-  useTaskDetail,
-  useTaskHidden,
-  useTaskTags,
+  useTagColorsQuery,
+  useTaskCompletionQuery,
+  useTaskDetailQuery,
+  useTaskHiddenQuery,
+  useTaskTagsQuery,
 } from "@/app/lib/storage";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
 import { useRef, useState } from "react";
@@ -43,11 +43,11 @@ export function Task({
   onToggleEditSelection,
   onTogglePendingDependency,
 }: TaskProps) {
-  const detail = useTaskDetail(taskId).data;
-  const tags = Array.from(useTaskTags(taskId).data ?? []);
-  const isComplete = useTaskCompletion(taskId).data ?? false;
-  const isHidden = useTaskHidden(taskId).data ?? false;
-  const tagColors = useTagColors().data ?? {};
+  const detail = useTaskDetailQuery(taskId).data;
+  const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
+  const isComplete = useTaskCompletionQuery(taskId).data ?? false;
+  const isHidden = useTaskHiddenQuery(taskId).data ?? false;
+  const tagColors = useTagColorsQuery().data ?? {};
   const handleRef = useRef(null);
   const [dragState, setDragState] = useState<DragDropItemStateType>({
     isDragging: false,

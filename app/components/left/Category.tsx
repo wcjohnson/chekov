@@ -5,7 +5,7 @@ import type { ChecklistMode, TaskBreakout, TaskId } from "../../lib/types";
 import {
   useCategoryHiddenMutation,
   useCreateTaskMutation,
-  useHiddenCategories,
+  useHiddenCategoriesQuery,
   useMoveTaskMutation,
 } from "@/app/lib/storage";
 import { DragDropList } from "../DragDrop";
@@ -48,7 +48,7 @@ export function Category({
   onMoveDown,
 }: CategoryProps) {
   const visibleTasks = taskBreakout.categoryTasks[category];
-  const hiddenCategories = useHiddenCategories().data;
+  const hiddenCategories = useHiddenCategoriesQuery().data;
   const categoryHiddenMutation = useCategoryHiddenMutation();
   const createTaskMutation = useCreateTaskMutation();
   const moveTaskMutation = useMoveTaskMutation();

@@ -5,8 +5,8 @@ import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
 import {
-  useCategories,
-  useCategoriesTasks,
+  useCategoriesQuery,
+  useCategoriesTasksQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
 } from "@/app/lib/storage";
@@ -62,8 +62,8 @@ export function LeftColumn({
     moveCategoryMutation.mutate({ fromIndex, toIndex });
   };
 
-  const categories = useCategories().data;
-  const categoriesTasks = useCategoriesTasks().data;
+  const categories = useCategoriesQuery().data;
+  const categoriesTasks = useCategoriesTasksQuery().data;
 
   const taskBreakout: TaskBreakout = useMemo(() => {
     const visibleCategories: string[] = [];

@@ -10,19 +10,19 @@ import {
 } from "../../lib/tagColors";
 import type { ChecklistMode } from "../../lib/types";
 import {
-  useAllKnownTags,
-  useCompletions,
+  useAllKnownTagsQuery,
+  useCompletionsQuery,
   useDeleteTasksMutation,
-  useDetails,
+  useDetailsQuery,
   useTagColorMutation,
-  useTagColors,
+  useTagColorsQuery,
   useTaskAddTagMutation,
-  useTaskDependencies,
+  useTaskDependenciesQuery,
   useTaskDetailMutation,
-  useTaskHidden,
+  useTaskHiddenQuery,
   useTaskHiddenMutation,
   useTaskRemoveTagMutation,
-  useTaskTags,
+  useTaskTagsQuery,
   type StoredTask,
 } from "@/app/lib/storage";
 
@@ -51,15 +51,16 @@ export function TaskDetails({
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const selectedTaskTags = useTaskTags(selectedTaskId ?? "").data ?? new Set();
+  const selectedTaskTags =
+    useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
   // For dependencies display
   const selectedTaskDeps =
-    useTaskDependencies(selectedTaskId ?? "").data ?? new Set();
-  const allTaskDetails = useDetails().data ?? {};
-  const completions = useCompletions().data ?? new Set();
-  const isTaskHidden = useTaskHidden(selectedTaskId ?? "").data ?? false;
+    useTaskDependenciesQuery(selectedTaskId ?? "").data ?? new Set();
+  const allTaskDetails = useDetailsQuery().data ?? {};
+  const completions = useCompletionsQuery().data ?? new Set();
+  const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
 
-  const knownTagSet = useAllKnownTags().data;
+  const knownTagSet = useAllKnownTagsQuery().data;
   const allKnownTags = useMemo(() => {
     return Array.from(knownTagSet ?? []).sort((left, right) =>
       left.localeCompare(right),
@@ -90,7 +91,7 @@ export function TaskDetails({
   const taskDetailMutation = useTaskDetailMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
 
-  const tagColors = useTagColors().data ?? {};
+  const tagColors = useTagColorsQuery().data ?? {};
   const tagColorMutation = useTagColorMutation();
 
   const datalistId = `known-tags-${selectedTaskId}`;

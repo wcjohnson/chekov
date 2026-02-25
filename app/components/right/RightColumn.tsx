@@ -3,7 +3,7 @@
 import { RightHeader } from "./RightHeader";
 import { TaskDetails } from "./TaskDetails";
 import type { ChecklistMode, TaskId } from "../../lib/types";
-import { useTaskDetail } from "@/app/lib/storage";
+import { useTaskDetailQuery } from "@/app/lib/storage";
 
 type RightColumnProps = {
   mode: ChecklistMode;
@@ -24,7 +24,7 @@ export function RightColumn({
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
 }: RightColumnProps) {
-  const detail = useTaskDetail(selectedTaskId ?? "").data;
+  const detail = useTaskDetailQuery(selectedTaskId ?? "").data;
 
   return (
     <>

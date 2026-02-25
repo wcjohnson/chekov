@@ -10,11 +10,11 @@ import { TopBar } from "./components/TopBar";
 import type { ChecklistMode, TaskId } from "./lib/types";
 import {
   queryClient,
-  useCompletions,
+  useCompletionsQuery,
   useDeleteTasksMutation,
-  useDependencies,
-  useDetails,
-  useTags,
+  useDependenciesQuery,
+  useDetailsQuery,
+  useTagsQuery,
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
   useTasksMatchingSearch,
@@ -63,11 +63,11 @@ export function AppMain() {
 
   const taskStructure = useTaskStructure();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const allDependencies = useDependencies().data ?? {};
+  const allDependencies = useDependenciesQuery().data ?? {};
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const allCompletions = useCompletions().data ?? new Set<string>();
-  const allTags = useTags().data ?? {};
-  const allDetails = useDetails().data ?? {};
+  const allCompletions = useCompletionsQuery().data ?? new Set<string>();
+  const allTags = useTagsQuery().data ?? {};
+  const allDetails = useDetailsQuery().data ?? {};
 
   const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
     taskStructure.taskSet,
