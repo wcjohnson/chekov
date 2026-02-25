@@ -10,57 +10,57 @@ import {
   useTaskTagsQuery,
 } from "@/app/lib/storage";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
-import { useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
+import { MultiSelectContext } from "@/app/lib/context";
 
 type TaskProps = {
   taskId: TaskId;
   index: number;
   mode: ChecklistMode;
-  isSettingDependencies: boolean;
-  selectedTaskId: TaskId | null;
   isSelected: boolean;
   isEditSelected: boolean;
-  isPendingDependency: boolean;
   dependenciesComplete: boolean;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
-  onTogglePendingDependency: (taskId: TaskId) => void;
 };
 
 export function Task({
   taskId,
   index,
   mode,
-  isSettingDependencies,
-  selectedTaskId,
   isSelected,
   isEditSelected,
-  isPendingDependency,
   dependenciesComplete,
   onSelectTask,
   onToggleComplete,
   onToggleEditSelection,
-  onTogglePendingDependency,
 }: TaskProps) {
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
-  const tagColors = useTagColorsQuery().data ?? {};
+  const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
   const [dragState, setDragState] = useState<DragDropItemStateType>({
     isDragging: false,
   });
 
+  const multiSelectContext = useContext(MultiSelectContext);
+  const multiSelectState = multiSelectContext.state;
+
+  const isEditingSet = !!multiSelectState;
+  const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
+  const taskIsBannedFromMultiselect = false;
+
   const taskType = detail?.type === "warning" ? "warning" : "task";
   const isWarning = taskType === "warning";
   const isEffectivelyComplete = isWarning ? dependenciesComplete : isComplete;
-  const canDrag = mode === "edit" && !isSettingDependencies;
+  const canDrag = mode === "edit" && !isEditingSet;
   const showTaskModeCheckbox =
     mode === "task" && dependenciesComplete && !isWarning;
   const showEditSelectionCheckbox =
-    mode === "edit" && (!isSettingDependencies || taskId !== selectedTaskId);
+    mode === "edit" && (!isEditingSet || !taskIsBannedFromMultiselect);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
 
   return (
@@ -74,7 +74,7 @@ export function Task({
         role="button"
         tabIndex={0}
         onClick={() => {
-          if (mode === "edit" && isSettingDependencies) {
+          if (mode === "edit" && isEditingSet) {
             return;
           }
           onSelectTask(taskId);
@@ -85,7 +85,7 @@ export function Task({
           }
 
           event.preventDefault();
-          if (mode === "edit" && isSettingDependencies) {
+          if (mode === "edit" && isEditingSet) {
             return;
           }
 
@@ -127,21 +127,32 @@ export function Task({
           <input
             type="checkbox"
             checked={
-              isSettingDependencies
+              isEditingSet
                 ? isWarning
                   ? false
-                  : isPendingDependency
+                  : isInEditedSet
                 : isEditSelected
             }
-            disabled={isSettingDependencies && isWarning}
+            disabled={isEditingSet && isWarning}
             onChange={(event) => {
               event.stopPropagation();
 
-              if (isSettingDependencies) {
+              if (isEditingSet) {
                 if (isWarning) {
                   return;
                 }
-                onTogglePendingDependency(taskId);
+                const nextSelectedSet = new Set(
+                  multiSelectState.selectedTaskSet,
+                );
+                if (isInEditedSet) {
+                  nextSelectedSet.delete(taskId);
+                } else {
+                  nextSelectedSet.add(taskId);
+                }
+                multiSelectContext.setState({
+                  ...multiSelectState,
+                  selectedTaskSet: nextSelectedSet,
+                });
                 return;
               }
 
@@ -182,7 +193,7 @@ export function Task({
             {tags.map((tag) => (
               <span
                 key={`${taskId}-tag-${tag}`}
-                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
                 title={tag}
               >
                 {tag}

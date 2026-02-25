@@ -26,13 +26,18 @@ export function AppLayout({
   const leftPaneRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const element = leftPaneRef.current;
-    if (!element) {
+    const leftPaneElement = leftPaneRef.current;
+    if (!leftPaneElement) {
       return;
     }
 
+    const scrollElement =
+      leftPaneElement.querySelector<HTMLElement>(
+        "[data-left-pane-scroll='true']",
+      ) ?? leftPaneElement;
+
     return autoScrollForElements({
-      element,
+      element: scrollElement,
       getAllowedAxis: () => "vertical",
     });
   }, []);
@@ -47,7 +52,7 @@ export function AppLayout({
       >
         <section
           ref={leftPaneRef}
-          className="min-h-0 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:shrink-0"
+          className="min-h-0 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:shrink-0"
           style={isDesktop ? { width: `${leftPaneWidth}%` } : undefined}
         >
           {leftColumn}

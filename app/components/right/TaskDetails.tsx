@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -24,7 +24,9 @@ import {
   useTaskTagsQuery,
   type StoredTask,
   useTaskDetailQuery,
+  useTaskDependenciesMutation,
 } from "@/app/lib/storage";
+import { MultiSelectContext } from "@/app/lib/context";
 
 function DependencyItem({
   dependencyId,
@@ -55,10 +57,6 @@ type TaskDetailsProps = {
   selectedTaskId: TaskId | null;
   selectedTaskDetail: StoredTask | null | undefined;
   tasksWithCompleteDependencies: Set<TaskId>;
-  isSettingDependencies: boolean;
-  onStartSetDependencies: () => void;
-  onConfirmSetDependencies: () => void;
-  onClearSelectedTaskDependencies: () => void;
 };
 
 export function TaskDetails({
@@ -66,16 +64,16 @@ export function TaskDetails({
   selectedTaskId,
   selectedTaskDetail,
   tasksWithCompleteDependencies,
-  isSettingDependencies,
-  onStartSetDependencies,
-  onConfirmSetDependencies,
-  onClearSelectedTaskDependencies,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
   const [activeTagColorPickerTag, setActiveTagColorPickerTag] = useState<
     string | null
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const setEditContext = useContext(MultiSelectContext);
+  const isSettingDependencies =
+    setEditContext.state &&
+    setEditContext.state.selectionContext === "dependencies";
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
@@ -120,8 +118,9 @@ export function TaskDetails({
   const deleteTasksMutation = useDeleteTasksMutation();
   const taskDetailMutation = useTaskDetailMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
+  const taskDependenciesMutation = useTaskDependenciesMutation();
 
-  const tagColors = useTagColorsQuery().data ?? {};
+  const tagColors = useTagColorsQuery().data ?? new Map();
   const tagColorMutation = useTagColorMutation();
 
   const datalistId = `known-tags-${selectedTaskId}`;
@@ -162,6 +161,29 @@ export function TaskDetails({
   }, [activeTagColorPickerTag]);
 
   if (mode === "edit") {
+    const handleSetTasks = (taskIds: Set<TaskId>) => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        dependencies: taskIds,
+      });
+    };
+
+    const handleClearDependencies = () => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        dependencies: new Set(),
+      });
+    };
+
+    const onEditDependencies = () => {
+      setEditContext.setState({
+        selectionContext: "dependencies",
+        headerText: `Editing dependencies for ${selectedTaskDetail?.title ?? "unknown task"}`,
+        selectedTaskSet: new Set(selectedTaskDeps),
+        onSetTasks: handleSetTasks,
+      });
+    };
+
     return (
       <>
         <div className="flex items-center justify-end">
@@ -233,24 +255,15 @@ export function TaskDetails({
             {!isSettingDependencies && (
               <button
                 type="button"
-                onClick={onStartSetDependencies}
+                onClick={onEditDependencies}
                 className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
                 Set Dependencies
               </button>
             )}
-            {isSettingDependencies && (
-              <button
-                type="button"
-                onClick={onConfirmSetDependencies}
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-              >
-                Confirm Dependencies
-              </button>
-            )}
             <button
               type="button"
-              onClick={onClearSelectedTaskDependencies}
+              onClick={handleClearDependencies}
               disabled={selectedTaskDeps.size === 0}
               className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
@@ -258,7 +271,8 @@ export function TaskDetails({
             </button>
             {isSettingDependencies && (
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Select dependency tasks from the left pane, then confirm.
+                Select dependency tasks from the left pane, then confirm or
+                cancel in the left header.
               </p>
             )}
           </div>
@@ -299,7 +313,7 @@ export function TaskDetails({
                           previous === tag ? null : tag,
                         );
                       }}
-                      className={`cursor-pointer list-none rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                      className={`cursor-pointer list-none rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
                     >
                       {tag}
                     </button>
@@ -321,7 +335,7 @@ export function TaskDetails({
                         <div className="grid grid-cols-8 gap-1">
                           {TAG_COLOR_OPTIONS.map((colorOption) => {
                             const isSelected =
-                              tagColors[tag] === colorOption.key;
+                              tagColors.get(tag) === colorOption.key;
 
                             return (
                               <button
@@ -431,7 +445,7 @@ export function TaskDetails({
             {Array.from(selectedTaskTags).map((tag) => (
               <span
                 key={`${selectedTaskId}-tag-view-${tag}`}
-                className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
               >
                 {tag}
               </span>

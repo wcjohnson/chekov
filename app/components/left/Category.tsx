@@ -3,12 +3,16 @@
 import { Task } from "./Task";
 import type { ChecklistMode, TaskBreakout, TaskId } from "../../lib/types";
 import {
-  useCategoryHiddenMutation,
+  useCategoryDependenciesMutation,
+  useCategoryDependencyQuery,
+  useCategoryCollapsedMutation,
   useCreateTaskMutation,
-  useHiddenCategoriesQuery,
+  useCollapsedCategoriesQuery,
   useMoveTaskMutation,
 } from "@/app/lib/storage";
 import { DragDropList } from "../DragDrop";
+import { MultiSelectContext } from "@/app/lib/context";
+import { useContext } from "react";
 
 type CategoryProps = {
   category: string;
@@ -16,13 +20,13 @@ type CategoryProps = {
   tasksWithCompleteDependencies: Set<TaskId>;
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
-  isSettingDependencies: boolean;
+
   editSelectedTaskIds: Set<TaskId>;
-  pendingDependencyIds: Set<TaskId>;
+
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
-  onTogglePendingDependency: (taskId: TaskId) => void;
+
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMoveUp: () => void;
@@ -35,33 +39,51 @@ export function Category({
   tasksWithCompleteDependencies,
   mode,
   selectedTaskId,
-  isSettingDependencies,
+
   editSelectedTaskIds,
-  pendingDependencyIds,
+
   onSelectTask,
   onToggleComplete,
   onToggleEditSelection,
-  onTogglePendingDependency,
+
   canMoveUp,
   canMoveDown,
   onMoveUp,
   onMoveDown,
 }: CategoryProps) {
-  const visibleTasks = taskBreakout.categoryTasks[category];
-  const hiddenCategories = useHiddenCategoriesQuery().data;
-  const categoryHiddenMutation = useCategoryHiddenMutation();
+  const visibleTasks = taskBreakout.categoryTasks.get(category);
+  const collapsedCategories = useCollapsedCategoriesQuery().data;
+  const categoryCollapsedMutation = useCategoryCollapsedMutation();
+  const categoryDependencies = useCategoryDependencyQuery(category).data;
+  const categoryDependenciesMutation = useCategoryDependenciesMutation();
   const createTaskMutation = useCreateTaskMutation();
   const moveTaskMutation = useMoveTaskMutation();
+  const setEditContext = useContext(MultiSelectContext);
+  const isEditingSet = !!setEditContext.state;
+
+  const onEditDependencies = () => {
+    setEditContext.setState({
+      selectionContext: "categoryDependencies",
+      headerText: `Editing dependencies for category ${category}`,
+      selectedTaskSet: new Set(categoryDependencies ?? new Set()),
+      onSetTasks: (taskIds) => {
+        categoryDependenciesMutation.mutate({
+          category,
+          dependencies: taskIds,
+        });
+      },
+    });
+  };
 
   if (!visibleTasks || visibleTasks.length === 0) {
     return null;
   }
 
-  const hiddenTaskCategories = hiddenCategories?.task;
-  const hiddenEditCategories = hiddenCategories?.edit;
+  const collapsedTaskCategories = collapsedCategories?.task;
+  const collapsedEditCategories = collapsedCategories?.edit;
   const isOpen =
-    (mode === "task" && !hiddenTaskCategories?.has(category)) ||
-    (mode === "edit" && !hiddenEditCategories?.has(category));
+    (mode === "task" && !collapsedTaskCategories?.has(category)) ||
+    (mode === "edit" && !collapsedEditCategories?.has(category));
 
   return (
     <DragDropList
@@ -80,7 +102,7 @@ export function Category({
       }}
       open={isOpen}
       onToggle={(event) => {
-        categoryHiddenMutation.mutate({
+        categoryCollapsedMutation.mutate({
           mode,
           category,
           isHidden: !event.currentTarget.open,
@@ -96,6 +118,18 @@ export function Category({
         </span>
         {mode === "edit" && (
           <span className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onEditDependencies();
+              }}
+              disabled={isEditingSet}
+              className="rounded border border-zinc-300 px-2 py-0.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Deps
+            </button>
             <button
               type="button"
               onClick={(event) => {
@@ -131,16 +165,12 @@ export function Category({
               taskId={taskId}
               index={index}
               mode={mode}
-              isSettingDependencies={isSettingDependencies}
-              selectedTaskId={selectedTaskId}
               isSelected={selectedTaskId === taskId}
               isEditSelected={editSelectedTaskIds.has(taskId)}
-              isPendingDependency={pendingDependencyIds.has(taskId)}
               dependenciesComplete={tasksWithCompleteDependencies.has(taskId)}
               onSelectTask={onSelectTask}
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}
-              onTogglePendingDependency={onTogglePendingDependency}
             />
           );
         })}
