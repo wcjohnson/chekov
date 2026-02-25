@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -24,7 +24,9 @@ import {
   useTaskTagsQuery,
   type StoredTask,
   useTaskDetailQuery,
+  useTaskDependenciesMutation,
 } from "@/app/lib/storage";
+import { SetEditContext } from "@/app/lib/utils";
 
 function DependencyItem({
   dependencyId,
@@ -55,9 +57,6 @@ type TaskDetailsProps = {
   selectedTaskId: TaskId | null;
   selectedTaskDetail: StoredTask | null | undefined;
   tasksWithCompleteDependencies: Set<TaskId>;
-  isSettingDependencies: boolean;
-  onStartSetDependencies: () => void;
-  onClearSelectedTaskDependencies: () => void;
 };
 
 export function TaskDetails({
@@ -65,15 +64,16 @@ export function TaskDetails({
   selectedTaskId,
   selectedTaskDetail,
   tasksWithCompleteDependencies,
-  isSettingDependencies,
-  onStartSetDependencies,
-  onClearSelectedTaskDependencies,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
   const [activeTagColorPickerTag, setActiveTagColorPickerTag] = useState<
     string | null
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const setEditContext = useContext(SetEditContext);
+  const isSettingDependencies =
+    setEditContext.editState &&
+    setEditContext.editState.editContext === "dependencies";
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
@@ -118,6 +118,7 @@ export function TaskDetails({
   const deleteTasksMutation = useDeleteTasksMutation();
   const taskDetailMutation = useTaskDetailMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
+  const taskDependenciesMutation = useTaskDependenciesMutation();
 
   const tagColors = useTagColorsQuery().data ?? {};
   const tagColorMutation = useTagColorMutation();
@@ -160,6 +161,29 @@ export function TaskDetails({
   }, [activeTagColorPickerTag]);
 
   if (mode === "edit") {
+    const handleSetTasks = (taskIds: Set<TaskId>) => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        dependencies: taskIds,
+      });
+    };
+
+    const handleClearDependencies = () => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        dependencies: new Set(),
+      });
+    };
+
+    const onEditDependencies = () => {
+      setEditContext.setEditState({
+        editContext: "dependencies",
+        headerText: `Editing dependencies for ${selectedTaskDetail?.title ?? "unknown task"}`,
+        selectedTaskSet: new Set(selectedTaskDeps),
+        onSetTasks: handleSetTasks,
+      });
+    };
+
     return (
       <>
         <div className="flex items-center justify-end">
@@ -231,7 +255,7 @@ export function TaskDetails({
             {!isSettingDependencies && (
               <button
                 type="button"
-                onClick={onStartSetDependencies}
+                onClick={onEditDependencies}
                 className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
                 Set Dependencies
@@ -239,7 +263,7 @@ export function TaskDetails({
             )}
             <button
               type="button"
-              onClick={onClearSelectedTaskDependencies}
+              onClick={handleClearDependencies}
               disabled={selectedTaskDeps.size === 0}
               className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >

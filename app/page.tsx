@@ -14,14 +14,13 @@ import {
   useDeleteTasksMutation,
   useDependenciesQuery,
   useTaskCompletionMutation,
-  useTaskDependenciesMutation,
   useTasksMatchingSearch,
   useTaskStructure,
   useTasksWithCompleteDependencies,
   useUncompleteAllTasksMutation,
   useUnhideAllTasksMutation,
 } from "./lib/storage";
-import { detectCycle } from "./lib/utils";
+import { SetEditContext, type SetEditContextState } from "./lib/utils";
 import {
   downloadJson,
   exportChecklistDefinition,
@@ -44,14 +43,13 @@ export function AppMain() {
   const [editSelectedTaskIds, setEditSelectedTaskIds] = useState<Set<TaskId>>(
     new Set(),
   );
-  const [isSettingDependencies, setIsSettingDependencies] = useState(false);
-  const [pendingDependencyIds, setPendingDependencyIds] = useState<Set<TaskId>>(
-    new Set(),
-  );
   const [leftPaneWidth, setLeftPaneWidth] = useState(32);
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [setEditState, setSetEditState] = useState<SetEditContextState | null>(
+    null,
+  );
 
   const importDefinitionInputRef = useRef<HTMLInputElement>(null);
   const importStateInputRef = useRef<HTMLInputElement>(null);
@@ -60,7 +58,6 @@ export function AppMain() {
   ///////////////////////////////////////// Data slicing
 
   const taskStructure = useTaskStructure();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const allDependencies = useDependenciesQuery().data ?? {};
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const allCompletions = useCompletionsQuery().data ?? new Set<string>();
@@ -87,8 +84,7 @@ export function AppMain() {
     }
 
     setEditSelectedTaskIds(new Set());
-    setIsSettingDependencies(false);
-    setPendingDependencyIds(new Set());
+    setSetEditState(null);
   }, [mode]);
 
   // Determine if on desktop
@@ -169,15 +165,17 @@ export function AppMain() {
       return next.size === previous.size ? previous : next;
     });
 
-    setPendingDependencyIds((previous) => {
-      const next = new Set(
-        Array.from(previous).filter(
-          (taskId) => validTaskIds.has(taskId) && taskId !== selectedTaskId,
-        ),
-      );
-      return next.size === previous.size ? previous : next;
-    });
-  }, [taskStructure.taskSet, selectedTaskId]);
+    if (setEditState) {
+      const nextSelectedSet =
+        setEditState.selectedTaskSet.intersection(validTaskIds);
+      if (nextSelectedSet.size !== setEditState.selectedTaskSet.size) {
+        setSetEditState({
+          ...setEditState,
+          selectedTaskSet: nextSelectedSet,
+        });
+      }
+    }
+  }, [taskStructure.taskSet, selectedTaskId, setEditState]);
 
   const selectAllFilteredTasks = useCallback(() => {
     // TODO: filter against hiddenness of categories
@@ -197,7 +195,12 @@ export function AppMain() {
 
   const clearSelection = () => {
     setEditSelectedTaskIds(new Set());
-    setPendingDependencyIds(new Set());
+    if (setEditState) {
+      setSetEditState({
+        ...setEditState,
+        selectedTaskSet: new Set(),
+      });
+    }
   };
 
   const taskCompletionMutation = useTaskCompletionMutation();
@@ -222,18 +225,6 @@ export function AppMain() {
     });
   };
 
-  const togglePendingDependencySelection = (taskId: TaskId) => {
-    setPendingDependencyIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(taskId)) {
-        next.delete(taskId);
-      } else {
-        next.add(taskId);
-      }
-      return next;
-    });
-  };
-
   const unhideAllTasksMutation = useUnhideAllTasksMutation();
   const unhideAllTasks = () => {
     unhideAllTasksMutation.mutate();
@@ -242,61 +233,6 @@ export function AppMain() {
   const uncompleteAllTasksMutation = useUncompleteAllTasksMutation();
   const resetAllCompletedTasks = () => {
     uncompleteAllTasksMutation.mutate();
-  };
-
-  const startSetDependencies = useCallback(() => {
-    if (!selectedTaskId) {
-      return;
-    }
-    const dependencies = allDependencies[selectedTaskId] ?? new Set<string>();
-
-    setPendingDependencyIds(new Set(dependencies));
-    setIsSettingDependencies(true);
-    setErrorMessage(null);
-  }, [allDependencies, selectedTaskId]);
-
-  const taskDependenciesMutation = useTaskDependenciesMutation();
-  const confirmSetDependencies = () => {
-    if (!selectedTaskId) {
-      return;
-    }
-
-    // This mutation is ok since the condition is impossible anyway
-    pendingDependencyIds.delete(selectedTaskId);
-
-    if (detectCycle(allDependencies, selectedTaskId, pendingDependencyIds)) {
-      setErrorMessage(
-        "That dependency set would create a circular dependency.",
-      );
-      return;
-    }
-
-    taskDependenciesMutation.mutate({
-      taskId: selectedTaskId,
-      dependencies: pendingDependencyIds,
-    });
-    setIsSettingDependencies(false);
-    setErrorMessage(null);
-  };
-
-  const cancelSetDependencies = () => {
-    setPendingDependencyIds(new Set());
-    setIsSettingDependencies(false);
-    setErrorMessage(null);
-  };
-
-  const clearSelectedTaskDependencies = () => {
-    if (!selectedTaskId) {
-      return;
-    }
-
-    taskDependenciesMutation.mutate({
-      taskId: selectedTaskId,
-      dependencies: new Set(),
-    });
-    setPendingDependencyIds(new Set());
-    setIsSettingDependencies(false);
-    setErrorMessage(null);
   };
 
   const handleImportDefinition = async (file: File) => {
@@ -331,75 +267,70 @@ export function AppMain() {
   };
 
   return (
-    <AppLayout
-      mainPaneRef={mainPaneRef}
-      isDesktop={isDesktop}
-      leftPaneWidth={leftPaneWidth}
-      onResizeStart={() => {
-        if (isDesktop) {
-          setIsResizing(true);
+    <SetEditContext
+      value={{ setEditState: setSetEditState, editState: setEditState }}
+    >
+      <AppLayout
+        mainPaneRef={mainPaneRef}
+        isDesktop={isDesktop}
+        leftPaneWidth={leftPaneWidth}
+        onResizeStart={() => {
+          if (isDesktop) {
+            setIsResizing(true);
+          }
+        }}
+        topBar={
+          <TopBar
+            mode={mode}
+            editSelectedCount={editSelectedTaskIds.size}
+            searchText={searchText}
+            importDefinitionInputRef={importDefinitionInputRef}
+            importStateInputRef={importStateInputRef}
+            onToggleMode={() =>
+              setMode((current) => (current === "task" ? "edit" : "task"))
+            }
+            onDeleteAll={deleteSelectedTasks}
+            onUnhideAll={unhideAllTasks}
+            onResetCompleted={resetAllCompletedTasks}
+            onSearchTextChange={setSearchText}
+            onExportDefinition={handleExportDefinition}
+            onImportDefinitionClick={() =>
+              importDefinitionInputRef.current?.click()
+            }
+            onExportState={handleExportState}
+            onImportStateClick={() => importStateInputRef.current?.click()}
+            onImportDefinitionFile={(file) => {
+              void handleImportDefinition(file);
+            }}
+            onImportStateFile={(file) => {
+              void handleImportState(file);
+            }}
+          />
         }
-      }}
-      topBar={
-        <TopBar
-          mode={mode}
-          isSettingDependencies={isSettingDependencies}
-          editSelectedCount={editSelectedTaskIds.size}
-          searchText={searchText}
-          importDefinitionInputRef={importDefinitionInputRef}
-          importStateInputRef={importStateInputRef}
-          onToggleMode={() =>
-            setMode((current) => (current === "task" ? "edit" : "task"))
-          }
-          onDeleteAll={deleteSelectedTasks}
-          onUnhideAll={unhideAllTasks}
-          onResetCompleted={resetAllCompletedTasks}
-          onSearchTextChange={setSearchText}
-          onExportDefinition={handleExportDefinition}
-          onImportDefinitionClick={() =>
-            importDefinitionInputRef.current?.click()
-          }
-          onExportState={handleExportState}
-          onImportStateClick={() => importStateInputRef.current?.click()}
-          onImportDefinitionFile={(file) => {
-            void handleImportDefinition(file);
-          }}
-          onImportStateFile={(file) => {
-            void handleImportState(file);
-          }}
-        />
-      }
-      leftColumn={
-        <LeftColumn
-          mode={mode}
-          tasksWithCompleteDependencies={tasksWithCompleteDependencies}
-          tasksMatchingSearch={tasksMatchingSearch}
-          selectedTaskId={selectedTaskId}
-          isSettingDependencies={isSettingDependencies}
-          editSelectedTaskIds={editSelectedTaskIds}
-          pendingDependencyIds={pendingDependencyIds}
-          onSelectAll={selectAllFilteredTasks}
-          onClearSelection={clearSelection}
-          onSelectTask={setSelectedTaskId}
-          onToggleComplete={toggleTaskCompletion}
-          onToggleEditSelection={toggleEditTaskSelection}
-          onTogglePendingDependency={togglePendingDependencySelection}
-          onConfirmSetDependencies={confirmSetDependencies}
-          onCancelSetDependencies={cancelSetDependencies}
-        />
-      }
-      rightColumn={
-        <RightColumn
-          mode={mode}
-          selectedTaskId={selectedTaskId}
-          tasksWithCompleteDependencies={tasksWithCompleteDependencies}
-          errorMessage={errorMessage}
-          isSettingDependencies={isSettingDependencies}
-          onStartSetDependencies={startSetDependencies}
-          onClearSelectedTaskDependencies={clearSelectedTaskDependencies}
-        />
-      }
-    />
+        leftColumn={
+          <LeftColumn
+            mode={mode}
+            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            tasksMatchingSearch={tasksMatchingSearch}
+            selectedTaskId={selectedTaskId}
+            editSelectedTaskIds={editSelectedTaskIds}
+            onSelectAll={selectAllFilteredTasks}
+            onClearSelection={clearSelection}
+            onSelectTask={setSelectedTaskId}
+            onToggleComplete={toggleTaskCompletion}
+            onToggleEditSelection={toggleEditTaskSelection}
+          />
+        }
+        rightColumn={
+          <RightColumn
+            mode={mode}
+            selectedTaskId={selectedTaskId}
+            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            errorMessage={errorMessage}
+          />
+        }
+      />
+    </SetEditContext>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { TaskId } from "./types";
+import { createContext } from "react";
 
 export function fromKvPairsToRecord<K extends string, V>(
   keys: K[],
@@ -59,3 +60,25 @@ export const detectCycle = (
 
   return false;
 };
+
+// Set editing
+
+export type SetEditContextState = {
+  editContext: string;
+  headerText: string;
+  bannedTaskSet?: Set<TaskId>;
+  onSetTasks: (taskIds: Set<TaskId>) => void;
+  selectedTaskSet: Set<TaskId>;
+};
+
+type SetEditContextType = {
+  setEditState: React.Dispatch<
+    React.SetStateAction<SetEditContextState | null>
+  >;
+  editState: SetEditContextState | null;
+};
+
+export const SetEditContext = createContext<SetEditContextType>({
+  setEditState: () => {},
+  editState: null,
+});

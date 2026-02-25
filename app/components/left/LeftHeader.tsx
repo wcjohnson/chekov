@@ -1,30 +1,28 @@
 "use client";
 
+import { SetEditContext } from "@/app/lib/utils";
+import { useContext } from "react";
+
 type LeftHeaderProps = {
   mode: "task" | "edit";
   visibleTasksCount: number;
-  isSettingDependencies: boolean;
-  dependencyEditingTaskName: string | null;
   editSelectedCount: number;
-  pendingDependencyCount: number;
   onSelectAll: () => void;
   onClearSelection: () => void;
-  onConfirmSetDependencies: () => void;
-  onCancelSetDependencies: () => void;
 };
 
 export function LeftHeader({
   mode,
   visibleTasksCount,
-  isSettingDependencies,
-  dependencyEditingTaskName,
+
   editSelectedCount,
-  pendingDependencyCount,
   onSelectAll,
   onClearSelection,
-  onConfirmSetDependencies,
-  onCancelSetDependencies,
 }: LeftHeaderProps) {
+  const setEditContext = useContext(SetEditContext);
+  const isEditingSet = !!setEditContext.editState;
+  const setItemCount = setEditContext.editState?.selectedTaskSet.size ?? 0;
+
   return (
     <div className="mb-3 space-y-2">
       <div className="flex items-center justify-between">
@@ -40,7 +38,7 @@ export function LeftHeader({
               <button
                 type="button"
                 onClick={onSelectAll}
-                disabled={isSettingDependencies || visibleTasksCount === 0}
+                disabled={isEditingSet || visibleTasksCount === 0}
                 className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
                 Select All
@@ -49,9 +47,7 @@ export function LeftHeader({
                 type="button"
                 onClick={onClearSelection}
                 disabled={
-                  isSettingDependencies
-                    ? pendingDependencyCount === 0
-                    : editSelectedCount === 0
+                  isEditingSet ? setItemCount === 0 : editSelectedCount === 0
                 }
                 className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
@@ -62,23 +58,29 @@ export function LeftHeader({
         </div>
       </div>
 
-      {isSettingDependencies && (
+      {isEditingSet && (
         <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
           <p className="font-medium text-zinc-700 dark:text-zinc-200">
-            Editing dependencies for:{" "}
-            {dependencyEditingTaskName ?? "Untitled Task"}
+            {setEditContext.editState?.headerText ?? "Editing Set"}
           </p>
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
-              onClick={onConfirmSetDependencies}
+              onClick={() => {
+                setEditContext.editState?.onSetTasks(
+                  setEditContext.editState.selectedTaskSet,
+                );
+                setEditContext.setEditState(null);
+              }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
               Confirm
             </button>
             <button
               type="button"
-              onClick={onCancelSetDependencies}
+              onClick={() => {
+                setEditContext.setEditState(null);
+              }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
               Cancel

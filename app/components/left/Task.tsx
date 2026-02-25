@@ -10,38 +10,33 @@ import {
   useTaskTagsQuery,
 } from "@/app/lib/storage";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
-import { useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
+import { SetEditContext } from "@/app/lib/utils";
 
 type TaskProps = {
   taskId: TaskId;
   index: number;
   mode: ChecklistMode;
-  isSettingDependencies: boolean;
   selectedTaskId: TaskId | null;
   isSelected: boolean;
   isEditSelected: boolean;
-  isPendingDependency: boolean;
   dependenciesComplete: boolean;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
-  onTogglePendingDependency: (taskId: TaskId) => void;
 };
 
 export function Task({
   taskId,
   index,
   mode,
-  isSettingDependencies,
   selectedTaskId,
   isSelected,
   isEditSelected,
-  isPendingDependency,
   dependenciesComplete,
   onSelectTask,
   onToggleComplete,
   onToggleEditSelection,
-  onTogglePendingDependency,
 }: TaskProps) {
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
@@ -53,14 +48,20 @@ export function Task({
     isDragging: false,
   });
 
+  const setEditContext = useContext(SetEditContext);
+  const setEditState = setEditContext.editState;
+
+  const isEditingSet = !!setEditState;
+  const isInEditedSet = Boolean(setEditState?.selectedTaskSet.has(taskId));
+
   const taskType = detail?.type === "warning" ? "warning" : "task";
   const isWarning = taskType === "warning";
   const isEffectivelyComplete = isWarning ? dependenciesComplete : isComplete;
-  const canDrag = mode === "edit" && !isSettingDependencies;
+  const canDrag = mode === "edit" && !isEditingSet;
   const showTaskModeCheckbox =
     mode === "task" && dependenciesComplete && !isWarning;
   const showEditSelectionCheckbox =
-    mode === "edit" && (!isSettingDependencies || taskId !== selectedTaskId);
+    mode === "edit" && (!isEditingSet || taskId !== selectedTaskId);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
 
   return (
@@ -74,7 +75,7 @@ export function Task({
         role="button"
         tabIndex={0}
         onClick={() => {
-          if (mode === "edit" && isSettingDependencies) {
+          if (mode === "edit" && isEditingSet) {
             return;
           }
           onSelectTask(taskId);
@@ -85,7 +86,7 @@ export function Task({
           }
 
           event.preventDefault();
-          if (mode === "edit" && isSettingDependencies) {
+          if (mode === "edit" && isEditingSet) {
             return;
           }
 
@@ -127,21 +128,30 @@ export function Task({
           <input
             type="checkbox"
             checked={
-              isSettingDependencies
+              isEditingSet
                 ? isWarning
                   ? false
-                  : isPendingDependency
+                  : isInEditedSet
                 : isEditSelected
             }
-            disabled={isSettingDependencies && isWarning}
+            disabled={isEditingSet && isWarning}
             onChange={(event) => {
               event.stopPropagation();
 
-              if (isSettingDependencies) {
+              if (isEditingSet) {
                 if (isWarning) {
                   return;
                 }
-                onTogglePendingDependency(taskId);
+                const nextSelectedSet = new Set(setEditState.selectedTaskSet);
+                if (isInEditedSet) {
+                  nextSelectedSet.delete(taskId);
+                } else {
+                  nextSelectedSet.add(taskId);
+                }
+                setEditContext.setEditState({
+                  ...setEditState,
+                  selectedTaskSet: nextSelectedSet,
+                });
                 return;
               }
 

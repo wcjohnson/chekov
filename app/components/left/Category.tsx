@@ -16,13 +16,13 @@ type CategoryProps = {
   tasksWithCompleteDependencies: Set<TaskId>;
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
-  isSettingDependencies: boolean;
+
   editSelectedTaskIds: Set<TaskId>;
-  pendingDependencyIds: Set<TaskId>;
+
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
-  onTogglePendingDependency: (taskId: TaskId) => void;
+
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMoveUp: () => void;
@@ -35,13 +35,13 @@ export function Category({
   tasksWithCompleteDependencies,
   mode,
   selectedTaskId,
-  isSettingDependencies,
+
   editSelectedTaskIds,
-  pendingDependencyIds,
+
   onSelectTask,
   onToggleComplete,
   onToggleEditSelection,
-  onTogglePendingDependency,
+
   canMoveUp,
   canMoveDown,
   onMoveUp,
@@ -131,16 +131,13 @@ export function Category({
               taskId={taskId}
               index={index}
               mode={mode}
-              isSettingDependencies={isSettingDependencies}
               selectedTaskId={selectedTaskId}
               isSelected={selectedTaskId === taskId}
               isEditSelected={editSelectedTaskIds.has(taskId)}
-              isPendingDependency={pendingDependencyIds.has(taskId)}
               dependenciesComplete={tasksWithCompleteDependencies.has(taskId)}
               onSelectTask={onSelectTask}
               onToggleComplete={onToggleComplete}
               onToggleEditSelection={onToggleEditSelection}
-              onTogglePendingDependency={onTogglePendingDependency}
             />
           );
         })}
