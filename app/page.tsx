@@ -47,9 +47,8 @@ export function AppMain() {
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [setEditState, setSetEditState] = useState<MultiSelectState | null>(
-    null,
-  );
+  const [multiSelectState, setMultiSelectState] =
+    useState<MultiSelectState | null>(null);
 
   const importDefinitionInputRef = useRef<HTMLInputElement>(null);
   const importStateInputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +83,7 @@ export function AppMain() {
     }
 
     setEditSelectedTaskIds(new Set());
-    setSetEditState(null);
+    setMultiSelectState(null);
   }, [mode]);
 
   // Determine if on desktop
@@ -165,17 +164,17 @@ export function AppMain() {
       return next.size === previous.size ? previous : next;
     });
 
-    if (setEditState) {
+    if (multiSelectState) {
       const nextSelectedSet =
-        setEditState.selectedTaskSet.intersection(validTaskIds);
-      if (nextSelectedSet.size !== setEditState.selectedTaskSet.size) {
-        setSetEditState({
-          ...setEditState,
+        multiSelectState.selectedTaskSet.intersection(validTaskIds);
+      if (nextSelectedSet.size !== multiSelectState.selectedTaskSet.size) {
+        setMultiSelectState({
+          ...multiSelectState,
           selectedTaskSet: nextSelectedSet,
         });
       }
     }
-  }, [taskStructure.taskSet, selectedTaskId, setEditState]);
+  }, [taskStructure.taskSet, selectedTaskId, multiSelectState]);
 
   const selectAllFilteredTasks = useCallback(() => {
     // TODO: filter against hiddenness of categories
@@ -195,9 +194,9 @@ export function AppMain() {
 
   const clearSelection = () => {
     setEditSelectedTaskIds(new Set());
-    if (setEditState) {
-      setSetEditState({
-        ...setEditState,
+    if (multiSelectState) {
+      setMultiSelectState({
+        ...multiSelectState,
         selectedTaskSet: new Set(),
       });
     }
@@ -268,7 +267,7 @@ export function AppMain() {
 
   return (
     <MultiSelectContext
-      value={{ setState: setSetEditState, state: setEditState }}
+      value={{ setState: setMultiSelectState, state: multiSelectState }}
     >
       <AppLayout
         mainPaneRef={mainPaneRef}
