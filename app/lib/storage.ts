@@ -555,9 +555,18 @@ export function useTaskDependenciesMutation() {
       dependencies: Set<string>;
     }) => {
       const db = await getDb();
+
+      // Easy case, no cycle detection needed
+      if (dependencies.size === 0) {
+        await db.delete(TASK_DEPENDENCIES_STORE, taskId);
+        return [taskId, new Set<string>(), null] as const;
+      }
+
+      // Run cycle detection here
       const tx = db.transaction([TASK_DEPENDENCIES_STORE], "readwrite");
       const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
 
+      console.log("Fetching ALL task dependencies for cycle detection");
       const dependencyTaskIds = await dependenciesStore.getAllKeys();
       const dependencyValues = await dependenciesStore.getAll();
       const dependencyGraph = fromKvPairsToRecord(
@@ -575,21 +584,22 @@ export function useTaskDependenciesMutation() {
         throw new Error("Dependency cycle detected");
       }
 
-      if (dependencies.size === 0) {
-        await dependenciesStore.delete(taskId);
-      } else {
-        await dependenciesStore.put(dependencies, taskId);
-      }
+      await dependenciesStore.put(dependencies, taskId);
 
       await tx.done;
+
+      return [taskId, dependencies, dependencyGraph] as const;
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["task", "dependencies", variables.taskId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["dependencies"],
-      });
+    onSuccess: ([taskId, dependencies, dependencyGraph]) => {
+      queryClient.setQueryData(["task", "dependencies", taskId], dependencies);
+      if (dependencyGraph) {
+        dependencyGraph[taskId] = dependencies;
+        queryClient.setQueryData(["dependencies"], dependencyGraph);
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ["dependencies"],
+        });
+      }
     },
   });
 }
