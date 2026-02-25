@@ -11,7 +11,7 @@
 
 - UI is componentized:
   - `app/page.tsx` (`AppMain`) owns primary app state (mode, selected task, edit selection, search, pane width, import/export handlers) and provides global set-edit context.
-  - `app/page.tsx` (`AppContainer`) provides `QueryClientProvider` with `queryClient` from storage.
+  - `app/page.tsx` (`AppContainer`) provides `QueryClientProvider` with `queryClient` from data.
   - Layout shell: `app/components/layout/AppLayout.tsx`
   - Top bar: `app/components/TopBar.tsx`
   - Left side: `app/components/left/LeftColumn.tsx`, `LeftHeader.tsx`, `Category.tsx`, `Task.tsx`
@@ -24,7 +24,7 @@
   - `DragDropList` (group-level wrapper + context)
   - `DragDropListItem` (draggable + drop target + edge indicator)
 - Left pane auto-scroll during drag uses `@atlaskit/pragmatic-drag-and-drop-auto-scroll` and targets the left list scroll container (`[data-left-pane-scroll='true']`).
-- Task move orchestration runs from `left/Category.tsx` (`onMoveItem`) and persists via `useMoveTaskMutation` in `app/lib/storage.ts`.
+- Task move orchestration runs from `left/Category.tsx` (`onMoveItem`) and persists via `useMoveTaskMutation` in `app/lib/data.ts`.
 - App remains fully client-side (no API routes / no server persistence).
 
 ## Work Completed
@@ -67,7 +67,7 @@
 
 ## Data Model & Storage
 
-- IndexedDB schema is defined in `app/lib/storage.ts` (`ChekovDB`, `DB_VERSION = 5`).
+- IndexedDB schema is defined in `app/lib/data.ts` (`ChekovDB`, `DB_VERSION = 5`).
 - Canonical persisted model is normalized across object stores:
   - `tasks`: `{ id, title, description, category }`
   - `taskTags`: `Set<string>` by task id
@@ -80,7 +80,7 @@
   - `categoryDependencies`: category → `Set<taskId>` (tasks that gate category visibility in Task Mode)
   - `categoryCollapsed`: mode (`task`/`edit`) → `Set<string>`
   - `tagColors`: tag → color key
-- React Query hooks in `storage.ts` are the data access layer; UI generally should not read/write IndexedDB directly.
+- React Query hooks in `data.ts` are the data access layer; UI generally should not read/write IndexedDB directly.
 - Task/category ordering is source-of-truth in `categories` and `categoryTasks` stores.
 - Query return types were partially refactored from records to `Map`:
   - `useTagsQuery` → `Map<TaskId, Set<string>>`
@@ -126,7 +126,7 @@
 - Avoid introducing backend persistence unless explicitly requested.
 - Treat IndexedDB as the canonical, untainted source of truth on read paths; avoid defensive read-time filtering/checks in query logic when reading from DB stores.
 - Place defensive validation/guardrails at mutation boundaries instead: UX actions that write data and import/export normalization in `app/lib/export.ts`.
-- Keep storage/query contracts in `storage.ts` and export/import schema contracts in `export.ts` aligned.
+- Keep storage/query contracts in `data.ts` and export/import schema contracts in `export.ts` aligned.
 - Keep dependency cycle prevention enforced when changing dependency logic (`detectCycle` in `app/lib/utils.ts`).
 - Preserve current interaction contracts:
   - Edit Mode checkboxes are for selection workflows, not completion toggling
@@ -156,7 +156,7 @@
 
 - Data/types: `app/lib/types.ts`
 - Shared context state: `app/lib/context.ts`
-- Storage schema + query/mutation layer: `app/lib/storage.ts`
+- Storage schema + query/mutation layer: `app/lib/data.ts`
 - JSON schema + import/export normalization: `app/lib/export.ts`
 - Utility functions (including cycle detection): `app/lib/utils.ts`
 - Drag/drop abstraction layer: `app/components/DragDrop.tsx`
