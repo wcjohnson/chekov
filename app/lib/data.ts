@@ -172,6 +172,7 @@ export function useDeleteTasksMutation() {
   return useMutation({
     mutationFn: async (taskIds: TaskId[]) => {
       const db = await getDb();
+      const updatedDependencyEntries: Array<[TaskId, Set<string>]> = [];
 
       // In a transaction:
       // - Remove tasks from tasks store
@@ -205,7 +206,10 @@ export function useDeleteTasksMutation() {
       const deleteTaskIds = new Set(taskIds.filter(Boolean));
       if (deleteTaskIds.size === 0) {
         await tx.done;
-        return [] as TaskId[];
+        return {
+          deletedTaskIds: [] as TaskId[],
+          updatedDependencyEntries,
+        };
       }
 
       const existingTasks = await Promise.all(
@@ -225,7 +229,10 @@ export function useDeleteTasksMutation() {
 
       if (existingTaskIds.size === 0) {
         await tx.done;
-        return [] as TaskId[];
+        return {
+          deletedTaskIds: [] as TaskId[],
+          updatedDependencyEntries,
+        };
       }
 
       const dependencyTaskIds = await taskDependenciesStore.getAllKeys();
@@ -288,15 +295,23 @@ export function useDeleteTasksMutation() {
 
         if (dependencies.size === 0) {
           await taskDependenciesStore.delete(dependencyTaskId);
+          updatedDependencyEntries.push([dependencyTaskId, new Set<string>()]);
         } else {
           await taskDependenciesStore.put(dependencies, dependencyTaskId);
+          updatedDependencyEntries.push([
+            dependencyTaskId,
+            new Set<string>(dependencies),
+          ]);
         }
       }
 
       await tx.done;
-      return Array.from(existingTaskIds);
+      return {
+        deletedTaskIds: Array.from(existingTaskIds),
+        updatedDependencyEntries,
+      };
     },
-    onSuccess: (deletedTaskIds) => {
+    onSuccess: ({ deletedTaskIds, updatedDependencyEntries }) => {
       queryClient.invalidateQueries({ queryKey: ["taskSet"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["categoryTasks"] });
@@ -309,14 +324,26 @@ export function useDeleteTasksMutation() {
       queryClient.invalidateQueries({ queryKey: ["warnings"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
 
+      for (const [taskId, dependencies] of updatedDependencyEntries) {
+        queryClient.setQueryData(
+          ["task", "dependencies", taskId],
+          dependencies,
+        );
+      }
+
       for (const taskId of deletedTaskIds) {
         queryClient.invalidateQueries({ queryKey: ["task", "detail", taskId] });
         queryClient.invalidateQueries({ queryKey: ["task", "tags", taskId] });
         queryClient.invalidateQueries({
+          queryKey: ["task", "dependencies", taskId],
+        });
+        queryClient.invalidateQueries({
           queryKey: ["task", "completion", taskId],
         });
         queryClient.invalidateQueries({ queryKey: ["task", "hidden", taskId] });
-        queryClient.invalidateQueries({ queryKey: ["task", "warning", taskId] });
+        queryClient.invalidateQueries({
+          queryKey: ["task", "warning", taskId],
+        });
       }
     },
   });
@@ -901,6 +928,49 @@ export function useUncompleteAllTasksMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task", "completion"] });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
+    },
+  });
+}
+
+export function useClearDatabaseMutation() {
+  return useMutation({
+    mutationFn: async () => {
+      const db = await getDb();
+      const tx = db.transaction(
+        [
+          TASKS_STORE,
+          TASK_TAGS_STORE,
+          TASK_DEPENDENCIES_STORE,
+          TASK_COMPLETION_STORE,
+          TASK_WARNINGS_STORE,
+          TASK_HIDDEN_STORE,
+          CATEGORIES_STORE,
+          CATEGORY_TASKS_STORE,
+          CATEGORY_DEPENDENCIES_STORE,
+          TAG_COLORS_STORE,
+          CATEGORY_COLLAPSED_STORE,
+        ],
+        "readwrite",
+      );
+
+      await Promise.all([
+        tx.objectStore(TASKS_STORE).clear(),
+        tx.objectStore(TASK_TAGS_STORE).clear(),
+        tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
+        tx.objectStore(TASK_COMPLETION_STORE).clear(),
+        tx.objectStore(TASK_WARNINGS_STORE).clear(),
+        tx.objectStore(TASK_HIDDEN_STORE).clear(),
+        tx.objectStore(CATEGORIES_STORE).clear(),
+        tx.objectStore(CATEGORY_TASKS_STORE).clear(),
+        tx.objectStore(CATEGORY_DEPENDENCIES_STORE).clear(),
+        tx.objectStore(TAG_COLORS_STORE).clear(),
+        tx.objectStore(CATEGORY_COLLAPSED_STORE).clear(),
+      ]);
+
+      await tx.done;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
     },
   });
 }
