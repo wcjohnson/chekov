@@ -40,15 +40,18 @@
   - Compact single-line task rows
   - In Task Mode, completed tasks strikethrough and hidden tasks annotated `(Hidden)`
   - In Task Mode, completion checkbox only appears when dependencies are complete
+  - In Task Mode, categories with unmet category dependencies are not rendered
   - Left header is fixed while only the category/task list scrolls
   - In Edit Mode, `Add Task` button appears at the bottom of each category
-  - In Edit Mode, category-level `Up` / `Down` controls reorder categories
+  - In Edit Mode, category-level `Deps` / `Up` / `Down` controls are shown (`Deps` enters set-edit for category dependencies)
   - In Edit Mode, `Add Category` lives at the bottom of the category list
   - Category expand/collapse state is persisted per mode (`task` vs `edit`)
 - Edit Mode workflows:
   - Select All / Clear Selection in left header
   - Delete All appears in top bar when multi-selection exists
   - Dependency-setting mode is context-based (`Set Dependencies` in details pane → select tasks in left list → confirm/cancel in fixed left header banner)
+  - Category dependency-setting mode is context-based (`Deps` in category header → select tasks in left list → confirm/cancel in fixed left header banner)
+  - Category `Deps` buttons are disabled while any set-edit workflow is active
   - `Clear Dependencies` action for selected task
   - Task details no longer include editable category input (category change from details removed)
 - Warning tasks:
@@ -64,7 +67,7 @@
 
 ## Data Model & Storage
 
-- IndexedDB schema is defined in `app/lib/storage.ts` (`ChekovDB`, `DB_VERSION = 3`).
+- IndexedDB schema is defined in `app/lib/storage.ts` (`ChekovDB`, `DB_VERSION = 4`).
 - Canonical persisted model is normalized across object stores:
   - `tasks`: `{ id, title, description, category, type? }` where `type` is optional (`"warning"` when warning; omitted for normal task)
   - `taskTags`: `Set<string>` by task id
@@ -73,8 +76,9 @@
   - `taskHidden`: `true` by task id (presence = hidden)
   - `categories`: key `"categories"` → ordered `string[]`
   - `categoryTasks`: category → ordered task id `string[]`
+  - `categoryDependencies`: category → `Set<taskId>` (tasks that gate category visibility in Task Mode)
+  - `categoryCollapsed`: mode (`task`/`edit`) → `Set<string>`
   - `tagColors`: tag → color key
-  - `categoryHidden`: mode (`task`/`edit`) → `Set<string>`
 - React Query hooks in `storage.ts` are the data access layer; UI generally should not read/write IndexedDB directly.
 - Task/category ordering is source-of-truth in `categories` and `categoryTasks` stores.
 - Query return types were partially refactored from records to `Map`:
@@ -82,6 +86,8 @@
   - `useDetailsQuery` → `Map<TaskId, StoredTask>`
   - `useDependenciesQuery` → `Map<TaskId, Set<string>>`
   - `useCategoriesTasksQuery` → `Map<string, string[]>`
+  - `useCategoryDependenciesQuery` → `Map<string, Set<TaskId>>`
+  - `useTagColorsQuery` → `Map<string, TagColorKey>`
 
 ## Import/Export
 
@@ -91,6 +97,11 @@
   - `normalizeChecklistDefinition(...)`
   - `normalizeChecklistState(...)`
 - Exported task definition supports optional `type?: "task" | "warning"`; `"task"` is omitted on export.
+- Exported task definition supports optional `description?: string`; empty descriptions are omitted on export for compactness.
+- Import fills missing task descriptions as empty string when writing to IndexedDB.
+- Exported definition supports optional `categoryDependencies?: Record<CategoryName, TaskId[]>`.
+- Imports missing `categoryDependencies` are treated as empty (no category dependencies).
+- Category dependency normalization drops dependency IDs that do not correspond to existing tasks.
 - Normalization/import enforce warning constraints for dependencies and completion state.
 - Legacy concerns outside this schema are ignored.
   - Old ad-hoc payload shapes (for example legacy flat task payloads) are no longer migration targets unless explicitly added back to `export.ts`.
@@ -117,8 +128,9 @@
 - Preserve current interaction contracts:
   - Edit Mode checkboxes are for selection workflows, not completion toggling
   - Task completion toggles happen in Task Mode only
-  - Dependency-setting mode uses global set-edit context and confirms from the fixed left header banner
-  - Category expand/collapse state is persisted per mode in `categoryHidden`
+  - Task and category dependency-setting both use global set-edit context and confirm from the fixed left header banner
+  - Category expand/collapse state is persisted per mode in `categoryCollapsed`
+  - In Task Mode, categories with unmet category dependencies are not rendered
   - Warning tasks are treated as task by default when `type` is absent; check `task.type === "warning"` at usage sites
 - Preserve drag-reorder semantics:
   - Reorder/move tasks by updating `categoryTasks` arrays and task `category`
@@ -132,10 +144,11 @@
 - `useDeleteTasksMutation` accepts `TaskId[]` and performs batch deletion in one transaction, including referential cleanup (dependencies, category cleanup, empty-category removal).
 - `useMoveTaskMutation` resolves moved task from `fromCategory + fromIndex`; if source task is missing, it aborts transaction and returns without throwing.
 - `useTaskDependenciesMutation` performs cycle detection using `detectCycle` and throws when a cycle would be created.
+- `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
 - `useTaskDetailMutation` has split paths for `type` updates:
   - Setting `type` to `warning` uses a transaction and removes completion + incoming dependency references.
   - Non-warning detail updates use direct writes.
-- `useTaskCompletionMutation` updates task completion and also adds the category to hidden task categories when all tasks in the category are complete.
+- `useTaskCompletionMutation` updates task completion and also adds the category to collapsed task categories when all tasks in the category are complete.
 
 ## Quick File Map (handoff)
 
