@@ -62,6 +62,13 @@ export function Task({
   const showEditSelectionCheckbox =
     mode === "edit" && (!isEditingSet || !taskIsBannedFromMultiselect);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
+  const rowInteractionClasses = isWarning
+    ? isSelected
+      ? "border-amber-400 bg-amber-100 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900/40 dark:hover:bg-amber-900/40"
+      : "border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/25 dark:hover:bg-amber-900/35"
+    : isSelected
+      ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
+      : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
 
   return (
     <DragDropListItem
@@ -91,15 +98,7 @@ export function Task({
 
           onSelectTask(taskId);
         }}
-        className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${
-          isSelected
-            ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-            : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
-        } ${
-          isWarning
-            ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
-            : ""
-        } ${dragState.isDragging ? "opacity-60" : ""}`}
+        className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
       >
         {canDrag && (
           <button
@@ -173,18 +172,13 @@ export function Task({
             {detail?.title || "Untitled Task"}
             {mode === "task" && isHidden ? " (Hidden)" : ""}
           </p>
-          {isWarning && (
-            <span className="shrink-0 text-xs font-medium text-amber-700 dark:text-amber-300">
-              Warning
-            </span>
-          )}
           {hasDescription && (
             <span
               className="shrink-0 text-zinc-500 dark:text-zinc-400"
               title="Has description"
               aria-label="Has description"
             >
-              ✎
+              🗒️
             </span>
           )}
         </div>
