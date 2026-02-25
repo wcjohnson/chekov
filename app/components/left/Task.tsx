@@ -3,60 +3,64 @@
 import { getTagBadgeClasses } from "../../lib/tagColors";
 import type { ChecklistMode, TaskId } from "../../lib/types";
 import {
-  useTagColors,
-  useTaskCompletion,
-  useTaskDetail,
-  useTaskHidden,
-  useTaskTags,
-} from "@/app/lib/storage";
+  useTagColorsQuery,
+  useTaskCompletionQuery,
+  useTaskDetailQuery,
+  useTaskHiddenQuery,
+  useTaskWarningQuery,
+  useTaskTagsQuery,
+} from "@/app/lib/data";
 import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
-import { useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
+import { MultiSelectContext } from "@/app/lib/context";
 
 type TaskProps = {
   taskId: TaskId;
   index: number;
   mode: ChecklistMode;
-  isSettingDependencies: boolean;
-  selectedTaskId: TaskId | null;
   isSelected: boolean;
   isEditSelected: boolean;
-  isPendingDependency: boolean;
   dependenciesComplete: boolean;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
-  onTogglePendingDependency: (taskId: TaskId) => void;
 };
 
 export function Task({
   taskId,
   index,
   mode,
-  isSettingDependencies,
-  selectedTaskId,
   isSelected,
   isEditSelected,
-  isPendingDependency,
   dependenciesComplete,
   onSelectTask,
   onToggleComplete,
   onToggleEditSelection,
-  onTogglePendingDependency,
 }: TaskProps) {
-  const detail = useTaskDetail(taskId).data;
-  const tags = Array.from(useTaskTags(taskId).data ?? []);
-  const isComplete = useTaskCompletion(taskId).data ?? false;
-  const isHidden = useTaskHidden(taskId).data ?? false;
-  const tagColors = useTagColors().data ?? {};
+  const detail = useTaskDetailQuery(taskId).data;
+  const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
+  const isComplete = useTaskCompletionQuery(taskId).data ?? false;
+  const isWarning = useTaskWarningQuery(taskId).data ?? false;
+  const isHidden = useTaskHiddenQuery(taskId).data ?? false;
+  const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
   const [dragState, setDragState] = useState<DragDropItemStateType>({
     isDragging: false,
   });
 
-  const canDrag = mode === "edit" && !isSettingDependencies;
-  const showTaskModeCheckbox = mode === "task" && dependenciesComplete;
+  const multiSelectContext = useContext(MultiSelectContext);
+  const multiSelectState = multiSelectContext.state;
+
+  const isEditingSet = !!multiSelectState;
+  const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
+  const taskIsBannedFromMultiselect = false;
+
+  const isEffectivelyComplete = isWarning ? dependenciesComplete : isComplete;
+  const canDrag = mode === "edit" && !isEditingSet;
+  const showTaskModeCheckbox =
+    mode === "task" && dependenciesComplete && !isWarning;
   const showEditSelectionCheckbox =
-    mode === "edit" && (!isSettingDependencies || taskId !== selectedTaskId);
+    mode === "edit" && (!isEditingSet || !taskIsBannedFromMultiselect);
   const hasDescription = (detail?.description?.length ?? 0) > 0;
 
   return (
@@ -70,7 +74,7 @@ export function Task({
         role="button"
         tabIndex={0}
         onClick={() => {
-          if (mode === "edit" && isSettingDependencies) {
+          if (mode === "edit" && isEditingSet) {
             return;
           }
           onSelectTask(taskId);
@@ -81,7 +85,7 @@ export function Task({
           }
 
           event.preventDefault();
-          if (mode === "edit" && isSettingDependencies) {
+          if (mode === "edit" && isEditingSet) {
             return;
           }
 
@@ -91,6 +95,10 @@ export function Task({
           isSelected
             ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
             : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+        } ${
+          isWarning
+            ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20"
+            : ""
         } ${dragState.isDragging ? "opacity-60" : ""}`}
       >
         {canDrag && (
@@ -119,13 +127,32 @@ export function Task({
           <input
             type="checkbox"
             checked={
-              isSettingDependencies ? isPendingDependency : isEditSelected
+              isEditingSet
+                ? isWarning
+                  ? false
+                  : isInEditedSet
+                : isEditSelected
             }
+            disabled={isEditingSet && isWarning}
             onChange={(event) => {
               event.stopPropagation();
 
-              if (isSettingDependencies) {
-                onTogglePendingDependency(taskId);
+              if (isEditingSet) {
+                if (isWarning) {
+                  return;
+                }
+                const nextSelectedSet = new Set(
+                  multiSelectState.selectedTaskSet,
+                );
+                if (isInEditedSet) {
+                  nextSelectedSet.delete(taskId);
+                } else {
+                  nextSelectedSet.add(taskId);
+                }
+                multiSelectContext.setState({
+                  ...multiSelectState,
+                  selectedTaskSet: nextSelectedSet,
+                });
                 return;
               }
 
@@ -140,12 +167,17 @@ export function Task({
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <p
             className={`min-w-0 flex-1 truncate text-sm font-medium ${
-              mode === "task" && isComplete ? "line-through" : ""
+              mode === "task" && isEffectivelyComplete ? "line-through" : ""
             }`}
           >
             {detail?.title || "Untitled Task"}
             {mode === "task" && isHidden ? " (Hidden)" : ""}
           </p>
+          {isWarning && (
+            <span className="shrink-0 text-xs font-medium text-amber-700 dark:text-amber-300">
+              Warning
+            </span>
+          )}
           {hasDescription && (
             <span
               className="shrink-0 text-zinc-500 dark:text-zinc-400"
@@ -161,7 +193,7 @@ export function Task({
             {tags.map((tag) => (
               <span
                 key={`${taskId}-tag-${tag}`}
-                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
                 title={tag}
               >
                 {tag}

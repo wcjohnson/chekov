@@ -3,28 +3,22 @@
 import { RightHeader } from "./RightHeader";
 import { TaskDetails } from "./TaskDetails";
 import type { ChecklistMode, TaskId } from "../../lib/types";
-import { useTaskDetail } from "@/app/lib/storage";
+import { useTaskDetailQuery } from "@/app/lib/data";
 
 type RightColumnProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
+  tasksWithCompleteDependencies: Set<TaskId>;
   errorMessage: string | null;
-  isSettingDependencies: boolean;
-  onStartSetDependencies: () => void;
-  onConfirmSetDependencies: () => void;
-  onClearSelectedTaskDependencies: () => void;
 };
 
 export function RightColumn({
   mode,
   selectedTaskId,
+  tasksWithCompleteDependencies,
   errorMessage,
-  isSettingDependencies,
-  onStartSetDependencies,
-  onConfirmSetDependencies,
-  onClearSelectedTaskDependencies,
 }: RightColumnProps) {
-  const detail = useTaskDetail(selectedTaskId ?? "").data;
+  const detail = useTaskDetailQuery(selectedTaskId ?? "").data;
 
   return (
     <>
@@ -46,10 +40,7 @@ export function RightColumn({
             mode={mode}
             selectedTaskId={selectedTaskId}
             selectedTaskDetail={detail}
-            isSettingDependencies={isSettingDependencies}
-            onStartSetDependencies={onStartSetDependencies}
-            onConfirmSetDependencies={onConfirmSetDependencies}
-            onClearSelectedTaskDependencies={onClearSelectedTaskDependencies}
+            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
           />
         </div>
       )}

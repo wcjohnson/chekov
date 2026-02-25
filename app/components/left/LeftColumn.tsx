@@ -5,26 +5,26 @@ import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
 import {
-  useCategories,
-  useCategoriesTasks,
+  useCategoryDependenciesQuery,
+  useCategoriesQuery,
+  useCategoriesTasksQuery,
+  useCompletionsQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
-} from "@/app/lib/storage";
+  useWarningsQuery,
+} from "@/app/lib/data";
 
 type LeftColumnProps = {
   mode: ChecklistMode;
   tasksWithCompleteDependencies: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
-  isSettingDependencies: boolean;
   editSelectedTaskIds: Set<TaskId>;
-  pendingDependencyIds: Set<TaskId>;
   onSelectAll: () => void;
   onClearSelection: () => void;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
   onToggleEditSelection: (taskId: TaskId) => void;
-  onTogglePendingDependency: (taskId: TaskId) => void;
 };
 
 export function LeftColumn({
@@ -32,15 +32,12 @@ export function LeftColumn({
   tasksWithCompleteDependencies,
   tasksMatchingSearch,
   selectedTaskId,
-  isSettingDependencies,
   editSelectedTaskIds,
-  pendingDependencyIds,
   onSelectAll,
   onClearSelection,
   onSelectTask,
   onToggleComplete,
   onToggleEditSelection,
-  onTogglePendingDependency,
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -62,12 +59,15 @@ export function LeftColumn({
     moveCategoryMutation.mutate({ fromIndex, toIndex });
   };
 
-  const categories = useCategories().data;
-  const categoriesTasks = useCategoriesTasks().data;
+  const categories = useCategoriesQuery().data;
+  const categoriesTasks = useCategoriesTasksQuery().data;
+  const categoryDependencies = useCategoryDependenciesQuery().data;
+  const allCompletions = useCompletionsQuery().data;
+  const allWarnings = useWarningsQuery().data;
 
   const taskBreakout: TaskBreakout = useMemo(() => {
     const visibleCategories: string[] = [];
-    const categoryTasks = {} as Record<string, TaskId[]>;
+    const categoryTasks = new Map<string, TaskId[]>();
     const orderedCategoryTasks: TaskId[][] = [];
     const visibleTasks = new Set<TaskId>();
 
@@ -81,13 +81,31 @@ export function LeftColumn({
     }
 
     for (const category of categories) {
-      const tasks = categoriesTasks[category] ?? [];
+      if (mode === "task") {
+        const dependencies = categoryDependencies?.get(category);
+        let dependenciesMet = true;
+        if (dependencies) {
+          for (const dependencyId of dependencies) {
+            if (!allCompletions?.has(dependencyId)) {
+              dependenciesMet = false;
+              break;
+            }
+          }
+        }
+
+        if (!dependenciesMet) {
+          continue;
+        }
+      }
+
+      const tasks = categoriesTasks.get(category) ?? [];
       const filtered = tasks.filter((taskId) => {
         const matchesSearch = tasksMatchingSearch.has(taskId);
+        const isWarning = allWarnings?.has(taskId);
         if (mode === "task") {
           const hasCompleteDependencies =
             tasksWithCompleteDependencies.has(taskId);
-          return hasCompleteDependencies && matchesSearch;
+          return (hasCompleteDependencies || isWarning) && matchesSearch;
         } else {
           return matchesSearch;
         }
@@ -96,7 +114,7 @@ export function LeftColumn({
       // show all the categories.
       if (filtered.length > 0) {
         visibleCategories.push(category);
-        categoryTasks[category] = filtered;
+        categoryTasks.set(category, filtered);
         orderedCategoryTasks.push(filtered);
         filtered.forEach((taskId) => visibleTasks.add(taskId));
       }
@@ -113,21 +131,25 @@ export function LeftColumn({
     categories,
     mode,
     categoriesTasks,
+    categoryDependencies,
+    allCompletions,
+    allWarnings,
   ]);
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <LeftHeader
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
-        isSettingDependencies={isSettingDependencies}
         editSelectedCount={editSelectedTaskIds.size}
-        pendingDependencyCount={pendingDependencyIds.size}
         onSelectAll={onSelectAll}
         onClearSelection={onClearSelection}
       />
 
-      <div className="space-y-2">
+      <div
+        data-left-pane-scroll="true"
+        className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto"
+      >
         {taskBreakout.visibleCategories.map((category, index) => (
           <Category
             key={category}
@@ -136,13 +158,10 @@ export function LeftColumn({
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             mode={mode}
             selectedTaskId={selectedTaskId}
-            isSettingDependencies={isSettingDependencies}
             editSelectedTaskIds={editSelectedTaskIds}
-            pendingDependencyIds={pendingDependencyIds}
             onSelectTask={onSelectTask}
             onToggleComplete={onToggleComplete}
             onToggleEditSelection={onToggleEditSelection}
-            onTogglePendingDependency={onTogglePendingDependency}
             canMoveUp={index > 0}
             canMoveDown={index < taskBreakout.visibleCategories.length - 1}
             onMoveUp={() => moveCategory(index, index - 1)}
@@ -193,6 +212,6 @@ export function LeftColumn({
           </p>
         )}
       </div>
-    </>
+    </div>
   );
 }

@@ -1,70 +1,75 @@
 import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
-import {
-  QueryClient,
-  useMutation,
-  useQueries,
-  useQuery,
-} from "@tanstack/react-query";
-import type { TaskId } from "./types";
-import { fromKvPairsToRecord } from "./utils";
+import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import type { CategoryName, TaskId } from "./types";
+import { detectCycle, fromKvPairsToMap } from "./utils";
 import { useMemo } from "react";
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 3;
+const DB_VERSION = 5;
 export const TASKS_STORE = "tasks";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
 export const TASK_COMPLETION_STORE = "taskCompletion";
+export const TASK_WARNINGS_STORE = "taskWarnings";
 export const TASK_HIDDEN_STORE = "taskHidden";
 export const CATEGORIES_STORE = "categories";
 export const CATEGORY_TASKS_STORE = "categoryTasks";
+export const CATEGORY_DEPENDENCIES_STORE = "categoryDependencies";
 export const TAG_COLORS_STORE = "tagColors";
-export const CATEGORY_HIDDEN_STORE = "categoryHidden";
+export const CATEGORY_COLLAPSED_STORE = "categoryCollapsed";
 
 export type StoredTask = {
-  id: string;
+  id: TaskId;
   title: string;
   description: string;
-  category: string;
+  category: CategoryName;
 };
 
 interface ChekovDB extends DBSchema {
   [TASKS_STORE]: {
-    key: string;
+    key: TaskId;
     value: StoredTask;
   };
   [TASK_TAGS_STORE]: {
-    key: string;
+    key: TaskId;
     value: Set<string>;
   };
   [TASK_DEPENDENCIES_STORE]: {
-    key: string;
-    value: Set<string>;
+    key: TaskId;
+    value: Set<TaskId>;
   };
   [TASK_COMPLETION_STORE]: {
-    key: string;
+    key: TaskId;
+    value: true;
+  };
+  [TASK_WARNINGS_STORE]: {
+    key: TaskId;
     value: true;
   };
   [TASK_HIDDEN_STORE]: {
-    key: string;
+    key: TaskId;
     value: true;
   };
   [CATEGORIES_STORE]: {
     key: "categories";
-    value: string[];
+    value: CategoryName[];
   };
   [CATEGORY_TASKS_STORE]: {
-    key: string;
-    value: string[];
+    key: CategoryName;
+    value: TaskId[];
+  };
+  [CATEGORY_DEPENDENCIES_STORE]: {
+    key: CategoryName;
+    value: Set<TaskId>;
   };
   [TAG_COLORS_STORE]: {
     key: string;
     value: TagColorKey;
   };
-  [CATEGORY_HIDDEN_STORE]: {
+  [CATEGORY_COLLAPSED_STORE]: {
     key: "task" | "edit";
-    value: Set<string>;
+    value: Set<CategoryName>;
   };
 }
 
@@ -86,11 +91,13 @@ export const getDb = async () => {
         db.createObjectStore(TASK_TAGS_STORE);
         db.createObjectStore(TASK_DEPENDENCIES_STORE);
         db.createObjectStore(TASK_COMPLETION_STORE);
+        db.createObjectStore(TASK_WARNINGS_STORE);
         db.createObjectStore(TASK_HIDDEN_STORE);
         db.createObjectStore(CATEGORIES_STORE);
         db.createObjectStore(CATEGORY_TASKS_STORE);
+        db.createObjectStore(CATEGORY_DEPENDENCIES_STORE);
         db.createObjectStore(TAG_COLORS_STORE);
-        db.createObjectStore(CATEGORY_HIDDEN_STORE);
+        db.createObjectStore(CATEGORY_COLLAPSED_STORE);
       },
     });
   }
@@ -98,7 +105,13 @@ export const getDb = async () => {
   return dbPromise;
 };
 
-export const queryClient = new QueryClient();
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: Infinity,
+    },
+  },
+});
 
 //////////////////////////// MUTTS
 
@@ -172,6 +185,7 @@ export function useDeleteTasksMutation() {
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
           TASK_COMPLETION_STORE,
+          TASK_WARNINGS_STORE,
           TASK_HIDDEN_STORE,
           CATEGORIES_STORE,
           CATEGORY_TASKS_STORE,
@@ -183,6 +197,7 @@ export function useDeleteTasksMutation() {
       const taskTagsStore = tx.objectStore(TASK_TAGS_STORE);
       const taskDependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
       const taskCompletionStore = tx.objectStore(TASK_COMPLETION_STORE);
+      const taskWarningsStore = tx.objectStore(TASK_WARNINGS_STORE);
       const taskHiddenStore = tx.objectStore(TASK_HIDDEN_STORE);
       const categoriesStore = tx.objectStore(CATEGORIES_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
@@ -222,6 +237,7 @@ export function useDeleteTasksMutation() {
           taskTagsStore.delete(taskId),
           taskDependenciesStore.delete(taskId),
           taskCompletionStore.delete(taskId),
+          taskWarningsStore.delete(taskId),
           taskHiddenStore.delete(taskId),
         ]),
       );
@@ -290,6 +306,7 @@ export function useDeleteTasksMutation() {
         queryKey: ["dependencies"],
       });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
+      queryClient.invalidateQueries({ queryKey: ["warnings"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
 
       for (const taskId of deletedTaskIds) {
@@ -299,6 +316,7 @@ export function useDeleteTasksMutation() {
           queryKey: ["task", "completion", taskId],
         });
         queryClient.invalidateQueries({ queryKey: ["task", "hidden", taskId] });
+        queryClient.invalidateQueries({ queryKey: ["task", "warning", taskId] });
       }
     },
   });
@@ -330,7 +348,7 @@ export function useMoveTaskMutation() {
           TASKS_STORE,
           CATEGORIES_STORE,
           CATEGORY_TASKS_STORE,
-          CATEGORY_HIDDEN_STORE,
+          CATEGORY_COLLAPSED_STORE,
         ],
         "readwrite",
       );
@@ -338,7 +356,7 @@ export function useMoveTaskMutation() {
       const tasksStore = tx.objectStore(TASKS_STORE);
       const categoriesStore = tx.objectStore(CATEGORIES_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
-      const categoryHiddenStore = tx.objectStore(CATEGORY_HIDDEN_STORE);
+      const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
 
       const fromTaskIds = (await categoryTasksStore.get(fromCategory)) ?? [];
       const taskId = fromTaskIds[fromIndex];
@@ -464,15 +482,12 @@ export function useMoveCategoryMutation() {
 
 export function useTaskDetailMutation() {
   return useMutation({
-    mutationFn: async ({
-      taskId,
-      title,
-      description,
-    }: {
+    mutationFn: async (variables: {
       taskId: TaskId;
       title?: string | undefined;
       description?: string | undefined;
     }) => {
+      const { taskId, title, description } = variables;
       const db = await getDb();
       const task = await db.get(TASKS_STORE, taskId);
       if (!task) {
@@ -480,6 +495,7 @@ export function useTaskDetailMutation() {
       }
       if (title !== undefined) task.title = title;
       if (description !== undefined) task.description = description;
+
       await db.put(TASKS_STORE, task, taskId);
     },
     onSuccess: (_data, variables) => {
@@ -489,6 +505,66 @@ export function useTaskDetailMutation() {
       queryClient.invalidateQueries({
         queryKey: ["details"],
       });
+    },
+  });
+}
+
+export function useTaskWarningMutation() {
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      isWarning,
+    }: {
+      taskId: TaskId;
+      isWarning: boolean;
+    }) => {
+      const db = await getDb();
+
+      if (isWarning) {
+        const tx = db.transaction(
+          [TASK_WARNINGS_STORE, TASK_COMPLETION_STORE, TASK_DEPENDENCIES_STORE],
+          "readwrite",
+        );
+        const warningsStore = tx.objectStore(TASK_WARNINGS_STORE);
+        const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
+        const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
+
+        await warningsStore.put(true, taskId);
+        await completionStore.delete(taskId);
+
+        const dependencyTaskIds = await dependenciesStore.getAllKeys();
+        const dependencyValues = await dependenciesStore.getAll();
+
+        for (let index = 0; index < dependencyTaskIds.length; index += 1) {
+          const dependencyTaskId = dependencyTaskIds[index];
+          const dependencies = dependencyValues[index] ?? new Set<string>();
+          if (!dependencies.delete(taskId)) {
+            continue;
+          }
+
+          if (dependencies.size === 0) {
+            await dependenciesStore.delete(dependencyTaskId);
+          } else {
+            await dependenciesStore.put(dependencies, dependencyTaskId);
+          }
+        }
+
+        await tx.done;
+        return;
+      }
+
+      await db.delete(TASK_WARNINGS_STORE, taskId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["task", "warning", variables.taskId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["warnings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["task", "completion", variables.taskId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["completions"] });
+      queryClient.invalidateQueries({ queryKey: ["dependencies"] });
     },
   });
 }
@@ -503,19 +579,107 @@ export function useTaskDependenciesMutation() {
       dependencies: Set<string>;
     }) => {
       const db = await getDb();
+
+      // Easy case, no cycle detection needed
       if (dependencies.size === 0) {
         await db.delete(TASK_DEPENDENCIES_STORE, taskId);
+        return [taskId, new Set<string>(), null] as const;
+      }
+
+      // Run cycle detection here
+      const tx = db.transaction([TASK_DEPENDENCIES_STORE], "readwrite");
+      const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
+
+      console.log("Fetching ALL task dependencies for cycle detection");
+      const dependencyTaskIds = await dependenciesStore.getAllKeys();
+      const dependencyValues = await dependenciesStore.getAll();
+      const dependencyGraph = fromKvPairsToMap(
+        dependencyTaskIds,
+        dependencyValues,
+      );
+
+      if (!dependencyGraph.has(taskId)) {
+        dependencyGraph.set(taskId, new Set<string>());
+      }
+
+      if (detectCycle(dependencyGraph, taskId, dependencies)) {
+        tx.abort();
+        await tx.done.catch(() => undefined);
+        throw new Error("Dependency cycle detected");
+      }
+
+      await dependenciesStore.put(dependencies, taskId);
+
+      await tx.done;
+
+      return [taskId, dependencies, dependencyGraph] as const;
+    },
+    onSuccess: ([taskId, dependencies, dependencyGraph]) => {
+      queryClient.setQueryData(["task", "dependencies", taskId], dependencies);
+      if (dependencyGraph) {
+        dependencyGraph.set(taskId, dependencies);
+        queryClient.setQueryData(["dependencies"], dependencyGraph);
       } else {
-        await db.put(TASK_DEPENDENCIES_STORE, dependencies, taskId);
+        queryClient.invalidateQueries({
+          queryKey: ["dependencies"],
+        });
       }
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["task", "dependencies", variables.taskId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["dependencies"],
-      });
+  });
+}
+
+export function useCategoryDependenciesMutation() {
+  return useMutation({
+    mutationFn: async ({
+      category,
+      dependencies,
+    }: {
+      category: CategoryName;
+      dependencies: Set<TaskId>;
+    }) => {
+      const db = await getDb();
+
+      if (dependencies.size === 0) {
+        await db.delete(CATEGORY_DEPENDENCIES_STORE, category);
+        return [category, new Set<TaskId>(), null] as const;
+      }
+
+      const tx = db.transaction([CATEGORY_DEPENDENCIES_STORE], "readwrite");
+      const categoryDependenciesStore = tx.objectStore(
+        CATEGORY_DEPENDENCIES_STORE,
+      );
+
+      await categoryDependenciesStore.put(dependencies, category);
+
+      const categoryDependencyKeys =
+        await categoryDependenciesStore.getAllKeys();
+      const categoryDependencyValues = await categoryDependenciesStore.getAll();
+      const categoryDependencyMap = fromKvPairsToMap(
+        categoryDependencyKeys,
+        categoryDependencyValues,
+      );
+
+      await tx.done;
+
+      return [category, dependencies, categoryDependencyMap] as const;
+    },
+    onSuccess: ([category, dependencies, categoryDependencyMap]) => {
+      queryClient.setQueryData(
+        ["category", "dependencies", category],
+        dependencies,
+      );
+
+      if (categoryDependencyMap) {
+        categoryDependencyMap.set(category, dependencies);
+        queryClient.setQueryData(
+          ["categoryDependencies"],
+          categoryDependencyMap,
+        );
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ["categoryDependencies"],
+        });
+      }
     },
   });
 }
@@ -650,17 +814,80 @@ export function useTaskCompletionMutation() {
       isCompleted: boolean;
     }) => {
       const db = await getDb();
+      const tx = db.transaction(
+        [
+          TASK_COMPLETION_STORE,
+          TASK_WARNINGS_STORE,
+          TASKS_STORE,
+          CATEGORY_TASKS_STORE,
+          CATEGORY_COLLAPSED_STORE,
+          TASK_DEPENDENCIES_STORE,
+        ],
+        "readwrite",
+      );
+
+      const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
+      const warningsStore = tx.objectStore(TASK_WARNINGS_STORE);
+      const tasksStore = tx.objectStore(TASKS_STORE);
+      const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
+      const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
+      const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
+
       if (isCompleted) {
-        await db.put(TASK_COMPLETION_STORE, true, taskId);
+        await completionStore.put(true, taskId);
       } else {
-        await db.delete(TASK_COMPLETION_STORE, taskId);
+        await completionStore.delete(taskId);
       }
+
+      const task = await tasksStore.get(taskId);
+      if (!task) {
+        await tx.done;
+        return;
+      }
+
+      // If this completion caused a category to become fully completed, add the category to the hidden categories list
+      const categoryTaskIds =
+        (await categoryTasksStore.get(task.category)) ?? [];
+      const completedTaskIds = new Set<string>(
+        await completionStore.getAllKeys(),
+      );
+      const warningTaskIds = new Set<string>(await warningsStore.getAllKeys());
+
+      let allCategoryTasksComplete = true;
+      for (const categoryTaskId of categoryTaskIds) {
+        if (warningTaskIds.has(categoryTaskId)) {
+          const warningDependencies =
+            (await dependenciesStore.get(categoryTaskId)) ?? new Set<string>();
+          for (const dependencyId of warningDependencies) {
+            if (!completedTaskIds.has(dependencyId)) {
+              allCategoryTasksComplete = false;
+              break;
+            }
+          }
+        } else if (!completedTaskIds.has(categoryTaskId)) {
+          allCategoryTasksComplete = false;
+        }
+
+        if (!allCategoryTasksComplete) {
+          break;
+        }
+      }
+
+      const hiddenTaskCategories =
+        (await categoryHiddenStore.get("task")) ?? new Set<string>();
+      if (allCategoryTasksComplete) {
+        hiddenTaskCategories.add(task.category);
+      }
+      await categoryHiddenStore.put(hiddenTaskCategories, "task");
+
+      await tx.done;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["task", "completion", variables.taskId],
       });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
+      queryClient.invalidateQueries({ queryKey: ["collapsedCategories"] });
     },
   });
 }
@@ -678,7 +905,7 @@ export function useUncompleteAllTasksMutation() {
   });
 }
 
-export function useCategoryHiddenMutation() {
+export function useCategoryCollapsedMutation() {
   return useMutation({
     mutationFn: async ({
       category,
@@ -691,7 +918,7 @@ export function useCategoryHiddenMutation() {
     }) => {
       const db = await getDb();
       const hiddenCategories =
-        (await db.get(CATEGORY_HIDDEN_STORE, mode)) ?? new Set<string>();
+        (await db.get(CATEGORY_COLLAPSED_STORE, mode)) ?? new Set<string>();
 
       if (isHidden) {
         hiddenCategories.add(category);
@@ -699,11 +926,11 @@ export function useCategoryHiddenMutation() {
         hiddenCategories.delete(category);
       }
 
-      await db.put(CATEGORY_HIDDEN_STORE, hiddenCategories, mode);
+      await db.put(CATEGORY_COLLAPSED_STORE, hiddenCategories, mode);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["hiddenCategories"],
+        queryKey: ["collapsedCategories"],
       });
     },
   });
@@ -735,25 +962,11 @@ export function useTagColorMutation() {
 
 //////////////// QUERIES
 
-function getQueryArgs_taskSet() {
-  return {
-    queryKey: ["taskSet"],
-    queryFn: async () => {
-      const db = await getDb();
-      const allTasks = await db.getAllKeys(TASKS_STORE);
-      return new Set<string>(allTasks);
-    },
-  };
-}
-
-export function useTaskSet() {
-  return useQuery(getQueryArgs_taskSet());
-}
-
 function getQueryArgs_categories() {
   return {
     queryKey: ["categories"],
     queryFn: async () => {
+      console.log("Fetching category order");
       const db = await getDb();
       const categories = await db.get(CATEGORIES_STORE, "categories");
       if (categories === undefined) {
@@ -764,7 +977,7 @@ function getQueryArgs_categories() {
   };
 }
 
-export function useCategories() {
+export function useCategoriesQuery() {
   return useQuery(getQueryArgs_categories());
 }
 
@@ -772,31 +985,67 @@ function getQueryArgs_categoriesTasks() {
   return {
     queryKey: ["categoryTasks"],
     queryFn: async () => {
+      console.log("Fetching ALL category task maps");
       const db = await getDb();
       const categoryKeys = await db.getAllKeys(CATEGORY_TASKS_STORE);
       const categoryValues = await db.getAll(CATEGORY_TASKS_STORE);
-      return fromKvPairsToRecord(categoryKeys, categoryValues);
+      return fromKvPairsToMap(categoryKeys, categoryValues);
     },
   };
 }
 
-export function useCategoriesTasks() {
+export function useCategoriesTasksQuery() {
   return useQuery(getQueryArgs_categoriesTasks());
+}
+
+function getQueryArgs_categoryDependencies() {
+  return {
+    queryKey: ["categoryDependencies"],
+    queryFn: async () => {
+      console.log("Fetching ALL category dependencies");
+      const db = await getDb();
+      const categoryKeys = await db.getAllKeys(CATEGORY_DEPENDENCIES_STORE);
+      const dependencyValues = await db.getAll(CATEGORY_DEPENDENCIES_STORE);
+      const map = fromKvPairsToMap(categoryKeys, dependencyValues);
+
+      for (const [category, dependencies] of map.entries()) {
+        queryClient.setQueryData(
+          ["category", "dependencies", category],
+          dependencies,
+        );
+      }
+
+      return map;
+    },
+  };
+}
+
+export function useCategoryDependenciesQuery() {
+  return useQuery(getQueryArgs_categoryDependencies());
 }
 
 function getQueryArgs_dependencies() {
   return {
     queryKey: ["dependencies"],
     queryFn: async () => {
+      console.log("Fetching ALL task dependencies");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASK_DEPENDENCIES_STORE);
       const dependencies = await db.getAll(TASK_DEPENDENCIES_STORE);
-      return fromKvPairsToRecord(taskIds, dependencies);
+      const map = fromKvPairsToMap(taskIds, dependencies);
+      for (const [taskId, dependencies] of map.entries()) {
+        queryClient.setQueryData(
+          ["task", "dependencies", taskId],
+          dependencies,
+        );
+      }
+
+      return map;
     },
   };
 }
 
-export function useDependencies() {
+export function useDependenciesQuery() {
   return useQuery(getQueryArgs_dependencies());
 }
 
@@ -804,54 +1053,275 @@ function getQueryArgs_completions() {
   return {
     queryKey: ["completions"],
     queryFn: async () => {
+      console.log("Fetching ALL task completions");
       const db = await getDb();
       const allTasks = new Set<string>(
         await db.getAllKeys(TASK_COMPLETION_STORE),
       );
+      for (const taskId of allTasks) {
+        queryClient.setQueryData(["task", "completion", taskId], true);
+      }
       return allTasks;
     },
   };
 }
 
-export function useCompletions() {
+export function useCompletionsQuery() {
   return useQuery(getQueryArgs_completions());
 }
 
-function getQueryArgs_details() {
+function getQueryArgs_warnings() {
+  return {
+    queryKey: ["warnings"],
+    queryFn: async () => {
+      console.log("Fetching ALL task warnings");
+      const db = await getDb();
+      const allWarningTasks = new Set<string>(
+        await db.getAllKeys(TASK_WARNINGS_STORE),
+      );
+      for (const taskId of allWarningTasks) {
+        queryClient.setQueryData(["task", "warning", taskId], true);
+      }
+      return allWarningTasks;
+    },
+  };
+}
+
+export function useWarningsQuery() {
+  return useQuery(getQueryArgs_warnings());
+}
+
+function getQueryArgs_details(enabled?: boolean) {
   return {
     queryKey: ["details"],
+    enabled: enabled === undefined ? true : enabled,
     queryFn: async () => {
+      console.log("Fetching ALL task details");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASKS_STORE);
       const details = await db.getAll(TASKS_STORE);
-      return fromKvPairsToRecord(taskIds, details);
+      const map = fromKvPairsToMap(taskIds, details);
+      for (const [taskId, detail] of map.entries()) {
+        queryClient.setQueryData(["task", "detail", taskId], detail);
+      }
+      return map;
     },
   };
 }
 
-export function useDetails() {
-  return useQuery(getQueryArgs_details());
+export function useDetailsQuery(enabled?: boolean) {
+  return useQuery(getQueryArgs_details(enabled));
 }
 
-export function getQueryArgs_tags() {
+function getQueryArgs_taskSet() {
+  return {
+    queryKey: ["taskSet"],
+    queryFn: async () => {
+      console.log("Fetching taskSet");
+      const db = await getDb();
+      const taskIds = await db.getAllKeys(TASKS_STORE);
+      const taskSet = new Set<string>(taskIds);
+      return taskSet;
+    },
+  };
+}
+
+export function useTaskSetQuery() {
+  return useQuery(getQueryArgs_taskSet());
+}
+
+export function getQueryArgs_tags(enabled?: boolean) {
   return {
     queryKey: ["tags"],
+    enabled: enabled === undefined ? true : enabled,
     queryFn: async () => {
+      console.log("Fetching ALL tags");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASK_TAGS_STORE);
       const tags = await db.getAll(TASK_TAGS_STORE);
-      return fromKvPairsToRecord(taskIds, tags);
+      const map = fromKvPairsToMap(taskIds, tags);
+      for (const [taskId, tags] of map.entries()) {
+        queryClient.setQueryData(["task", "tags", taskId], tags);
+      }
+      return map;
     },
   };
 }
 
-export function useTags() {
-  return useQuery(getQueryArgs_tags());
+export function useTagsQuery(enabled?: boolean) {
+  return useQuery(getQueryArgs_tags(enabled));
+}
+
+export function useTaskDetailQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "detail", taskId],
+    queryFn: async () => {
+      if (!taskId) return null;
+      const db = await getDb();
+      console.log("Fetching task detail for", taskId);
+      const res = await db.get(TASKS_STORE, taskId);
+      return res === undefined ? null : res;
+    },
+  });
+}
+
+export function useTaskTagsQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "tags", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const tags = await db.get(TASK_TAGS_STORE, taskId);
+      if (tags === undefined) {
+        return new Set<string>();
+      }
+      return tags;
+    },
+  });
+}
+
+export function useTaskDependenciesQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "dependencies", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const dependencies = await db.get(TASK_DEPENDENCIES_STORE, taskId);
+      if (dependencies === undefined) {
+        return new Set<string>();
+      }
+      return dependencies;
+    },
+  });
+}
+
+export function useCategoryDependencyQuery(category: CategoryName) {
+  return useQuery({
+    queryKey: ["category", "dependencies", category],
+    queryFn: async () => {
+      const db = await getDb();
+      const dependencies = await db.get(CATEGORY_DEPENDENCIES_STORE, category);
+      if (dependencies === undefined) {
+        return new Set<TaskId>();
+      }
+      return dependencies;
+    },
+  });
+}
+
+export function useTaskCompletionQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "completion", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isCompleted = await db.get(TASK_COMPLETION_STORE, taskId);
+      return !!isCompleted;
+    },
+  });
+}
+
+export function useTaskWarningQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "warning", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isWarning = await db.get(TASK_WARNINGS_STORE, taskId);
+      return !!isWarning;
+    },
+  });
+}
+
+export function useTaskHiddenQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "hidden", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isHidden = await db.get(TASK_HIDDEN_STORE, taskId);
+      return !!isHidden;
+    },
+  });
+}
+
+function getQueryArgs_hiddens() {
+  return {
+    queryKey: ["hiddens"],
+    queryFn: async () => {
+      const db = await getDb();
+      const allHiddenTasks = new Set<string>(
+        await db.getAllKeys(TASK_HIDDEN_STORE),
+      );
+      return allHiddenTasks;
+    },
+    onSuccess: (hiddenTaskIds: Set<string>) => {
+      for (const taskId of hiddenTaskIds) {
+        queryClient.setQueryData(["task", "hidden", taskId], true);
+      }
+    },
+  };
+}
+
+export function useTaskHiddensQuery() {
+  return useQuery(getQueryArgs_hiddens());
+}
+
+export function useCollapsedCategoriesQuery() {
+  return useQuery({
+    queryKey: ["collapsedCategories"],
+    queryFn: async () => {
+      const db = await getDb();
+
+      const hiddenTaskCategories =
+        (await db.get(CATEGORY_COLLAPSED_STORE, "task")) ?? new Set<string>();
+      const hiddenEditCategories =
+        (await db.get(CATEGORY_COLLAPSED_STORE, "edit")) ?? new Set<string>();
+
+      return { task: hiddenTaskCategories, edit: hiddenEditCategories };
+    },
+  });
+}
+
+export function useTagColorsQuery() {
+  return useQuery({
+    queryKey: ["tagColors"],
+    queryFn: async () => {
+      const db = await getDb();
+      const colorKeys = await db.getAllKeys(TAG_COLORS_STORE);
+      const colorValues = await db.getAll(TAG_COLORS_STORE);
+      return fromKvPairsToMap(colorKeys, colorValues);
+    },
+  });
+}
+
+export function useAllKnownTagsQuery() {
+  return useQuery({
+    queryKey: ["allKnownTags"],
+    queryFn: async () => {
+      const db = await getDb();
+      const tags = await db.getAll(TASK_TAGS_STORE);
+      let allTags = new Set<string>();
+      for (const tagSet of tags) {
+        allTags = allTags.union(tagSet);
+      }
+      return allTags;
+    },
+  });
+}
+
+//////////// DERIVED DATA
+
+export function useTaskStructure() {
+  const taskSet = useTaskSetQuery();
+  const categories = useCategoriesQuery();
+  const categoryTasks = useCategoriesTasksQuery();
+
+  return {
+    taskSet: taskSet.data ?? new Set<string>(),
+    categories: categories.data ?? [],
+    categoryTasks: categoryTasks.data ?? new Map<string, string[]>(),
+  };
 }
 
 export function useTasksWithCompleteDependencies(
   taskSet: Set<string> | undefined,
-  dependencies: Record<string, Set<string>> | undefined,
+  dependencies: Map<string, Set<string>> | undefined,
   completions: Set<string> | undefined,
 ) {
   return useMemo(() => {
@@ -862,7 +1332,7 @@ export function useTasksWithCompleteDependencies(
     const tasksWithCompleteDependencies = new Set<string>();
 
     for (const taskId of taskSet) {
-      const taskDependencies = dependencies[taskId] ?? new Set<string>();
+      const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
       let hasIncompleteDependency = false;
       for (const depId of taskDependencies) {
         if (!completions.has(depId)) {
@@ -879,16 +1349,21 @@ export function useTasksWithCompleteDependencies(
   }, [taskSet, dependencies, completions]);
 }
 
-export function useTasksMatchingSearch(
-  taskSet: Set<string> | undefined,
-  details: Record<string, StoredTask> | undefined,
-  tags: Record<string, Set<string>> | undefined,
-  searchQuery: string,
-) {
+export function useTasksMatchingSearch(searchQuery: string) {
+  const taskSetQuery = useTaskSetQuery();
+  const taskSet = taskSetQuery.data;
+  const trimmedQuery = searchQuery.trim();
+  const searchEnabled = trimmedQuery.length > 2;
+
+  const detailsQuery = useDetailsQuery(searchEnabled);
+  const tagsQuery = useTagsQuery(searchEnabled);
+
   return useMemo(() => {
     if (!taskSet) {
       return new Set<string>();
     }
+    const details = detailsQuery.data;
+    const tags = tagsQuery.data;
 
     // No search query, return all tasks
     if (!searchQuery) return taskSet;
@@ -900,8 +1375,8 @@ export function useTasksMatchingSearch(
     const matchingTasks = new Set<string>();
 
     for (const taskId of taskSet) {
-      const detail = details ? details[taskId] : undefined;
-      const taskTags = tags ? tags[taskId] : undefined;
+      const detail = details?.get(taskId);
+      const taskTags = tags?.get(taskId);
 
       const categoryMatch = detail?.category
         .toLowerCase()
@@ -938,145 +1413,5 @@ export function useTasksMatchingSearch(
     }
 
     return matchingTasks;
-  }, [taskSet, details, tags, searchQuery]);
-}
-
-export function useTaskDetail(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "detail", taskId],
-    queryFn: async () => {
-      if (!taskId) return null;
-      const db = await getDb();
-      const res = await db.get(TASKS_STORE, taskId);
-      return res === undefined ? null : res;
-    },
-  });
-}
-
-export function useTaskTags(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "tags", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const tags = await db.get(TASK_TAGS_STORE, taskId);
-      if (tags === undefined) {
-        return new Set<string>();
-      }
-      return tags;
-    },
-  });
-}
-
-export function useTaskDependencies(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "dependencies", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const dependencies = await db.get(TASK_DEPENDENCIES_STORE, taskId);
-      if (dependencies === undefined) {
-        return new Set<string>();
-      }
-      return dependencies;
-    },
-  });
-}
-
-export function useTaskCompletion(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "completion", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const isCompleted = await db.get(TASK_COMPLETION_STORE, taskId);
-      return !!isCompleted;
-    },
-  });
-}
-
-export function useTaskHidden(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "hidden", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const isHidden = await db.get(TASK_HIDDEN_STORE, taskId);
-      return !!isHidden;
-    },
-  });
-}
-
-export function useTaskHiddens() {
-  return useQuery({
-    queryKey: ["hiddens"],
-    queryFn: async () => {
-      const db = await getDb();
-      const allHiddenTasks = new Set<string>(
-        await db.getAllKeys(TASK_HIDDEN_STORE),
-      );
-      return allHiddenTasks;
-    },
-  });
-}
-
-export function useHiddenCategories() {
-  return useQuery({
-    queryKey: ["hiddenCategories"],
-    queryFn: async () => {
-      const db = await getDb();
-
-      const hiddenTaskCategories =
-        (await db.get("categoryHidden", "task")) ?? new Set<string>();
-      const hiddenEditCategories =
-        (await db.get("categoryHidden", "edit")) ?? new Set<string>();
-
-      return { task: hiddenTaskCategories, edit: hiddenEditCategories };
-    },
-  });
-}
-
-export function useTagColors() {
-  return useQuery({
-    queryKey: ["tagColors"],
-    queryFn: async () => {
-      const db = await getDb();
-      const colorKeys = await db.getAllKeys(TAG_COLORS_STORE);
-      const colorValues = await db.getAll(TAG_COLORS_STORE);
-      return fromKvPairsToRecord(colorKeys, colorValues);
-    },
-  });
-}
-
-export function useAllKnownTags() {
-  return useQuery({
-    queryKey: ["allKnownTags"],
-    queryFn: async () => {
-      const db = await getDb();
-      const tags = await db.getAll(TASK_TAGS_STORE);
-      let allTags = new Set<string>();
-      for (const tagSet of tags) {
-        allTags = allTags.union(tagSet);
-      }
-      return allTags;
-    },
-  });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function combineTaskStructureQueries(results: any[]) {
-  const [taskSet, categories, categoryTasks] = results;
-  return {
-    taskSet: (taskSet.data as Set<string>) ?? new Set<string>(),
-    categories: (categories.data as string[]) ?? [],
-    categoryTasks: (categoryTasks.data as Record<string, string[]>) ?? {},
-    pending: results.some((result) => result.isPending),
-  };
-}
-
-export function useTaskStructure() {
-  return useQueries({
-    queries: [
-      getQueryArgs_taskSet(),
-      getQueryArgs_categories(),
-      getQueryArgs_categoriesTasks(),
-    ],
-    combine: combineTaskStructureQueries,
-  });
+  }, [searchQuery, taskSet, detailsQuery.data, tagsQuery.data]);
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import type { RefObject } from "react";
-import type { ChecklistMode } from "../lib/types";
+import { useContext, type RefObject } from "react";
+import type { ChecklistMode } from "@/app/lib/types";
+import { MultiSelectContext } from "@/app/lib/context";
 
 type TopBarProps = {
   mode: ChecklistMode;
-  isSettingDependencies: boolean;
   editSelectedCount: number;
   searchText: string;
   importDefinitionInputRef: RefObject<HTMLInputElement | null>;
@@ -25,7 +25,6 @@ type TopBarProps = {
 
 export function TopBar({
   mode,
-  isSettingDependencies,
   editSelectedCount,
   searchText,
   importDefinitionInputRef,
@@ -42,6 +41,9 @@ export function TopBar({
   onImportDefinitionFile,
   onImportStateFile,
 }: TopBarProps) {
+  const setEditContext = useContext(MultiSelectContext);
+  const isSettingDependencies = !!setEditContext.state;
+
   return (
     <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex w-full items-center justify-between gap-4">

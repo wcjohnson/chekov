@@ -1,5 +1,7 @@
 "use client";
 
+import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
+import { useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 
 type AppLayoutProps = {
@@ -21,13 +23,36 @@ export function AppLayout({
   leftColumn,
   rightColumn,
 }: AppLayoutProps) {
+  const leftPaneRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const leftPaneElement = leftPaneRef.current;
+    if (!leftPaneElement) {
+      return;
+    }
+
+    const scrollElement =
+      leftPaneElement.querySelector<HTMLElement>(
+        "[data-left-pane-scroll='true']",
+      ) ?? leftPaneElement;
+
+    return autoScrollForElements({
+      element: scrollElement,
+      getAllowedAxis: () => "vertical",
+    });
+  }, []);
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {topBar}
 
-      <main ref={mainPaneRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:flex-row md:gap-0">
+      <main
+        ref={mainPaneRef}
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:flex-row md:gap-0"
+      >
         <section
-          className="min-h-0 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:shrink-0"
+          ref={leftPaneRef}
+          className="min-h-0 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:shrink-0"
           style={isDesktop ? { width: `${leftPaneWidth}%` } : undefined}
         >
           {leftColumn}
