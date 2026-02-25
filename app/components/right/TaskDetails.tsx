@@ -120,7 +120,7 @@ export function TaskDetails({
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
-  const tagColors = useTagColorsQuery().data ?? {};
+  const tagColors = useTagColorsQuery().data ?? new Map();
   const tagColorMutation = useTagColorMutation();
 
   const datalistId = `known-tags-${selectedTaskId}`;
@@ -313,7 +313,7 @@ export function TaskDetails({
                           previous === tag ? null : tag,
                         );
                       }}
-                      className={`cursor-pointer list-none rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                      className={`cursor-pointer list-none rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
                     >
                       {tag}
                     </button>
@@ -335,7 +335,7 @@ export function TaskDetails({
                         <div className="grid grid-cols-8 gap-1">
                           {TAG_COLOR_OPTIONS.map((colorOption) => {
                             const isSelected =
-                              tagColors[tag] === colorOption.key;
+                              tagColors.get(tag) === colorOption.key;
 
                             return (
                               <button
@@ -445,7 +445,7 @@ export function TaskDetails({
             {Array.from(selectedTaskTags).map((tag) => (
               <span
                 key={`${selectedTaskId}-tag-view-${tag}`}
-                className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
               >
                 {tag}
               </span>

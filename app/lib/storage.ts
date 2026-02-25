@@ -2,7 +2,7 @@ import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import type { TaskId } from "./types";
-import { detectCycle, fromKvPairsToMap, fromKvPairsToRecord } from "./utils";
+import { detectCycle, fromKvPairsToMap } from "./utils";
 import { useMemo } from "react";
 
 const DB_NAME = "chekov-db";
@@ -1132,7 +1132,7 @@ export function useTagColorsQuery() {
       const db = await getDb();
       const colorKeys = await db.getAllKeys(TAG_COLORS_STORE);
       const colorValues = await db.getAll(TAG_COLORS_STORE);
-      return fromKvPairsToRecord(colorKeys, colorValues);
+      return fromKvPairsToMap(colorKeys, colorValues);
     },
   });
 }

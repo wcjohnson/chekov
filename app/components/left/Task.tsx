@@ -42,7 +42,7 @@ export function Task({
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
-  const tagColors = useTagColorsQuery().data ?? {};
+  const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
   const [dragState, setDragState] = useState<DragDropItemStateType>({
     isDragging: false,
@@ -192,7 +192,7 @@ export function Task({
             {tags.map((tag) => (
               <span
                 key={`${taskId}-tag-${tag}`}
-                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors[tag])}`}
+                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
                 title={tag}
               >
                 {tag}
