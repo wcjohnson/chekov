@@ -9,21 +9,17 @@
     "lint": "eslint && tsc --noEmit"
   },
   "dependencies": {
-    "@dnd-kit/helpers": "^0.3.2",
-    "@dnd-kit/react": "^0.3.2",
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@tanstack/react-query": "^5.90.21",
     "idb": "^8.0.3",
     "next": "16.1.6",
     "prettier": "^3.8.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
-    "remark-breaks": "^4.0.0",
-    "remark-gfm": "^4.0.1",
-    "@tanstack/react-query": "^5.90.21",
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "clsx": "^2.1.1"
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
