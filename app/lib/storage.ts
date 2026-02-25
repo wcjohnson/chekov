@@ -702,18 +702,79 @@ export function useTaskCompletionMutation() {
       isCompleted: boolean;
     }) => {
       const db = await getDb();
+      const tx = db.transaction(
+        [
+          TASK_COMPLETION_STORE,
+          TASKS_STORE,
+          CATEGORY_TASKS_STORE,
+          CATEGORY_HIDDEN_STORE,
+          TASK_DEPENDENCIES_STORE,
+        ],
+        "readwrite",
+      );
+
+      const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
+      const tasksStore = tx.objectStore(TASKS_STORE);
+      const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
+      const categoryHiddenStore = tx.objectStore(CATEGORY_HIDDEN_STORE);
+      const dependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
 
       if (isCompleted) {
-        await db.put(TASK_COMPLETION_STORE, true, taskId);
+        await completionStore.put(true, taskId);
       } else {
-        await db.delete(TASK_COMPLETION_STORE, taskId);
+        await completionStore.delete(taskId);
       }
+
+      const task = await tasksStore.get(taskId);
+      if (!task) {
+        await tx.done;
+        return;
+      }
+
+      // If this completion caused a category to become fully completed, add the category to the hidden categories list
+      const categoryTaskIds =
+        (await categoryTasksStore.get(task.category)) ?? [];
+      const completedTaskIds = new Set<string>(
+        await completionStore.getAllKeys(),
+      );
+
+      let allCategoryTasksComplete = true;
+      for (const categoryTaskId of categoryTaskIds) {
+        const categoryTask = await tasksStore.get(categoryTaskId);
+
+        if (categoryTask?.type === "warning") {
+          const warningDependencies =
+            (await dependenciesStore.get(categoryTaskId)) ?? new Set<string>();
+          for (const dependencyId of warningDependencies) {
+            if (!completedTaskIds.has(dependencyId)) {
+              allCategoryTasksComplete = false;
+              break;
+            }
+          }
+        } else if (!completedTaskIds.has(categoryTaskId)) {
+          allCategoryTasksComplete = false;
+        }
+
+        if (!allCategoryTasksComplete) {
+          break;
+        }
+      }
+
+      const hiddenTaskCategories =
+        (await categoryHiddenStore.get("task")) ?? new Set<string>();
+      if (allCategoryTasksComplete) {
+        hiddenTaskCategories.add(task.category);
+      }
+      await categoryHiddenStore.put(hiddenTaskCategories, "task");
+
+      await tx.done;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["task", "completion", variables.taskId],
       });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
+      queryClient.invalidateQueries({ queryKey: ["hiddenCategories"] });
     },
   });
 }
