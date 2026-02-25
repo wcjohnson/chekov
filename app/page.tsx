@@ -19,7 +19,7 @@ import {
   useTasksWithCompleteDependencies,
   useUncompleteAllTasksMutation,
   useUnhideAllTasksMutation,
-} from "./lib/storage";
+} from "./lib/data";
 import { MultiSelectContext, type MultiSelectState } from "@/app/lib/context";
 import {
   downloadJson,

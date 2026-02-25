@@ -3,7 +3,7 @@
 import { RightHeader } from "./RightHeader";
 import { TaskDetails } from "./TaskDetails";
 import type { ChecklistMode, TaskId } from "../../lib/types";
-import { useTaskDetailQuery } from "@/app/lib/storage";
+import { useTaskDetailQuery } from "@/app/lib/data";
 
 type RightColumnProps = {
   mode: ChecklistMode;

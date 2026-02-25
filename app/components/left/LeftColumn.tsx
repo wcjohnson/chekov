@@ -11,7 +11,7 @@ import {
   useCompletionsQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
-} from "@/app/lib/storage";
+} from "@/app/lib/data";
 
 type LeftColumnProps = {
   mode: ChecklistMode;

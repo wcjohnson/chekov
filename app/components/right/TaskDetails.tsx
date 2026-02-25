@@ -27,7 +27,7 @@ import {
   useTaskDependenciesMutation,
   useTaskWarningMutation,
   useTaskWarningQuery,
-} from "@/app/lib/storage";
+} from "@/app/lib/data";
 import { MultiSelectContext } from "@/app/lib/context";
 
 function DependencyItem({

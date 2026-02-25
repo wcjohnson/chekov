@@ -13,7 +13,7 @@ import {
   TASK_TAGS_STORE,
   TASK_WARNINGS_STORE,
   TASKS_STORE,
-} from "./storage";
+} from "./data";
 import type { TagColorKey } from "./tagColors";
 import type { CategoryName, TaskId } from "@/app/lib/types";
 
@@ -307,9 +307,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(task.description.length > 0
           ? { description: task.description }
           : {}),
-        ...(warningTasksMap.has(taskId)
-          ? { type: "warning" as const }
-          : {}),
+        ...(warningTasksMap.has(taskId) ? { type: "warning" as const } : {}),
         ...(Array.from(taskDependencies).length > 0
           ? { dependencies: Array.from(taskDependencies) }
           : {}),

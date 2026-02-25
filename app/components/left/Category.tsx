@@ -9,7 +9,7 @@ import {
   useCreateTaskMutation,
   useCollapsedCategoriesQuery,
   useMoveTaskMutation,
-} from "@/app/lib/storage";
+} from "@/app/lib/data";
 import { DragDropList } from "../DragDrop";
 import { MultiSelectContext } from "@/app/lib/context";
 import { useContext } from "react";
