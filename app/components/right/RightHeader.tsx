@@ -1,16 +1,25 @@
 "use client";
 
-import type { ChecklistMode, ChecklistTaskDefinition } from "../../lib/types";
+import type { StoredTask } from "@/app/lib/storage";
+import type { ChecklistMode } from "../../lib/types";
 
 type RightHeaderProps = {
   mode: ChecklistMode;
-  selectedTask: ChecklistTaskDefinition | null;
+  selectedTaskId: string | null;
+  selectedTaskDetail: StoredTask | null | undefined;
 };
 
-export function RightHeader({ mode, selectedTask }: RightHeaderProps) {
+export function RightHeader({
+  mode,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  selectedTaskId,
+  selectedTaskDetail,
+}: RightHeaderProps) {
   return (
     <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-      {mode === "task" ? selectedTask?.title || "Task Details" : "Task Details"}
+      {mode === "task"
+        ? selectedTaskDetail?.title || "Task Details"
+        : "Task Details"}
     </h2>
   );
 }

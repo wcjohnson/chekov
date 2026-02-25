@@ -2,93 +2,54 @@
 
 import { RightHeader } from "./RightHeader";
 import { TaskDetails } from "./TaskDetails";
-import type {
-  ChecklistDefinition,
-  ChecklistMode,
-  ChecklistState,
-  ChecklistTaskDefinition,
-  TaskId,
-} from "../../lib/types";
-import type { TagColorKey } from "../../lib/tagColors";
+import type { ChecklistMode, TaskId } from "../../lib/types";
+import { useTaskDetail } from "@/app/lib/storage";
 
 type RightColumnProps = {
   mode: ChecklistMode;
-  selectedTask: ChecklistTaskDefinition | null;
-  selectedTaskCategory: string;
-  isLoaded: boolean;
+  selectedTaskId: TaskId | null;
   errorMessage: string | null;
-  state: ChecklistState;
-  tagColors: ChecklistDefinition["tagColors"];
-  taskMap: Map<TaskId, ChecklistTaskDefinition>;
   isSettingDependencies: boolean;
-  onDeleteSelectedTask: () => void;
-  onUpdateTask: (
-    taskId: TaskId,
-    updater: (task: ChecklistTaskDefinition) => ChecklistTaskDefinition,
-  ) => void;
-  onUpdateTaskState: (
-    taskId: TaskId,
-    updater: (
-      taskState: ChecklistState["tasks"][TaskId],
-    ) => ChecklistState["tasks"][TaskId],
-  ) => void;
   onStartSetDependencies: () => void;
   onConfirmSetDependencies: () => void;
   onClearSelectedTaskDependencies: () => void;
-  onSetTagColor: (tag: string, color: TagColorKey | null) => void;
 };
 
 export function RightColumn({
   mode,
-  selectedTask,
-  selectedTaskCategory,
-  isLoaded,
+  selectedTaskId,
   errorMessage,
-  state,
-  tagColors,
-  taskMap,
   isSettingDependencies,
-  onDeleteSelectedTask,
-  onUpdateTask,
-  onUpdateTaskState,
   onStartSetDependencies,
   onConfirmSetDependencies,
   onClearSelectedTaskDependencies,
-  onSetTagColor,
 }: RightColumnProps) {
+  const detail = useTaskDetail(selectedTaskId ?? "").data;
+
   return (
     <>
-      <RightHeader mode={mode} selectedTask={selectedTask} />
+      <RightHeader
+        mode={mode}
+        selectedTaskId={selectedTaskId}
+        selectedTaskDetail={detail}
+      />
 
-      {!isLoaded && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Loading checklist...
-        </p>
-      )}
-
-      {isLoaded && !selectedTask && (
+      {!selectedTaskId && (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Select a task to view details.
         </p>
       )}
 
-      {isLoaded && selectedTask && (
+      {selectedTaskId && (
         <div className="space-y-4">
           <TaskDetails
             mode={mode}
-            selectedTask={selectedTask}
-            selectedTaskCategory={selectedTaskCategory}
-            state={state}
-            tagColors={tagColors}
-            taskMap={taskMap}
+            selectedTaskId={selectedTaskId}
+            selectedTaskDetail={detail}
             isSettingDependencies={isSettingDependencies}
-            onDeleteSelectedTask={onDeleteSelectedTask}
-            onUpdateTask={onUpdateTask}
-            onUpdateTaskState={onUpdateTaskState}
             onStartSetDependencies={onStartSetDependencies}
             onConfirmSetDependencies={onConfirmSetDependencies}
             onClearSelectedTaskDependencies={onClearSelectedTaskDependencies}
-            onSetTagColor={onSetTagColor}
           />
         </div>
       )}
