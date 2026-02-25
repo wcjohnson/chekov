@@ -109,7 +109,7 @@ export function LeftColumn({
           const hasCompleteDependencies =
             tasksWithCompleteDependencies.has(taskId);
           if (isReminder) {
-            const shouldShow = !hasCompleteDependencies;
+            const shouldShow = !hasCompleteDependencies || showCompletedTasks;
             return shouldShow && matchesSearch;
           }
 
