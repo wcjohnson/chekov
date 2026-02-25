@@ -81,6 +81,7 @@ export function LeftColumn({
     }
 
     for (const category of categories) {
+      // In task mode, only show categories whose deps are met.
       if (mode === "task") {
         const dependencies = categoryDependencies?.get(category);
         let dependenciesMet = true;
@@ -105,7 +106,10 @@ export function LeftColumn({
         if (mode === "task") {
           const hasCompleteDependencies =
             tasksWithCompleteDependencies.has(taskId);
-          return (hasCompleteDependencies || isWarning) && matchesSearch;
+          const shouldShow =
+            (isWarning && !hasCompleteDependencies) ||
+            (!isWarning && hasCompleteDependencies);
+          return shouldShow && matchesSearch;
         } else {
           return matchesSearch;
         }
