@@ -20,7 +20,7 @@ export type ExportedTaskDefinition = {
   id: TaskId;
   category: CategoryName;
   title: string;
-  description: string;
+  description?: string;
   type?: "task" | "warning";
   dependencies?: TaskId[];
   tags?: string[];
@@ -75,6 +75,7 @@ function normalizeChecklistDefinition(
       category,
       (tasks ?? []).map((task) => {
         const normalizedType = task.type === "warning" ? "warning" : "task";
+        const normalizedDescription = task.description ?? "";
         const normalizedDependencies = Array.from(
           new Set<TaskId>(
             Array.from(task.dependencies ?? []).filter(
@@ -98,7 +99,9 @@ function normalizeChecklistDefinition(
           id: task.id,
           category: task.category,
           title: task.title,
-          description: task.description,
+          ...(normalizedDescription.length > 0
+            ? { description: normalizedDescription }
+            : {}),
           ...(normalizedType === "warning" ? { type: "warning" as const } : {}),
           ...(normalizedDependencies.length > 0
             ? { dependencies: normalizedDependencies }
@@ -295,7 +298,9 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         id: taskId,
         category,
         title: task.title,
-        description: task.description,
+        ...(task.description.length > 0
+          ? { description: task.description }
+          : {}),
         ...(task.type === "warning" ? { type: "warning" as const } : {}),
         ...(Array.from(taskDependencies).length > 0
           ? { dependencies: Array.from(taskDependencies) }
@@ -477,7 +482,7 @@ export async function importChecklistDefinition(
         {
           id: task.id,
           title: task.title,
-          description: task.description,
+          description: task.description ?? "",
           category,
           ...(task.type === "warning" ? { type: "warning" as const } : {}),
         },
