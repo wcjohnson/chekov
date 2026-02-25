@@ -42,7 +42,7 @@ export function TopBar({
   onImportStateFile,
 }: TopBarProps) {
   const setEditContext = useContext(MultiSelectContext);
-  const isSettingDependencies = !!setEditContext.editState;
+  const isSettingDependencies = !!setEditContext.state;
 
   return (
     <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">

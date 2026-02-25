@@ -72,8 +72,8 @@ export function TaskDetails({
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const setEditContext = useContext(MultiSelectContext);
   const isSettingDependencies =
-    setEditContext.editState &&
-    setEditContext.editState.editContext === "dependencies";
+    setEditContext.state &&
+    setEditContext.state.selectionContext === "dependencies";
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
@@ -176,8 +176,8 @@ export function TaskDetails({
     };
 
     const onEditDependencies = () => {
-      setEditContext.setEditState({
-        editContext: "dependencies",
+      setEditContext.setState({
+        selectionContext: "dependencies",
         headerText: `Editing dependencies for ${selectedTaskDetail?.title ?? "unknown task"}`,
         selectedTaskSet: new Set(selectedTaskDeps),
         onSetTasks: handleSetTasks,

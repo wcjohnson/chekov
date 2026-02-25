@@ -20,8 +20,8 @@ export function LeftHeader({
   onClearSelection,
 }: LeftHeaderProps) {
   const setEditContext = useContext(MultiSelectContext);
-  const isEditingSet = !!setEditContext.editState;
-  const setItemCount = setEditContext.editState?.selectedTaskSet.size ?? 0;
+  const isEditingSet = !!setEditContext.state;
+  const setItemCount = setEditContext.state?.selectedTaskSet.size ?? 0;
 
   return (
     <div className="mb-3 space-y-2">
@@ -61,16 +61,16 @@ export function LeftHeader({
       {isEditingSet && (
         <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
           <p className="font-medium text-zinc-700 dark:text-zinc-200">
-            {setEditContext.editState?.headerText ?? "Editing Set"}
+            {setEditContext.state?.headerText ?? "Editing Set"}
           </p>
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
               onClick={() => {
-                setEditContext.editState?.onSetTasks(
-                  setEditContext.editState.selectedTaskSet,
+                setEditContext.state?.onSetTasks(
+                  setEditContext.state.selectedTaskSet,
                 );
-                setEditContext.setEditState(null);
+                setEditContext.setState(null);
               }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
@@ -79,7 +79,7 @@ export function LeftHeader({
             <button
               type="button"
               onClick={() => {
-                setEditContext.setEditState(null);
+                setEditContext.setState(null);
               }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >

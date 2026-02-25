@@ -64,7 +64,7 @@ export const detectCycle = (
 // Set editing
 
 export type MultiSelectState = {
-  editContext: string;
+  selectionContext: string;
   headerText: string;
   bannedTaskSet?: Set<TaskId>;
   onSetTasks: (taskIds: Set<TaskId>) => void;
@@ -72,11 +72,11 @@ export type MultiSelectState = {
 };
 
 type MultiSelectContextType = {
-  setEditState: React.Dispatch<React.SetStateAction<MultiSelectState | null>>;
-  editState: MultiSelectState | null;
+  setState: React.Dispatch<React.SetStateAction<MultiSelectState | null>>;
+  state: MultiSelectState | null;
 };
 
 export const MultiSelectContext = createContext<MultiSelectContextType>({
-  setEditState: () => {},
-  editState: null,
+  setState: () => {},
+  state: null,
 });

@@ -268,7 +268,7 @@ export function AppMain() {
 
   return (
     <MultiSelectContext
-      value={{ setEditState: setSetEditState, editState: setEditState }}
+      value={{ setState: setSetEditState, state: setEditState }}
     >
       <AppLayout
         mainPaneRef={mainPaneRef}

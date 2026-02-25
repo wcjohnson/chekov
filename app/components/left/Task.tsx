@@ -49,7 +49,7 @@ export function Task({
   });
 
   const setEditContext = useContext(MultiSelectContext);
-  const setEditState = setEditContext.editState;
+  const setEditState = setEditContext.state;
 
   const isEditingSet = !!setEditState;
   const isInEditedSet = Boolean(setEditState?.selectedTaskSet.has(taskId));
@@ -148,7 +148,7 @@ export function Task({
                 } else {
                   nextSelectedSet.add(taskId);
                 }
-                setEditContext.setEditState({
+                setEditContext.setState({
                   ...setEditState,
                   selectedTaskSet: nextSelectedSet,
                 });
