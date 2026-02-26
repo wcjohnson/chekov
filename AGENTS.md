@@ -28,7 +28,7 @@
   - `DragDropSource` / `DragDropTarget` are also used by `ExpressionEditor` for palette and expression-slot interactions
   - `DragDropTarget` uses `onDropDragData` for custom drop payload handling (avoid using `onDrop` prop name for custom drag data)
 - Left pane auto-scroll during drag uses `@atlaskit/pragmatic-drag-and-drop-auto-scroll` and targets the left list scroll container (`[data-left-pane-scroll='true']`).
-- Task move orchestration runs from `left/Category.tsx` (`onMoveItem`) and persists via `useMoveTaskMutation` in `app/lib/data.ts`.
+- Task move orchestration runs from `left/Category.tsx` (`onMoveItem`) and persists via `useMoveTaskMutation` in `app/lib/data/mutations.ts`.
 - App remains fully client-side (no API routes / no server persistence).
 
 ## Work Completed
@@ -85,7 +85,7 @@
 
 ## Data Model & Storage
 
-- IndexedDB schema is defined in `app/lib/data.ts` (`ChekovDB`, `DB_VERSION = 6`).
+- IndexedDB schema is defined in `app/lib/data/store.ts` (`ChekovDB`, `DB_VERSION = 6`).
 - Canonical persisted model is normalized across object stores:
   - `tasks`: `{ id, title, description, category }`
   - `taskTags`: `Set<string>` by task id
@@ -99,7 +99,7 @@
   - `categoryDependencies`: category → `Set<taskId>` (tasks that gate category visibility in Task Mode)
   - `categoryCollapsed`: mode (`task`/`edit`) → `Set<string>`
   - `tagColors`: tag → color key
-- React Query hooks in `data.ts` are the data access layer; UI generally should not read/write IndexedDB directly.
+- React Query hooks in `app/lib/data/queries.ts` and `app/lib/data/mutations.ts` are the data access layer; UI generally should not read/write IndexedDB directly.
 - Task/category ordering is source-of-truth in `categories` and `categoryTasks` stores.
 - Query return types were partially refactored from records to `Map`:
 - Query return types are `Map`/`Set` based where appropriate:
@@ -167,7 +167,7 @@
   - `booleanExpression.test.ts` (precedence, normalization, implicit-AND construction)
 - Any change to the data model must be accompanied by corresponding unit tests for data, referential integrity, and import/export.
 - Any change to the data model (stores, query/mutation behavior, import/export normalization, or dependency/completion semantics) must run the full test suite before handoff.
-- Any change to the data model must audit query return sentinels in `app/lib/data.ts` so query functions never return `undefined` for missing records (use explicit `null` / empty collections / booleans as appropriate).
+- Any change to the data model must audit query return sentinels in `app/lib/data/queries.ts` so query functions never return `undefined` for missing records (use explicit `null` / empty collections / booleans as appropriate).
 - Purely UX-only updates that do not affect data model behavior do not require running unit tests.
 
 ## Notes for Future Agents
@@ -176,8 +176,8 @@
 - Avoid introducing backend persistence unless explicitly requested.
 - Treat IndexedDB as the canonical, untainted source of truth on read paths; avoid defensive read-time filtering/checks in query logic when reading from DB stores.
 - Place defensive validation/guardrails at mutation boundaries instead: UX actions that write data and import/export normalization in `app/lib/export.ts`.
-- Run `npm test` for every data-model-affecting change, especially changes in `app/lib/data.ts` and `app/lib/export.ts`; do not run unit tests for purely UX-only changes.
-- Keep storage/query contracts in `data.ts` and export/import schema contracts in `export.ts` aligned.
+- Run `npm test` for every data-model-affecting change, especially changes in `app/lib/data/store.ts`, `app/lib/data/queries.ts`, `app/lib/data/mutations.ts`, and `app/lib/export.ts`; do not run unit tests for purely UX-only changes.
+- Keep data contracts aligned across `app/lib/data/store.ts`, `app/lib/data/queries.ts`, `app/lib/data/mutations.ts`, `app/lib/data/derivedData.ts`, and `app/lib/export.ts`.
 - Keep shared boolean-expression logic in `app/lib/booleanExpression.ts`; avoid duplicating precedence/normalization/evaluation helpers in UI components.
 - Keep dependency cycle prevention enforced when changing dependency logic (`detectCycle` in `app/lib/utils.ts`).
 - Preserve current interaction contracts:
@@ -207,15 +207,17 @@
 - `useTaskDependencyExpressionMutation` stores custom expressions in `taskDependencyExpressions`; it deletes the persisted expression when receiving `null` or an expression equivalent to implicit AND over current dependencies.
 - `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
 - `useTaskDetailMutation` updates title/description only.
-- `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion + incoming dependency references in one transaction.
 - `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion in one transaction.
 - `useTaskCompletionMutation` updates task completion and also adds the category to collapsed task categories when all tasks in the category are complete.
 
 ## Quick File Map (handoff)
 
-- Data/types: `app/lib/types.ts`
+- Data/types: `app/lib/data/types.ts`
 - Shared context state: `app/lib/context.ts`
-- Storage schema + query/mutation layer: `app/lib/data.ts`
+- Storage schema + query client: `app/lib/data/store.ts`
+- Query hooks: `app/lib/data/queries.ts`
+- Mutation hooks: `app/lib/data/mutations.ts`
+- Derived data hooks: `app/lib/data/derivedData.ts`
 - Shared boolean-expression helpers: `app/lib/booleanExpression.ts`
 - JSON schema + import/export normalization: `app/lib/export.ts`
 - Utility functions (including cycle detection): `app/lib/utils.ts`
