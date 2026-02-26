@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import type { ChecklistMode } from "@/app/lib/types";
+import type { ChecklistMode } from "@/app/lib/data/types";
 
 type TopBarProps = {
   mode: ChecklistMode;

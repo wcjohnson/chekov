@@ -1,18 +1,20 @@
 "use client";
 
 import { Task } from "./Task";
-import type { ChecklistMode, TaskBreakout, TaskId } from "../../lib/types";
-import {
-  useCategoryDependenciesMutation,
-  useCategoryDependencyQuery,
-  useCategoryCollapsedMutation,
-  useCreateTaskMutation,
-  useCollapsedCategoriesQuery,
-  useMoveTaskMutation,
-} from "@/app/lib/data";
+import type { ChecklistMode, TaskBreakout, TaskId } from "../../lib/data/types";
 import { DragDropReorderableGroup } from "../DragDrop";
 import { MultiSelectContext } from "@/app/lib/context";
 import { useContext } from "react";
+import {
+  useCategoryDependencyQuery,
+  useCollapsedCategoriesQuery,
+} from "@/app/lib/data/queries";
+import {
+  useCategoryCollapsedMutation,
+  useCategoryDependenciesMutation,
+  useCreateTaskMutation,
+  useMoveTaskMutation,
+} from "@/app/lib/data/mutations";
 
 type CategoryProps = {
   category: string;

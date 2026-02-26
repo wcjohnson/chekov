@@ -1,7 +1,7 @@
 "use client";
 
 import { MultiSelectContext } from "@/app/lib/context";
-import { useDeleteTasksMutation } from "@/app/lib/data";
+import { useDeleteTasksMutation } from "@/app/lib/data/mutations";
 import { useContext } from "react";
 
 type LeftHeaderProps = {

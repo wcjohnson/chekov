@@ -1,7 +1,10 @@
 "use client";
 
 import { getTagBadgeClasses } from "../../lib/tagColors";
-import type { ChecklistMode, TaskId } from "../../lib/types";
+import type { ChecklistMode, TaskId } from "../../lib/data/types";
+import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
+import { useContext, useRef, useState } from "react";
+import { MultiSelectContext } from "@/app/lib/context";
 import {
   useTagColorsQuery,
   useTaskCompletionQuery,
@@ -9,10 +12,7 @@ import {
   useTaskHiddenQuery,
   useTaskReminderQuery,
   useTaskTagsQuery,
-} from "@/app/lib/data";
-import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
-import { useContext, useRef, useState } from "react";
-import { MultiSelectContext } from "@/app/lib/context";
+} from "@/app/lib/data/queries";
 
 type TaskProps = {
   taskId: TaskId;

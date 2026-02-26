@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
-import type { TaskId } from "./types";
+import type { TaskId } from "@/app/lib/data/types";
 
 export function fromKvPairsToRecord<K extends string, V>(
   keys: K[],

@@ -1,7 +1,6 @@
 "use client";
 
-import type { StoredTask } from "@/app/lib/data";
-import type { ChecklistMode } from "../../lib/types";
+import type { StoredTask, ChecklistMode } from "@/app/lib/data/types";
 
 type RightHeaderProps = {
   mode: ChecklistMode;

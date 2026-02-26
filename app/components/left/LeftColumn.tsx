@@ -1,17 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
+import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
 import {
-  useCategoryDependenciesQuery,
-  useCategoriesQuery,
-  useCategoriesTasksQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
+} from "@/app/lib/data/mutations";
+import {
+  useCategoriesQuery,
+  useCategoriesTasksQuery,
+  useCategoryDependenciesQuery,
   useRemindersQuery,
-} from "@/app/lib/data";
+} from "@/app/lib/data/queries";
 
 type LeftColumnProps = {
   mode: ChecklistMode;

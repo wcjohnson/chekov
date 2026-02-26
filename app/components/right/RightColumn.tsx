@@ -2,8 +2,8 @@
 
 import { RightHeader } from "./RightHeader";
 import { TaskDetails } from "./TaskDetails";
-import type { ChecklistMode, TaskId } from "../../lib/types";
-import { useTaskDetailQuery } from "@/app/lib/data";
+import type { ChecklistMode, TaskId } from "../../lib/data/types";
+import { useTaskDetailQuery } from "@/app/lib/data/queries";
 
 type RightColumnProps = {
   mode: ChecklistMode;

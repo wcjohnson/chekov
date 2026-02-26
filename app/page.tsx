@@ -7,24 +7,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { LeftColumn } from "./components/left/LeftColumn";
 import { RightColumn } from "./components/right/RightColumn";
 import { TopBar } from "./components/TopBar";
-import type { ChecklistMode, TaskId } from "./lib/types";
-import {
-  useClearDatabaseMutation,
-  useCollapsedCategoriesQuery,
-  queryClient,
-  useCompletionsWithReminders,
-  useCompletionsQuery,
-  useDependenciesQuery,
-  useRemindersQuery,
-  useTaskDependencyExpressions,
-  useTaskCompletionMutation,
-  useTaskCategoryById,
-  useTasksMatchingSearch,
-  useTaskStructure,
-  useTasksWithCompleteDependencies,
-  useUncompleteAllTasksMutation,
-  useUnhideAllTasksMutation,
-} from "./lib/data";
+import type { ChecklistMode, TaskId } from "./lib/data/types";
 import {
   MultiSelectContext,
   type MultiSelectContextId,
@@ -41,6 +24,27 @@ import {
   type ExportedChecklistDefinition,
   type ExportedChecklistState,
 } from "./lib/export";
+import {
+  useCompletionsWithReminders,
+  useTaskCategoryById,
+  useTaskDependencyExpressions,
+  useTasksMatchingSearch,
+  useTaskStructure,
+  useTasksWithCompleteDependencies,
+} from "./lib/data/derivedData";
+import {
+  useCollapsedCategoriesQuery,
+  useCompletionsQuery,
+  useDependenciesQuery,
+  useRemindersQuery,
+} from "./lib/data/queries";
+import {
+  useClearDatabaseMutation,
+  useTaskCompletionMutation,
+  useUncompleteAllTasksMutation,
+  useUnhideAllTasksMutation,
+} from "./lib/data/mutations";
+import { queryClient } from "./lib/data/store";
 
 const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
 

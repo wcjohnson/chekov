@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BooleanOp, type BooleanExpression } from "../../app/lib/types";
+import { BooleanOp, type BooleanExpression } from "../../app/lib/data/types";
 import {
   buildImplicitAndExpression,
   getExpressionPrecedence,

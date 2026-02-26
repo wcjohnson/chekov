@@ -21,3 +21,9 @@ export type BooleanExpression =
   | [BooleanOp.And, ...BooleanExpression[]]
   | [BooleanOp.Or, ...BooleanExpression[]]
   | [BooleanOp.Not, BooleanExpression];
+export type StoredTask = {
+  id: TaskId;
+  title: string;
+  description: string;
+  category: CategoryName;
+};

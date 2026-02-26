@@ -2,37 +2,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { BooleanOp } from "../../app/lib/types";
-import {
-  useCompletionsWithReminders,
-  queryClient,
-  useCategoriesQuery,
-  useCategoriesTasksQuery,
-  useCompletionsQuery,
-  useCreateTaskMutation,
-  useDeleteTasksMutation,
-  useDependenciesQuery,
-  useDetailsQuery,
-  useMoveTaskMutation,
-  useRemindersQuery,
-  useTaskCompletionMutation,
-  useTaskDependenciesMutation,
-  useTaskDependenciesQuery,
-  useTaskDetailMutation,
-  useTaskDetailQuery,
-  useTaskDependencyExpressions,
-  useTaskDependencyExpressionQuery,
-  useTaskDependencyExpressionMutation,
-  useTaskTagsQuery,
-  useCategoryDependencyQuery,
-  useTaskCompletionQuery,
-  useTaskReminderQuery,
-  useTaskHiddenQuery,
-  useTaskStructure,
-  useTaskSetQuery,
-  useTaskReminderMutation,
-  useTasksWithCompleteDependencies,
-} from "../../app/lib/data";
+import { BooleanOp } from "../../app/lib/data/types";
+
 import {
   exportChecklistState,
   importChecklistDefinition,
@@ -40,6 +11,40 @@ import {
   type ExportedChecklistDefinition,
   type ExportedChecklistState,
 } from "../../app/lib/export";
+import { queryClient } from "../../app/lib/data/store";
+import {
+  useCreateTaskMutation,
+  useDeleteTasksMutation,
+  useMoveTaskMutation,
+  useTaskCompletionMutation,
+  useTaskDependenciesMutation,
+  useTaskDependencyExpressionMutation,
+  useTaskDetailMutation,
+  useTaskReminderMutation,
+} from "../../app/lib/data/mutations";
+import {
+  useCategoriesQuery,
+  useCategoriesTasksQuery,
+  useCategoryDependencyQuery,
+  useCompletionsQuery,
+  useDependenciesQuery,
+  useDetailsQuery,
+  useRemindersQuery,
+  useTaskCompletionQuery,
+  useTaskDependenciesQuery,
+  useTaskDependencyExpressionQuery,
+  useTaskDetailQuery,
+  useTaskHiddenQuery,
+  useTaskReminderQuery,
+  useTaskSetQuery,
+  useTaskTagsQuery,
+} from "../../app/lib/data/queries";
+import {
+  useCompletionsWithReminders,
+  useTaskDependencyExpressions,
+  useTaskStructure,
+  useTasksWithCompleteDependencies,
+} from "../../app/lib/data/derivedData";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
   categories: [],
@@ -298,7 +303,11 @@ describe("data layer", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.perTaskExpression).toEqual([BooleanOp.Or, "a", "b"]);
+      expect(result.current.perTaskExpression).toEqual([
+        BooleanOp.Or,
+        "a",
+        "b",
+      ]);
       expect(result.current.allExpressions.get("t")).toEqual([
         BooleanOp.Or,
         "a",

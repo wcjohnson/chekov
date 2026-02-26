@@ -20,33 +20,35 @@ import {
   type BooleanExpression,
   type ChecklistMode,
   type TaskId,
-} from "../../lib/types";
+  type StoredTask,
+} from "@/app/lib/data/types";
 import {
   buildImplicitAndExpression,
   getExpressionPrecedence,
   normalizeExpressionToDependencies,
-} from "../../lib/booleanExpression";
+} from "@/app/lib/booleanExpression";
+import { MultiSelectContext } from "@/app/lib/context";
+import { ExpressionEditor } from "../ExpressionEditor";
 import {
   useAllKnownTagsQuery,
   useDetailsQuery,
+  useTagColorsQuery,
+  useTaskDependenciesQuery,
+  useTaskDependencyExpressionQuery,
+  useTaskHiddenQuery,
+  useTaskReminderQuery,
+  useTaskTagsQuery,
+} from "@/app/lib/data/queries";
+import {
   useDeleteTasksMutation,
   useTagColorMutation,
-  useTagColorsQuery,
   useTaskAddTagMutation,
-  useTaskDependencyExpressionQuery,
-  useTaskDependenciesQuery,
-  useTaskDetailMutation,
-  useTaskHiddenQuery,
-  useTaskHiddenMutation,
-  useTaskRemoveTagMutation,
-  useTaskTagsQuery,
-  type StoredTask,
   useTaskDependenciesMutation,
+  useTaskDetailMutation,
+  useTaskHiddenMutation,
   useTaskReminderMutation,
-  useTaskReminderQuery,
-} from "@/app/lib/data";
-import { MultiSelectContext } from "@/app/lib/context";
-import { ExpressionEditor } from "../ExpressionEditor";
+  useTaskRemoveTagMutation,
+} from "@/app/lib/data/mutations";
 
 const EMPTY_TASK_ID_SET = new Set<TaskId>();
 

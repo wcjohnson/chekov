@@ -1,4 +1,8 @@
-import { BooleanOp, type BooleanExpression, type TaskId } from "./types";
+import {
+  BooleanOp,
+  type BooleanExpression,
+  type TaskId,
+} from "@/app/lib/data/types";
 
 export function getExpressionPrecedence(expression: BooleanExpression): number {
   if (typeof expression === "string") {

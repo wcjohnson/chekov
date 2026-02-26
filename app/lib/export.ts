@@ -14,14 +14,14 @@ import {
   TASK_TAGS_STORE,
   TASK_REMINDERS_STORE,
   TASKS_STORE,
-} from "./data";
+} from "@/app/lib/data/store";
 import type { TagColorKey } from "./tagColors";
 import {
   BooleanOp,
   type BooleanExpression,
   type CategoryName,
   type TaskId,
-} from "./types";
+} from "@/app/lib/data/types";
 
 export type ExportedTaskDefinition = {
   id: TaskId;

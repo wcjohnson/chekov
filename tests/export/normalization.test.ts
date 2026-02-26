@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BooleanOp } from "../../app/lib/types";
+import { BooleanOp } from "../../app/lib/data/types";
 import {
   exportChecklistDefinition,
   exportChecklistState,

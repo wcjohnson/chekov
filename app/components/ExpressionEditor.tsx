@@ -1,18 +1,22 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { BooleanOp, type BooleanExpression, type TaskId } from "../lib/types";
-import { normalizeExpressionToDependencies } from "../lib/booleanExpression";
 import {
-  useDetailsQuery,
-  useTaskDependencyExpressionMutation,
-  useTaskDependencyExpressionQuery,
-} from "../lib/data";
+  BooleanOp,
+  type BooleanExpression,
+  type TaskId,
+} from "../lib/data/types";
+import { normalizeExpressionToDependencies } from "../lib/booleanExpression";
 import {
   DragDropSource,
   DragDropTarget,
   type DragDropStateType,
 } from "./DragDrop";
+import { useTaskDependencyExpressionMutation } from "../lib/data/mutations";
+import {
+  useDetailsQuery,
+  useTaskDependencyExpressionQuery,
+} from "../lib/data/queries";
 
 type NodeDraft =
   | { kind: "empty" }
