@@ -402,6 +402,13 @@ export function TaskDetails({
         selectionContext: "dependencies",
         headerText: `Editing dependencies for ${selectedTaskDetail?.title ?? "unknown task"}`,
         selectedTaskSet: new Set(selectedTaskDeps),
+        taskFilter: (taskId) => {
+          if (!selectedTaskId) {
+            return true;
+          }
+
+          return taskId !== selectedTaskId;
+        },
         onSetTasks: handleSetTasks,
       });
     };

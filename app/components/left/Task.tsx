@@ -52,13 +52,17 @@ export function Task({
   const multiSelectState = multiSelectContext.state;
 
   const isEditingSet = !!multiSelectState;
+  const isVisibleInMultiSelect =
+    !isEditingSet ||
+    !multiSelectState.taskFilter ||
+    !!multiSelectState.taskFilter(taskId, detail, multiSelectState);
   const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
 
   const isEffectivelyComplete = isReminder ? dependenciesComplete : isComplete;
   const canDrag = mode === "edit" && !isEditingSet;
   const showTaskModeCheckbox =
     mode === "task" && dependenciesComplete && !isReminder;
-  const showEditSelectionCheckbox = mode === "edit";
+  const showEditSelectionCheckbox = mode === "edit" && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
   const rowInteractionClasses = isReminder
     ? isSelected
