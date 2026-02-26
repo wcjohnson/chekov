@@ -26,6 +26,7 @@ import {
   useUnhideAllTasksMutation,
 } from "./lib/data";
 import { MultiSelectContext, type MultiSelectState } from "@/app/lib/context";
+import { useStableCallback } from "@/app/lib/utils";
 import {
   downloadJson,
   exportChecklistDefinition,
@@ -237,7 +238,7 @@ export function AppMain() {
     });
   }, []);
 
-  const selectAllFilteredTasks = useCallback(() => {
+  const selectAllFilteredTasks = useStableCallback(() => {
     setMultiSelectState((previous) => {
       if (!previous) {
         return previous;
@@ -263,7 +264,7 @@ export function AppMain() {
         selectedTaskSet: nextSelectedSet,
       };
     });
-  }, [collapsedEditCategories, taskCategoryById, tasksMatchingSearch]);
+  });
 
   const toggleMode = () => {
     setMode((current) => {
