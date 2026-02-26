@@ -22,6 +22,7 @@ type MultiSelectContextType = {
   close: () => void;
   clearSelection: () => void;
   selectAll: () => void;
+  setTaskSelected: (taskId: TaskId, isSelected: boolean) => void;
 };
 
 export const MultiSelectContext = createContext<MultiSelectContextType>({
@@ -30,4 +31,5 @@ export const MultiSelectContext = createContext<MultiSelectContextType>({
   close: () => {},
   clearSelection: () => {},
   selectAll: () => {},
+  setTaskSelected: () => {},
 });

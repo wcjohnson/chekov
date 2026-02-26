@@ -19,11 +19,9 @@ type TaskProps = {
   index: number;
   mode: ChecklistMode;
   isSelected: boolean;
-  isEditSelected: boolean;
   dependenciesComplete: boolean;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
-  onToggleEditSelection: (taskId: TaskId) => void;
 };
 
 export function Task({
@@ -31,11 +29,9 @@ export function Task({
   index,
   mode,
   isSelected,
-  isEditSelected,
   dependenciesComplete,
   onSelectTask,
   onToggleComplete,
-  onToggleEditSelection,
 }: TaskProps) {
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
@@ -62,7 +58,8 @@ export function Task({
   const canDrag = mode === "edit" && !isEditingSet;
   const showTaskModeCheckbox =
     mode === "task" && dependenciesComplete && !isReminder;
-  const showEditSelectionCheckbox = mode === "edit" && isVisibleInMultiSelect;
+  const showEditSelectionCheckbox =
+    mode === "edit" && isEditingSet && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
   const rowInteractionClasses = isReminder
     ? isSelected
@@ -127,27 +124,10 @@ export function Task({
         {showEditSelectionCheckbox && (
           <input
             type="checkbox"
-            checked={isEditingSet ? isInEditedSet : isEditSelected}
+            checked={isInEditedSet}
             onChange={(event) => {
               event.stopPropagation();
-
-              if (isEditingSet) {
-                const nextSelectedSet = new Set(
-                  multiSelectState.selectedTaskSet,
-                );
-                if (isInEditedSet) {
-                  nextSelectedSet.delete(taskId);
-                } else {
-                  nextSelectedSet.add(taskId);
-                }
-                multiSelectContext.setState({
-                  ...multiSelectState,
-                  selectedTaskSet: nextSelectedSet,
-                });
-                return;
-              }
-
-              onToggleEditSelection(taskId);
+              multiSelectContext.setTaskSelected(taskId, !isInEditedSet);
             }}
             onClick={(event) => event.stopPropagation()}
           />

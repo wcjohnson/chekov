@@ -6,22 +6,11 @@ import { useContext } from "react";
 type LeftHeaderProps = {
   mode: "task" | "edit";
   visibleTasksCount: number;
-  editSelectedCount: number;
-  onSelectAll: () => void;
-  onClearSelection: () => void;
 };
 
-export function LeftHeader({
-  mode,
-  visibleTasksCount,
-
-  editSelectedCount,
-  onSelectAll,
-  onClearSelection,
-}: LeftHeaderProps) {
+export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
   const setEditContext = useContext(MultiSelectContext);
   const isEditingSet = !!setEditContext.state;
-  const setItemCount = setEditContext.state?.selectedTaskSet.size ?? 0;
 
   return (
     <div className="mb-3 space-y-2">
@@ -33,28 +22,6 @@ export function LeftHeader({
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
             {visibleTasksCount}
           </span>
-          {mode === "edit" && (
-            <>
-              <button
-                type="button"
-                onClick={onSelectAll}
-                disabled={isEditingSet || visibleTasksCount === 0}
-                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-              >
-                Select All
-              </button>
-              <button
-                type="button"
-                onClick={onClearSelection}
-                disabled={
-                  isEditingSet ? setItemCount === 0 : editSelectedCount === 0
-                }
-                className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-              >
-                Clear Selection
-              </button>
-            </>
-          )}
         </div>
       </div>
 

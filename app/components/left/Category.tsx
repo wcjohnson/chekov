@@ -21,11 +21,8 @@ type CategoryProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
 
-  editSelectedTaskIds: Set<TaskId>;
-
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
-  onToggleEditSelection: (taskId: TaskId) => void;
 
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -40,11 +37,8 @@ export function Category({
   mode,
   selectedTaskId,
 
-  editSelectedTaskIds,
-
   onSelectTask,
   onToggleComplete,
-  onToggleEditSelection,
 
   canMoveUp,
   canMoveDown,
@@ -73,6 +67,24 @@ export function Category({
             {headerText}
           </p>
           <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditContext.selectAll();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Select All
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditContext.clearSelection();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Clear Selection
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -192,11 +204,9 @@ export function Category({
               index={index}
               mode={mode}
               isSelected={selectedTaskId === taskId}
-              isEditSelected={editSelectedTaskIds.has(taskId)}
               dependenciesComplete={tasksWithCompleteDependencies.has(taskId)}
               onSelectTask={onSelectTask}
               onToggleComplete={onToggleComplete}
-              onToggleEditSelection={onToggleEditSelection}
             />
           );
         })}

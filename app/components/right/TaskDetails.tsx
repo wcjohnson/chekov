@@ -412,6 +412,24 @@ export function TaskDetails({
               <button
                 type="button"
                 onClick={() => {
+                  multiSelectContext.selectAll();
+                }}
+                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  multiSelectContext.clearSelection();
+                }}
+                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              >
+                Clear Selection
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   handleSetDependencies(multiSelectState.selectedTaskSet);
                   multiSelectContext.close();
                 }}

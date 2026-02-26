@@ -20,12 +20,8 @@ type LeftColumnProps = {
   tasksWithCompleteDependencies: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
-  editSelectedTaskIds: Set<TaskId>;
-  onSelectAll: () => void;
-  onClearSelection: () => void;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
-  onToggleEditSelection: (taskId: TaskId) => void;
 };
 
 export function LeftColumn({
@@ -35,12 +31,8 @@ export function LeftColumn({
   tasksWithCompleteDependencies,
   tasksMatchingSearch,
   selectedTaskId,
-  editSelectedTaskIds,
-  onSelectAll,
-  onClearSelection,
   onSelectTask,
   onToggleComplete,
-  onToggleEditSelection,
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -153,9 +145,6 @@ export function LeftColumn({
       <LeftHeader
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
-        editSelectedCount={editSelectedTaskIds.size}
-        onSelectAll={onSelectAll}
-        onClearSelection={onClearSelection}
       />
 
       <div
@@ -170,10 +159,8 @@ export function LeftColumn({
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             mode={mode}
             selectedTaskId={selectedTaskId}
-            editSelectedTaskIds={editSelectedTaskIds}
             onSelectTask={onSelectTask}
             onToggleComplete={onToggleComplete}
-            onToggleEditSelection={onToggleEditSelection}
             canMoveUp={index > 0}
             canMoveDown={index < taskBreakout.visibleCategories.length - 1}
             onMoveUp={() => moveCategory(index, index - 1)}
