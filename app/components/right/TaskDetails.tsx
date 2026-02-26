@@ -86,7 +86,7 @@ function DependencyExpressionView({
       return (
         <span
           key={`${keyPrefix}-task`}
-          className={mode === "edit" && isCompleted ? "line-through" : ""}
+          className={mode === "task" && isCompleted ? "line-through" : ""}
         >
           {dependencyTitleById.get(current) ?? current}
         </span>
