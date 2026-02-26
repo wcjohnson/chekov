@@ -115,3 +115,16 @@ export function evaluateBooleanExpression(
 
   return false;
 }
+
+/** Type of a React element with a polymorphic tag. Use the `as` field to specify the tag to use. */
+export type PolymorphicProps<
+  ElementT extends React.ElementType,
+  CustomProps,
+> = React.PropsWithChildren<
+  // Includes the 'children' prop
+  React.ComponentPropsWithoutRef<ElementT> & {
+    // Extracts all native props of the tag T
+    /** The HTML element or React component you want to render */
+    as?: ElementT;
+  } & CustomProps
+>;

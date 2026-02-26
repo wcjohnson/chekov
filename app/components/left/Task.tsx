@@ -10,7 +10,7 @@ import {
   useTaskReminderQuery,
   useTaskTagsQuery,
 } from "@/app/lib/data";
-import { DragDropReorderable, type DragDropItemStateType } from "../DragDrop";
+import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
 
@@ -44,7 +44,7 @@ export function Task({
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
   const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
-  const [dragState, setDragState] = useState<DragDropItemStateType>({
+  const [dragState, setDragState] = useState<DragDropStateType>({
     isDragging: false,
   });
 

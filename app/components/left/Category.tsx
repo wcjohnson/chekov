@@ -10,7 +10,7 @@ import {
   useCollapsedCategoriesQuery,
   useMoveTaskMutation,
 } from "@/app/lib/data";
-import { DragDropGroup } from "../DragDrop";
+import { DragDropReorderableGroup } from "../DragDrop";
 import { MultiSelectContext } from "@/app/lib/context";
 import { useContext } from "react";
 
@@ -86,7 +86,7 @@ export function Category({
     (mode === "edit" && !collapsedEditCategories?.has(category));
 
   return (
-    <DragDropGroup
+    <DragDropReorderableGroup
       as="details"
       group={category}
       onMoveItem={(fromGroup, fromIndex, toGroup, toIndex) => {
@@ -184,6 +184,6 @@ export function Category({
           </button>
         )}
       </div>
-    </DragDropGroup>
+    </DragDropReorderableGroup>
   );
 }
