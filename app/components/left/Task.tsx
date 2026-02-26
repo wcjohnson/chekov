@@ -132,9 +132,9 @@ export function Task({
             onClick={(event) => event.stopPropagation()}
           />
         )}
-        {!showTaskModeCheckbox && !showEditSelectionCheckbox && (
-          <span className="w-4" />
-        )}
+        {mode === "task" &&
+          !showTaskModeCheckbox &&
+          !showEditSelectionCheckbox && <span className="w-4" />}
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <p
             className={`min-w-0 flex-1 truncate text-sm font-medium ${
