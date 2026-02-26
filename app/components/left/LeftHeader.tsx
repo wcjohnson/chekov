@@ -10,8 +10,8 @@ type LeftHeaderProps = {
 };
 
 export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
-  const setEditContext = useContext(MultiSelectContext);
-  const isEditingSet = !!setEditContext.state;
+  const multiSelectContext = useContext(MultiSelectContext);
+  const isMultiSelecting = multiSelectContext.isActive();
   const deleteTasksMutation = useDeleteTasksMutation();
 
   return (
@@ -28,7 +28,7 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
             <button
               type="button"
               onClick={() => {
-                setEditContext.setState({
+                multiSelectContext.setState({
                   selectionContext: "generic",
                   selectedTaskSet: new Set(),
                   renderCustomHeader: (multiSelectState) => (
@@ -40,7 +40,7 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            setEditContext.selectAll();
+                            multiSelectContext.selectAll();
                           }}
                           className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                         >
@@ -49,7 +49,7 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            setEditContext.clearSelection();
+                            multiSelectContext.clearSelection();
                           }}
                           className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                         >
@@ -61,7 +61,7 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
                             deleteTasksMutation.mutate(
                               Array.from(multiSelectState.selectedTaskSet),
                             );
-                            setEditContext.close();
+                            multiSelectContext.close();
                           }}
                           disabled={multiSelectState.selectedTaskSet.size === 0}
                           className="rounded-md border border-zinc-300 px-2 py-1 font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
@@ -71,7 +71,7 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            setEditContext.close();
+                            multiSelectContext.close();
                           }}
                           className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                         >
@@ -82,7 +82,7 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
                   ),
                 });
               }}
-              disabled={isEditingSet}
+              disabled={isMultiSelecting}
               className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
               Multiselect
@@ -91,8 +91,8 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
         </div>
       </div>
 
-      {isEditingSet && setEditContext.state
-        ? setEditContext.state.renderCustomHeader(setEditContext.state)
+      {isMultiSelecting && multiSelectContext.state
+        ? multiSelectContext.state.renderCustomHeader(multiSelectContext.state)
         : null}
     </div>
   );

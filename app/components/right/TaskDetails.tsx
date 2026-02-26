@@ -160,6 +160,7 @@ function DependenciesSection({
   dependencyExpression,
   dependencyTitleById,
   completionsWithReminders,
+  isMultiSelectActive,
   isSettingDependencies,
   onEditDependencies,
   onClearDependencies,
@@ -170,6 +171,7 @@ function DependenciesSection({
   dependencyExpression: BooleanExpression | null;
   dependencyTitleById: Map<TaskId, string>;
   completionsWithReminders: Set<TaskId>;
+  isMultiSelectActive: boolean;
   isSettingDependencies: boolean;
   onEditDependencies: () => void;
   onClearDependencies: () => void;
@@ -204,15 +206,14 @@ function DependenciesSection({
           )}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {!isSettingDependencies && (
-            <button
-              type="button"
-              onClick={onEditDependencies}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            >
-              Set Dependencies
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onEditDependencies}
+            disabled={isMultiSelectActive}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            Set Dependencies
+          </button>
           <button
             type="button"
             onClick={onClearDependencies}
@@ -261,6 +262,7 @@ export function TaskDetails({
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const multiSelectContext = useContext(MultiSelectContext);
+  const isMultiSelectActive = multiSelectContext.isActive();
   const isSettingDependencies =
     multiSelectContext.state?.selectionContext === "dependencies";
 
@@ -534,6 +536,7 @@ export function TaskDetails({
           dependencyExpression={normalizedDependencyExpression}
           dependencyTitleById={dependencyTitleById}
           completionsWithReminders={completionsWithReminders}
+          isMultiSelectActive={isMultiSelectActive}
           isSettingDependencies={isSettingDependencies}
           onEditDependencies={onEditDependencies}
           onClearDependencies={handleClearDependencies}

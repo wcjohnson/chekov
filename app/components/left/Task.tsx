@@ -47,19 +47,22 @@ export function Task({
   const multiSelectContext = useContext(MultiSelectContext);
   const multiSelectState = multiSelectContext.state;
 
-  const isEditingSet = !!multiSelectState;
+  const isMultiSelecting = multiSelectContext.isActive();
+  const activeMultiSelectState = isMultiSelecting ? multiSelectState : null;
   const isVisibleInMultiSelect =
-    !isEditingSet ||
-    !multiSelectState.taskFilter ||
-    !!multiSelectState.taskFilter(taskId, detail, multiSelectState);
-  const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
+    !activeMultiSelectState ||
+    !activeMultiSelectState.taskFilter ||
+    !!activeMultiSelectState.taskFilter(taskId, detail, activeMultiSelectState);
+  const isInMultiSelection = Boolean(
+    activeMultiSelectState?.selectedTaskSet.has(taskId),
+  );
 
   const isEffectivelyComplete = isReminder ? dependenciesComplete : isComplete;
-  const canDrag = mode === "edit" && !isEditingSet;
+  const canDrag = mode === "edit" && !isMultiSelecting;
   const showTaskModeCheckbox =
     mode === "task" && dependenciesComplete && !isReminder;
   const showEditSelectionCheckbox =
-    mode === "edit" && isEditingSet && isVisibleInMultiSelect;
+    mode === "edit" && isMultiSelecting && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
   const rowInteractionClasses = isReminder
     ? isSelected
@@ -80,7 +83,7 @@ export function Task({
         role="button"
         tabIndex={0}
         onClick={() => {
-          if (mode === "edit" && isEditingSet) {
+          if (mode === "edit" && isMultiSelecting) {
             return;
           }
           onSelectTask(taskId);
@@ -91,7 +94,7 @@ export function Task({
           }
 
           event.preventDefault();
-          if (mode === "edit" && isEditingSet) {
+          if (mode === "edit" && isMultiSelecting) {
             return;
           }
 
@@ -124,10 +127,10 @@ export function Task({
         {showEditSelectionCheckbox && (
           <input
             type="checkbox"
-            checked={isInEditedSet}
+            checked={isInMultiSelection}
             onChange={(event) => {
               event.stopPropagation();
-              multiSelectContext.setTaskSelected(taskId, !isInEditedSet);
+              multiSelectContext.setTaskSelected(taskId, !isInMultiSelection);
             }}
             onClick={(event) => event.stopPropagation()}
           />

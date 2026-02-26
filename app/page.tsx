@@ -125,6 +125,10 @@ export function AppMain() {
       selectedTaskSet: nextSelectedSet,
     };
   }, [multiSelectState, taskStructure.taskSet]);
+  const isMultiSelectActive = useCallback(
+    () => !!effectiveMultiSelectState,
+    [effectiveMultiSelectState],
+  );
 
   // Determine if on desktop
   useEffect(() => {
@@ -310,6 +314,7 @@ export function AppMain() {
       value={{
         setState: setMultiSelectState,
         state: effectiveMultiSelectState,
+        isActive: isMultiSelectActive,
         close: closeMultiSelect,
         clearSelection,
         selectAll: selectAllFilteredTasks,

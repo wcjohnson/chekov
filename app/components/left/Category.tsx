@@ -52,13 +52,13 @@ export function Category({
   const categoryDependenciesMutation = useCategoryDependenciesMutation();
   const createTaskMutation = useCreateTaskMutation();
   const moveTaskMutation = useMoveTaskMutation();
-  const setEditContext = useContext(MultiSelectContext);
-  const isEditingSet = !!setEditContext.state;
+  const multiSelectContext = useContext(MultiSelectContext);
+  const isMultiSelecting = multiSelectContext.isActive();
 
   const onEditDependencies = () => {
     const headerText = `Editing dependencies for category ${category}`;
 
-    setEditContext.setState({
+    multiSelectContext.setState({
       selectionContext: "categoryDependencies",
       selectedTaskSet: new Set(categoryDependencies ?? new Set()),
       renderCustomHeader: (multiSelectState) => (
@@ -70,7 +70,7 @@ export function Category({
             <button
               type="button"
               onClick={() => {
-                setEditContext.selectAll();
+                multiSelectContext.selectAll();
               }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
@@ -79,7 +79,7 @@ export function Category({
             <button
               type="button"
               onClick={() => {
-                setEditContext.clearSelection();
+                multiSelectContext.clearSelection();
               }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
@@ -92,7 +92,7 @@ export function Category({
                   category,
                   dependencies: multiSelectState.selectedTaskSet,
                 });
-                setEditContext.close();
+                multiSelectContext.close();
               }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
@@ -101,7 +101,7 @@ export function Category({
             <button
               type="button"
               onClick={() => {
-                setEditContext.close();
+                multiSelectContext.close();
               }}
               className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
@@ -163,7 +163,7 @@ export function Category({
                 event.stopPropagation();
                 onEditDependencies();
               }}
-              disabled={isEditingSet}
+              disabled={isMultiSelecting}
               className="rounded border border-zinc-300 px-2 py-0.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
               Deps
