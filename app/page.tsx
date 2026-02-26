@@ -126,7 +126,21 @@ export function AppMain() {
     };
   }, [multiSelectState, taskStructure.taskSet]);
   const isMultiSelectActive = useCallback(
-    () => !!effectiveMultiSelectState,
+    (selectionContext?: string) => {
+      if (!effectiveMultiSelectState) {
+        return false;
+      }
+
+      if (!selectionContext) {
+        return true;
+      }
+
+      return effectiveMultiSelectState.selectionContext === selectionContext;
+    },
+    [effectiveMultiSelectState],
+  );
+  const getMultiSelectSelection = useCallback(
+    () => effectiveMultiSelectState?.selectedTaskSet ?? new Set<TaskId>(),
     [effectiveMultiSelectState],
   );
 
@@ -315,6 +329,7 @@ export function AppMain() {
         setState: setMultiSelectState,
         state: effectiveMultiSelectState,
         isActive: isMultiSelectActive,
+        getSelection: getMultiSelectSelection,
         close: closeMultiSelect,
         clearSelection,
         selectAll: selectAllFilteredTasks,

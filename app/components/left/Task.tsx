@@ -53,9 +53,7 @@ export function Task({
     !activeMultiSelectState ||
     !activeMultiSelectState.taskFilter ||
     !!activeMultiSelectState.taskFilter(taskId, detail, activeMultiSelectState);
-  const isInMultiSelection = Boolean(
-    activeMultiSelectState?.selectedTaskSet.has(taskId),
-  );
+  const isInMultiSelection = multiSelectContext.getSelection().has(taskId);
 
   const isEffectivelyComplete = isReminder ? dependenciesComplete : isComplete;
   const canDrag = mode === "edit" && !isMultiSelecting;
@@ -83,9 +81,6 @@ export function Task({
         role="button"
         tabIndex={0}
         onClick={() => {
-          if (mode === "edit" && isMultiSelecting) {
-            return;
-          }
           onSelectTask(taskId);
         }}
         onKeyDown={(event) => {
@@ -94,10 +89,6 @@ export function Task({
           }
 
           event.preventDefault();
-          if (mode === "edit" && isMultiSelecting) {
-            return;
-          }
-
           onSelectTask(taskId);
         }}
         className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}

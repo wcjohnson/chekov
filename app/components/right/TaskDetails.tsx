@@ -161,9 +161,11 @@ function DependenciesSection({
   dependencyTitleById,
   completionsWithReminders,
   isMultiSelectActive,
+  isGenericMultiSelectActive,
   isSettingDependencies,
   onEditDependencies,
   onClearDependencies,
+  onApplyDependencies,
 }: {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
@@ -172,9 +174,11 @@ function DependenciesSection({
   dependencyTitleById: Map<TaskId, string>;
   completionsWithReminders: Set<TaskId>;
   isMultiSelectActive: boolean;
+  isGenericMultiSelectActive: boolean;
   isSettingDependencies: boolean;
   onEditDependencies: () => void;
   onClearDependencies: () => void;
+  onApplyDependencies: () => void;
 }) {
   const [isExpressionEditorOpen, setIsExpressionEditorOpen] = useState(false);
   const hasDependencies = selectedTaskDeps.size > 0;
@@ -230,6 +234,15 @@ function DependenciesSection({
           >
             Edit Expression
           </button>
+          {isGenericMultiSelectActive && (
+            <button
+              type="button"
+              onClick={onApplyDependencies}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Apply Dependencies
+            </button>
+          )}
           {isSettingDependencies && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Select dependency tasks from the left pane, then confirm or cancel
@@ -263,8 +276,8 @@ export function TaskDetails({
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const multiSelectContext = useContext(MultiSelectContext);
   const isMultiSelectActive = multiSelectContext.isActive();
-  const isSettingDependencies =
-    multiSelectContext.state?.selectionContext === "dependencies";
+  const isSettingDependencies = multiSelectContext.isActive("dependencies");
+  const isGenericMultiSelectActive = multiSelectContext.isActive("generic");
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
@@ -396,6 +409,17 @@ export function TaskDetails({
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
         dependencies: new Set(),
+      });
+    };
+
+    const handleApplyDependencies = () => {
+      if (!multiSelectContext.isActive("generic")) {
+        return;
+      }
+
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        dependencies: new Set(multiSelectContext.getSelection()),
       });
     };
 
@@ -537,9 +561,11 @@ export function TaskDetails({
           dependencyTitleById={dependencyTitleById}
           completionsWithReminders={completionsWithReminders}
           isMultiSelectActive={isMultiSelectActive}
+          isGenericMultiSelectActive={isGenericMultiSelectActive}
           isSettingDependencies={isSettingDependencies}
           onEditDependencies={onEditDependencies}
           onClearDependencies={handleClearDependencies}
+          onApplyDependencies={handleApplyDependencies}
         />
 
         <label className="block text-sm">

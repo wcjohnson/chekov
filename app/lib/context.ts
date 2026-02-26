@@ -19,7 +19,8 @@ export type MultiSelectState = {
 type MultiSelectContextType = {
   setState: React.Dispatch<React.SetStateAction<MultiSelectState | null>>;
   state: MultiSelectState | null;
-  isActive: () => boolean;
+  isActive: (selectionContext?: string) => boolean;
+  getSelection: () => Set<TaskId>;
   close: () => void;
   clearSelection: () => void;
   selectAll: () => void;
@@ -30,6 +31,7 @@ export const MultiSelectContext = createContext<MultiSelectContextType>({
   setState: () => {},
   state: null,
   isActive: () => false,
+  getSelection: () => new Set(),
   close: () => {},
   clearSelection: () => {},
   selectAll: () => {},
