@@ -10,7 +10,7 @@ import {
   useTaskReminderQuery,
   useTaskTagsQuery,
 } from "@/app/lib/data";
-import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
+import { DragDropReorderable, type DragDropItemStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
 
@@ -69,7 +69,7 @@ export function Task({
       : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
 
   return (
-    <DragDropListItem
+    <DragDropReorderable
       index={index}
       dragHandleRef={handleRef}
       setDragDropState={setDragState}
@@ -184,6 +184,6 @@ export function Task({
           </div>
         )}
       </div>
-    </DragDropListItem>
+    </DragDropReorderable>
   );
 }
