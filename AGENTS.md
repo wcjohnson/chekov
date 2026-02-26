@@ -23,8 +23,8 @@
   - Dependency editing uses this same context-driven selection flow (not ad hoc per-pane booleans).
 - Drag-and-drop uses Atlassian Pragmatic DnD (`@atlaskit/pragmatic-drag-and-drop*`).
 - Drag-and-drop abstractions are centralized in `app/components/DragDrop.tsx` via:
-  - `DragDropList` (group-level wrapper + context)
-  - `DragDropListItem` (draggable + drop target + edge indicator)
+  - `DragDropReorderableGroup` (group-level wrapper + context)
+  - `DragDropReorderable` (draggable + drop target + edge indicator)
   - `DragDropSource` / `DragDropTarget` are also used by `ExpressionEditor` for palette and expression-slot interactions
   - `DragDropTarget` uses `onDropDragData` for custom drop payload handling (avoid using `onDrop` prop name for custom drag data)
 - Left pane auto-scroll during drag uses `@atlaskit/pragmatic-drag-and-drop-auto-scroll` and targets the left list scroll container (`[data-left-pane-scroll='true']`).
@@ -37,7 +37,8 @@
 - Implemented Task Mode (default) + Edit Mode with mode-specific interactions.
 - Added top-bar controls:
   - Mode toggle, Unhide All, Reset Completed
-  - Search (case-insensitive on title/description, activates at 2+ chars)
+  - `Show Completed` / `Hide Completed` toggle in Task Mode
+  - Search (case-insensitive on category/title/description/tags, activates at 2+ chars)
   - Single Data dropdown for import/export definition/state
 - Left pane behavior:
   - Category accordion list in both modes with per-category counts
@@ -207,6 +208,7 @@
 - `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
 - `useTaskDetailMutation` updates title/description only.
 - `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion + incoming dependency references in one transaction.
+- `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion in one transaction.
 - `useTaskCompletionMutation` updates task completion and also adds the category to collapsed task categories when all tasks in the category are complete.
 
 ## Quick File Map (handoff)
