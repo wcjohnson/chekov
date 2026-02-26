@@ -25,7 +25,11 @@ import {
   useUncompleteAllTasksMutation,
   useUnhideAllTasksMutation,
 } from "./lib/data";
-import { MultiSelectContext, type MultiSelectState } from "@/app/lib/context";
+import {
+  MultiSelectContext,
+  type MultiSelectContextId,
+  type MultiSelectState,
+} from "@/app/lib/context";
 import { useStableCallback } from "@/app/lib/utils";
 import {
   downloadJson,
@@ -135,7 +139,7 @@ export function AppMain() {
     };
   }, [multiSelectState, taskStructure.taskSet]);
   const isMultiSelectActive = useCallback(
-    (selectionContext?: string) => {
+    (selectionContext?: MultiSelectContextId) => {
       if (!effectiveMultiSelectState) {
         return false;
       }

@@ -10,7 +10,7 @@
 ## Current Architecture (important)
 
 - UI is componentized:
-  - `app/page.tsx` (`AppMain`) owns primary app state (mode, selected task, edit selection, search, pane width, import/export handlers) and provides global set-edit context.
+  - `app/page.tsx` (`AppMain`) owns primary app state (mode, selected task, multiselect state, search, pane width, import/export handlers) and provides global set-edit context.
   - `app/page.tsx` (`AppContainer`) provides `QueryClientProvider` with `queryClient` from data.
   - Layout shell: `app/components/layout/AppLayout.tsx`
   - Top bar: `app/components/TopBar.tsx`
@@ -18,7 +18,8 @@
   - Right side: `app/components/right/RightColumn.tsx`, `RightHeader.tsx`, `TaskDetails.tsx`
   - Dependency expression editor: `app/components/ExpressionEditor.tsx` (drag/drop palette + expression tree editor)
 - Set-edit workflow is centralized with React context in `app/lib/context.ts`:
-  - `MultiSelectContext` carries selection mode, selected set, header text, and `onSetTasks` callback.
+  - `MultiSelectContext` carries typed selection context (`generic`/`dependencies`/`categoryDependencies`), selected set, optional task filter, and custom header renderer.
+  - `MultiSelectContext` exposes helpers: `isActive(type?)`, `getSelection()`, `setTaskSelected(...)`, `selectAll()`, `clearSelection()`, and `close()`.
   - Dependency editing uses this same context-driven selection flow (not ad hoc per-pane booleans).
 - Drag-and-drop uses Atlassian Pragmatic DnD (`@atlaskit/pragmatic-drag-and-drop*`).
 - Drag-and-drop abstractions are centralized in `app/components/DragDrop.tsx` via:
@@ -50,12 +51,13 @@
   - In Edit Mode, `Add Category` lives at the bottom of the category list
   - Category expand/collapse state is persisted per mode (`task` vs `edit`)
 - Edit Mode workflows:
-  - Select All / Clear Selection in left header
-  - Delete All appears in top bar when multi-selection exists
+  - Generic multiselect is launched from left header via `Multiselect`
+  - Generic multiselect header provides Select All / Clear Selection / Delete Selected / Cancel
   - Dependency-setting mode is context-based (`Set Dependencies` in details pane → select tasks in left list → confirm/cancel in fixed left header banner)
   - Category dependency-setting mode is context-based (`Deps` in category header → select tasks in left list → confirm/cancel in fixed left header banner)
   - Category `Deps` buttons are disabled while any set-edit workflow is active
   - `Clear Dependencies` action for selected task
+  - `Apply Dependencies` appears in task details during active generic multiselect and applies current generic selection to the selected task
   - `Edit Expression` button adjacent to dependency controls opens expression editor on demand; while open, the button is disabled and editor stays open until details-panel navigation
   - Task details no longer include editable category input (category change from details removed)
 - Dependency expression authoring:
@@ -180,12 +182,15 @@
 - Preserve current interaction contracts:
   - Edit Mode checkboxes are for selection workflows, not completion toggling
   - Task completion toggles happen in Task Mode only
+  - In Edit Mode, primary task selection remains available even while multiselect is active
   - Task and category dependency-setting both use global set-edit context and confirm from the fixed left header banner
   - Category expand/collapse state is persisted per mode in `categoryCollapsed`
   - In Task Mode, categories with unmet category dependencies are not rendered
   - Reminder state should be read from reminder queries/store (`useTaskReminderQuery` / `useRemindersQuery`), not from `StoredTask`
   - Dependency display in `TaskDetails` is infix-expression based (not list based), with Task-Mode-only strikethrough semantics for completed dependency terms
   - Expression editor is opt-in via `Edit Expression` and starts closed by default when selecting a task
+  - Generic, dependency, and category-dependency selection flows should all use `MultiSelectContext` (not separate per-feature selection state)
+  - Keep stable event handlers for persisted custom-header actions (for example `selectAll`) via shared `useStableCallback` in `app/lib/utils.ts`
 - Preserve drag-reorder semantics:
   - Reorder/move tasks by updating `categoryTasks` arrays and task `category`
   - Keep `categories` order intact unless explicitly changing category-ordering behavior
