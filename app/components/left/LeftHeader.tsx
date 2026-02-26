@@ -58,36 +58,9 @@ export function LeftHeader({
         </div>
       </div>
 
-      {isEditingSet && (
-        <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="font-medium text-zinc-700 dark:text-zinc-200">
-            {setEditContext.state?.headerText ?? "Editing Set"}
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setEditContext.state?.onSetTasks(
-                  setEditContext.state.selectedTaskSet,
-                );
-                setEditContext.setState(null);
-              }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            >
-              Confirm
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditContext.setState(null);
-              }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      {isEditingSet && setEditContext.state
+        ? setEditContext.state.renderCustomHeader(setEditContext.state)
+        : null}
     </div>
   );
 }

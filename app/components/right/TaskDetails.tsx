@@ -260,9 +260,9 @@ export function TaskDetails({
     string | null
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const setEditContext = useContext(MultiSelectContext);
+  const multiSelectContext = useContext(MultiSelectContext);
   const isSettingDependencies =
-    setEditContext.state?.selectionContext === "dependencies";
+    multiSelectContext.state?.selectionContext === "dependencies";
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
@@ -383,7 +383,7 @@ export function TaskDetails({
   }, [activeTagColorPickerTag]);
 
   if (mode === "edit") {
-    const handleSetTasks = (taskIds: Set<TaskId>) => {
+    const handleSetDependencies = (taskIds: Set<TaskId>) => {
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
         dependencies: taskIds,
@@ -398,10 +398,39 @@ export function TaskDetails({
     };
 
     const onEditDependencies = () => {
-      setEditContext.setState({
+      const headerText = `Editing dependencies for ${selectedTaskDetail?.title ?? "unknown task"}`;
+
+      multiSelectContext.setState({
         selectionContext: "dependencies",
-        headerText: `Editing dependencies for ${selectedTaskDetail?.title ?? "unknown task"}`,
         selectedTaskSet: new Set(selectedTaskDeps),
+        renderCustomHeader: (multiSelectState) => (
+          <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+            <p className="font-medium text-zinc-700 dark:text-zinc-200">
+              {headerText}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleSetDependencies(multiSelectState.selectedTaskSet);
+                  multiSelectContext.close();
+                }}
+                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  multiSelectContext.close();
+                }}
+                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ),
         taskFilter: (taskId) => {
           if (!selectedTaskId) {
             return true;
@@ -409,7 +438,6 @@ export function TaskDetails({
 
           return taskId !== selectedTaskId;
         },
-        onSetTasks: handleSetTasks,
       });
     };
 

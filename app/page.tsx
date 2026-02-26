@@ -70,6 +70,9 @@ export function AppMain() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [multiSelectState, setMultiSelectState] =
     useState<MultiSelectState | null>(null);
+  const closeMultiSelect = useCallback(() => {
+    setMultiSelectState(null);
+  }, []);
 
   const importDefinitionInputRef = useRef<HTMLInputElement>(null);
   const importStateInputRef = useRef<HTMLInputElement>(null);
@@ -205,7 +208,7 @@ export function AppMain() {
     setEditSelectedTaskIds(new Set());
   };
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setEditSelectedTaskIds(new Set());
     if (effectiveMultiSelectState) {
       setMultiSelectState({
@@ -213,7 +216,7 @@ export function AppMain() {
         selectedTaskSet: new Set(),
       });
     }
-  };
+  }, [effectiveMultiSelectState]);
 
   const toggleMode = () => {
     setMode((current) => {
@@ -304,6 +307,9 @@ export function AppMain() {
       value={{
         setState: setMultiSelectState,
         state: effectiveMultiSelectState,
+        close: closeMultiSelect,
+        clearSelection,
+        selectAll: selectAllFilteredTasks,
       }}
     >
       <AppLayout

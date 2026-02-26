@@ -62,16 +62,42 @@ export function Category({
   const isEditingSet = !!setEditContext.state;
 
   const onEditDependencies = () => {
+    const headerText = `Editing dependencies for category ${category}`;
+
     setEditContext.setState({
       selectionContext: "categoryDependencies",
-      headerText: `Editing dependencies for category ${category}`,
       selectedTaskSet: new Set(categoryDependencies ?? new Set()),
-      onSetTasks: (taskIds) => {
-        categoryDependenciesMutation.mutate({
-          category,
-          dependencies: taskIds,
-        });
-      },
+      renderCustomHeader: (multiSelectState) => (
+        <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+          <p className="font-medium text-zinc-700 dark:text-zinc-200">
+            {headerText}
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                categoryDependenciesMutation.mutate({
+                  category,
+                  dependencies: multiSelectState.selectedTaskSet,
+                });
+                setEditContext.close();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditContext.close();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
     });
   };
 

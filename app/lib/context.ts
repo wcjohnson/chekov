@@ -2,26 +2,32 @@
 
 import type { TaskId } from "@/app/lib/types";
 import type { StoredTask } from "./data";
+import type { ReactNode } from "react";
 import { createContext } from "react";
 
 export type MultiSelectState = {
   selectionContext: string;
-  headerText: string;
   taskFilter?: (
     taskId: TaskId,
     taskDetail: StoredTask | null | undefined,
     multiSelectState: MultiSelectState,
   ) => boolean | undefined;
-  onSetTasks: (taskIds: Set<TaskId>) => void;
+  renderCustomHeader: (multiSelectState: MultiSelectState) => ReactNode;
   selectedTaskSet: Set<TaskId>;
 };
 
 type MultiSelectContextType = {
   setState: React.Dispatch<React.SetStateAction<MultiSelectState | null>>;
   state: MultiSelectState | null;
+  close: () => void;
+  clearSelection: () => void;
+  selectAll: () => void;
 };
 
 export const MultiSelectContext = createContext<MultiSelectContextType>({
   setState: () => {},
   state: null,
+  close: () => {},
+  clearSelection: () => {},
+  selectAll: () => {},
 });
