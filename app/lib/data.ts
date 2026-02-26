@@ -1489,6 +1489,20 @@ export function useTaskStructure() {
   };
 }
 
+export function useTaskCategoryById(categoryTasks: Map<string, string[]>) {
+  return useMemo(() => {
+    const map = new Map<TaskId, CategoryName>();
+
+    for (const [category, taskIds] of categoryTasks.entries()) {
+      for (const taskId of taskIds) {
+        map.set(taskId, category);
+      }
+    }
+
+    return map;
+  }, [categoryTasks]);
+}
+
 export function useTasksWithCompleteDependencies(
   taskSet: Set<string> | undefined,
   dependencies: Map<string, Set<string>> | undefined,

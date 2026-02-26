@@ -10,6 +10,7 @@ import { TopBar } from "./components/TopBar";
 import type { ChecklistMode, TaskId } from "./lib/types";
 import {
   useClearDatabaseMutation,
+  useCollapsedCategoriesQuery,
   queryClient,
   useCompletionsWithReminders,
   useCompletionsQuery,
@@ -17,6 +18,7 @@ import {
   useRemindersQuery,
   useTaskDependencyExpressions,
   useTaskCompletionMutation,
+  useTaskCategoryById,
   useTasksMatchingSearch,
   useTaskStructure,
   useTasksWithCompleteDependencies,
@@ -96,6 +98,12 @@ export function AppMain() {
     dependencyExpressions,
   );
   const tasksMatchingSearch = useTasksMatchingSearch(searchText);
+  const collapsedCategories = useCollapsedCategoriesQuery().data;
+  const collapsedEditCategories = useMemo(
+    () => collapsedCategories?.edit ?? new Set<string>(),
+    [collapsedCategories],
+  );
+  const taskCategoryById = useTaskCategoryById(taskStructure.categoryTasks);
 
   ///////////////////////////////////////// Events
 
@@ -230,7 +238,6 @@ export function AppMain() {
   }, []);
 
   const selectAllFilteredTasks = useCallback(() => {
-    // TODO: filter against hiddenness of categories
     setMultiSelectState((previous) => {
       if (!previous) {
         return previous;
@@ -238,6 +245,11 @@ export function AppMain() {
 
       const nextSelectedSet = new Set(
         Array.from(tasksMatchingSearch).filter((taskId) => {
+          const category = taskCategoryById.get(taskId);
+          if (category && collapsedEditCategories.has(category)) {
+            return false;
+          }
+
           if (!previous.taskFilter) {
             return true;
           }
@@ -251,7 +263,7 @@ export function AppMain() {
         selectedTaskSet: nextSelectedSet,
       };
     });
-  }, [tasksMatchingSearch]);
+  }, [collapsedEditCategories, taskCategoryById, tasksMatchingSearch]);
 
   const toggleMode = () => {
     setMode((current) => {
