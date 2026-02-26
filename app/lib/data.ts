@@ -1250,122 +1250,6 @@ export function useRemindersQuery() {
   return useQuery(getQueryArgs_reminders());
 }
 
-function computeCompletionsWithReminders(
-  taskSet: Set<string>,
-  completions: Set<string>,
-  reminders: Set<string>,
-  dependencies: Map<string, Set<string>>,
-  dependencyExpressions: Map<string, BooleanExpression>,
-  evaluatedReminderCompletions: Map<TaskId, true | false>,
-) {
-  const effectiveCompletions = new Set<string>(completions);
-
-  const evaluateTaskCompletion = (taskId: TaskId): boolean => {
-    if (!taskSet.has(taskId)) {
-      return false;
-    }
-
-    if (!reminders.has(taskId)) {
-      return completions.has(taskId);
-    }
-
-    const existingReminderCompletion = evaluatedReminderCompletions.get(taskId);
-    if (existingReminderCompletion !== undefined) {
-      return existingReminderCompletion;
-    }
-
-    const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
-    const taskDependencyExpression = dependencyExpressions.get(taskId) ?? [
-      BooleanOp.And,
-      ...taskDependencies,
-    ];
-
-    const evaluateExpression = (expression: BooleanExpression): boolean => {
-      if (typeof expression === "string") {
-        return evaluateTaskCompletion(expression);
-      }
-
-      const [operator, ...operands] = expression;
-
-      if (operator === BooleanOp.Not) {
-        return !evaluateExpression(operands[0]);
-      }
-
-      if (operator === BooleanOp.And) {
-        if (operands.length === 0) {
-          return true;
-        }
-
-        return operands.every((operand) => evaluateExpression(operand));
-      }
-
-      if (operator === BooleanOp.Or) {
-        if (operands.length === 0) {
-          return true;
-        }
-
-        return operands.some((operand) => evaluateExpression(operand));
-      }
-
-      return false;
-    };
-
-    const reminderCompletion = evaluateExpression(taskDependencyExpression);
-    evaluatedReminderCompletions.set(taskId, reminderCompletion);
-
-    if (reminderCompletion) {
-      effectiveCompletions.add(taskId);
-    }
-
-    return reminderCompletion;
-  };
-
-  for (const reminderTaskId of reminders) {
-    if (!taskSet.has(reminderTaskId)) {
-      continue;
-    }
-
-    evaluateTaskCompletion(reminderTaskId);
-  }
-
-  return effectiveCompletions;
-}
-
-export function useTaskDependencyExpressions() {
-  return useDependencyExpressionsQuery().data ?? EMPTY_DEPENDENCY_EXPRESSIONS;
-}
-
-export function useCompletionsWithReminders(
-  taskSet: Set<string> | undefined,
-  completions: Set<string> | undefined,
-  reminders: Set<string> | undefined,
-  dependencies: Map<string, Set<string>> | undefined,
-  dependencyExpressions: Map<string, BooleanExpression> | undefined,
-) {
-  return useMemo(() => {
-    if (
-      !taskSet ||
-      !completions ||
-      !reminders ||
-      !dependencies ||
-      !dependencyExpressions
-    ) {
-      return new Set<string>();
-    }
-
-    const evaluatedReminderCompletions = new Map<TaskId, true | false>();
-
-    return computeCompletionsWithReminders(
-      taskSet,
-      completions,
-      reminders,
-      dependencies,
-      dependencyExpressions,
-      evaluatedReminderCompletions,
-    );
-  }, [taskSet, completions, reminders, dependencies, dependencyExpressions]);
-}
-
 function getQueryArgs_details(enabled?: boolean) {
   return {
     queryKey: ["details"],
@@ -1704,4 +1588,120 @@ export function useTasksMatchingSearch(searchQuery: string) {
 
     return matchingTasks;
   }, [searchQuery, taskSet, detailsQuery.data, tagsQuery.data]);
+}
+
+function computeCompletionsWithReminders(
+  taskSet: Set<string>,
+  completions: Set<string>,
+  reminders: Set<string>,
+  dependencies: Map<string, Set<string>>,
+  dependencyExpressions: Map<string, BooleanExpression>,
+  evaluatedReminderCompletions: Map<TaskId, true | false>,
+) {
+  const effectiveCompletions = new Set<string>(completions);
+
+  const evaluateTaskCompletion = (taskId: TaskId): boolean => {
+    if (!taskSet.has(taskId)) {
+      return false;
+    }
+
+    if (!reminders.has(taskId)) {
+      return completions.has(taskId);
+    }
+
+    const existingReminderCompletion = evaluatedReminderCompletions.get(taskId);
+    if (existingReminderCompletion !== undefined) {
+      return existingReminderCompletion;
+    }
+
+    const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
+    const taskDependencyExpression = dependencyExpressions.get(taskId) ?? [
+      BooleanOp.And,
+      ...taskDependencies,
+    ];
+
+    const evaluateExpression = (expression: BooleanExpression): boolean => {
+      if (typeof expression === "string") {
+        return evaluateTaskCompletion(expression);
+      }
+
+      const [operator, ...operands] = expression;
+
+      if (operator === BooleanOp.Not) {
+        return !evaluateExpression(operands[0]);
+      }
+
+      if (operator === BooleanOp.And) {
+        if (operands.length === 0) {
+          return true;
+        }
+
+        return operands.every((operand) => evaluateExpression(operand));
+      }
+
+      if (operator === BooleanOp.Or) {
+        if (operands.length === 0) {
+          return true;
+        }
+
+        return operands.some((operand) => evaluateExpression(operand));
+      }
+
+      return false;
+    };
+
+    const reminderCompletion = evaluateExpression(taskDependencyExpression);
+    evaluatedReminderCompletions.set(taskId, reminderCompletion);
+
+    if (reminderCompletion) {
+      effectiveCompletions.add(taskId);
+    }
+
+    return reminderCompletion;
+  };
+
+  for (const reminderTaskId of reminders) {
+    if (!taskSet.has(reminderTaskId)) {
+      continue;
+    }
+
+    evaluateTaskCompletion(reminderTaskId);
+  }
+
+  return effectiveCompletions;
+}
+
+export function useTaskDependencyExpressions() {
+  return useDependencyExpressionsQuery().data ?? EMPTY_DEPENDENCY_EXPRESSIONS;
+}
+
+export function useCompletionsWithReminders(
+  taskSet: Set<string> | undefined,
+  completions: Set<string> | undefined,
+  reminders: Set<string> | undefined,
+  dependencies: Map<string, Set<string>> | undefined,
+  dependencyExpressions: Map<string, BooleanExpression> | undefined,
+) {
+  return useMemo(() => {
+    if (
+      !taskSet ||
+      !completions ||
+      !reminders ||
+      !dependencies ||
+      !dependencyExpressions
+    ) {
+      return new Set<string>();
+    }
+
+    const evaluatedReminderCompletions = new Map<TaskId, true | false>();
+
+    return computeCompletionsWithReminders(
+      taskSet,
+      completions,
+      reminders,
+      dependencies,
+      dependencyExpressions,
+      evaluatedReminderCompletions,
+    );
+  }, [taskSet, completions, reminders, dependencies, dependencyExpressions]);
 }
