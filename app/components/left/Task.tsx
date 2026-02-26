@@ -7,10 +7,10 @@ import {
   useTaskCompletionQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
-  useTaskWarningQuery,
+  useTaskReminderQuery,
   useTaskTagsQuery,
 } from "@/app/lib/data";
-import { DragDropListItem, type DragDropItemStateType } from "../DragDrop";
+import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
 
@@ -19,11 +19,9 @@ type TaskProps = {
   index: number;
   mode: ChecklistMode;
   isSelected: boolean;
-  isEditSelected: boolean;
   dependenciesComplete: boolean;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
-  onToggleEditSelection: (taskId: TaskId) => void;
 };
 
 export function Task({
@@ -31,38 +29,40 @@ export function Task({
   index,
   mode,
   isSelected,
-  isEditSelected,
   dependenciesComplete,
   onSelectTask,
   onToggleComplete,
-  onToggleEditSelection,
 }: TaskProps) {
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
-  const isWarning = useTaskWarningQuery(taskId).data ?? false;
+  const isReminder = useTaskReminderQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
   const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
-  const [dragState, setDragState] = useState<DragDropItemStateType>({
+  const [dragState, setDragState] = useState<DragDropStateType>({
     isDragging: false,
   });
 
   const multiSelectContext = useContext(MultiSelectContext);
   const multiSelectState = multiSelectContext.state;
 
-  const isEditingSet = !!multiSelectState;
-  const isInEditedSet = Boolean(multiSelectState?.selectedTaskSet.has(taskId));
-  const taskIsBannedFromMultiselect = false;
+  const isMultiSelecting = multiSelectContext.isActive();
+  const activeMultiSelectState = isMultiSelecting ? multiSelectState : null;
+  const isVisibleInMultiSelect =
+    !activeMultiSelectState ||
+    !activeMultiSelectState.taskFilter ||
+    !!activeMultiSelectState.taskFilter(taskId, detail, activeMultiSelectState);
+  const isInMultiSelection = multiSelectContext.getSelection().has(taskId);
 
-  const isEffectivelyComplete = isWarning ? dependenciesComplete : isComplete;
-  const canDrag = mode === "edit" && !isEditingSet;
+  const isEffectivelyComplete = isReminder ? dependenciesComplete : isComplete;
+  const canDrag = mode === "edit" && !isMultiSelecting;
   const showTaskModeCheckbox =
-    mode === "task" && dependenciesComplete && !isWarning;
+    mode === "task" && dependenciesComplete && !isReminder;
   const showEditSelectionCheckbox =
-    mode === "edit" && (!isEditingSet || !taskIsBannedFromMultiselect);
+    mode === "edit" && isMultiSelecting && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
-  const rowInteractionClasses = isWarning
+  const rowInteractionClasses = isReminder
     ? isSelected
       ? "border-amber-400 bg-amber-100 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900/40 dark:hover:bg-amber-900/40"
       : "border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/25 dark:hover:bg-amber-900/35"
@@ -71,7 +71,7 @@ export function Task({
       : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
 
   return (
-    <DragDropListItem
+    <DragDropReorderable
       index={index}
       dragHandleRef={handleRef}
       setDragDropState={setDragState}
@@ -81,9 +81,6 @@ export function Task({
         role="button"
         tabIndex={0}
         onClick={() => {
-          if (mode === "edit" && isEditingSet) {
-            return;
-          }
           onSelectTask(taskId);
         }}
         onKeyDown={(event) => {
@@ -92,10 +89,6 @@ export function Task({
           }
 
           event.preventDefault();
-          if (mode === "edit" && isEditingSet) {
-            return;
-          }
-
           onSelectTask(taskId);
         }}
         className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
@@ -125,44 +118,17 @@ export function Task({
         {showEditSelectionCheckbox && (
           <input
             type="checkbox"
-            checked={
-              isEditingSet
-                ? isWarning
-                  ? false
-                  : isInEditedSet
-                : isEditSelected
-            }
-            disabled={isEditingSet && isWarning}
+            checked={isInMultiSelection}
             onChange={(event) => {
               event.stopPropagation();
-
-              if (isEditingSet) {
-                if (isWarning) {
-                  return;
-                }
-                const nextSelectedSet = new Set(
-                  multiSelectState.selectedTaskSet,
-                );
-                if (isInEditedSet) {
-                  nextSelectedSet.delete(taskId);
-                } else {
-                  nextSelectedSet.add(taskId);
-                }
-                multiSelectContext.setState({
-                  ...multiSelectState,
-                  selectedTaskSet: nextSelectedSet,
-                });
-                return;
-              }
-
-              onToggleEditSelection(taskId);
+              multiSelectContext.setTaskSelected(taskId, !isInMultiSelection);
             }}
             onClick={(event) => event.stopPropagation()}
           />
         )}
-        {!showTaskModeCheckbox && !showEditSelectionCheckbox && (
-          <span className="w-4" />
-        )}
+        {mode === "task" &&
+          !showTaskModeCheckbox &&
+          !showEditSelectionCheckbox && <span className="w-4" />}
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <p
             className={`min-w-0 flex-1 truncate text-sm font-medium ${
@@ -196,6 +162,6 @@ export function Task({
           </div>
         )}
       </div>
-    </DragDropListItem>
+    </DragDropReorderable>
   );
 }

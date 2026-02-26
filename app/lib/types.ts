@@ -9,3 +9,15 @@ export type TaskBreakout = {
   orderedCategoryTasks: TaskId[][];
   visibleTasks: Set<TaskId>;
 };
+
+export enum BooleanOp {
+  And = 1,
+  Or = 2,
+  Not = 3,
+}
+
+export type BooleanExpression =
+  | TaskId
+  | [BooleanOp.And, ...BooleanExpression[]]
+  | [BooleanOp.Or, ...BooleanExpression[]]
+  | [BooleanOp.Not, BooleanExpression];

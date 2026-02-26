@@ -8,24 +8,122 @@ import {
   queryClient,
   TAG_COLORS_STORE,
   TASK_COMPLETION_STORE,
+  TASK_DEPENDENCY_EXPRESSION_STORE,
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
   TASK_TAGS_STORE,
-  TASK_WARNINGS_STORE,
+  TASK_REMINDERS_STORE,
   TASKS_STORE,
 } from "./data";
 import type { TagColorKey } from "./tagColors";
-import type { CategoryName, TaskId } from "@/app/lib/types";
+import {
+  BooleanOp,
+  type BooleanExpression,
+  type CategoryName,
+  type TaskId,
+} from "./types";
 
 export type ExportedTaskDefinition = {
   id: TaskId;
   category: CategoryName;
   title: string;
   description?: string;
-  type?: "task" | "warning";
+  type?: "task" | "warning" | "reminder";
   dependencies?: TaskId[];
+  dependencyExpression?: BooleanExpression;
   tags?: string[];
 };
+
+const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
+  type === "warning" || type === "reminder";
+
+function normalizeDependencyExpression(
+  expression: unknown,
+  validDependencyIds: Set<TaskId>,
+): BooleanExpression | undefined {
+  if (typeof expression === "string") {
+    if (!validDependencyIds.has(expression)) {
+      return undefined;
+    }
+
+    return expression;
+  }
+
+  if (!Array.isArray(expression) || expression.length === 0) {
+    return undefined;
+  }
+
+  const [operator, ...operands] = expression;
+
+  if (operator === BooleanOp.Not) {
+    if (operands.length !== 1) {
+      return undefined;
+    }
+
+    const normalizedOperand = normalizeDependencyExpression(
+      operands[0],
+      validDependencyIds,
+    );
+    if (!normalizedOperand) {
+      return undefined;
+    }
+
+    return [BooleanOp.Not, normalizedOperand];
+  }
+
+  if (operator === BooleanOp.And || operator === BooleanOp.Or) {
+    const normalizedOperands: BooleanExpression[] = [];
+    for (const operand of operands) {
+      const normalizedOperand = normalizeDependencyExpression(
+        operand,
+        validDependencyIds,
+      );
+      if (!normalizedOperand) {
+        return undefined;
+      }
+
+      normalizedOperands.push(normalizedOperand);
+    }
+
+    return [operator, ...normalizedOperands];
+  }
+
+  return undefined;
+}
+
+function isSimpleAndOfDependencies(
+  expression: BooleanExpression,
+  dependencies: TaskId[],
+): boolean {
+  if (typeof expression === "string") {
+    return false;
+  }
+
+  if (expression[0] !== BooleanOp.And) {
+    return false;
+  }
+
+  const operands = expression.slice(1);
+  if (
+    !operands.every((operand): operand is TaskId => typeof operand === "string")
+  ) {
+    return false;
+  }
+
+  if (operands.length !== dependencies.length) {
+    return false;
+  }
+
+  const dependencySet = new Set(dependencies);
+  if (dependencySet.size !== dependencies.length) {
+    return false;
+  }
+
+  return (
+    new Set(operands).size === operands.length &&
+    operands.every((operand) => dependencySet.has(operand))
+  );
+}
 
 export type ExportedChecklistDefinition = {
   categories: CategoryName[];
@@ -60,14 +158,9 @@ function normalizeChecklistDefinition(
   const normalizedTasksByCategory = new Map<string, ExportedTaskDefinition[]>();
 
   const allTaskIds = new Set<TaskId>();
-  const warningTaskIds = new Set<TaskId>();
-
   for (const [, tasks] of tasksByCategoryEntries) {
     for (const task of tasks ?? []) {
       allTaskIds.add(task.id);
-      if (task.type === "warning") {
-        warningTaskIds.add(task.id);
-      }
     }
   }
 
@@ -75,17 +168,20 @@ function normalizeChecklistDefinition(
     normalizedTasksByCategory.set(
       category,
       (tasks ?? []).map((task) => {
-        const normalizedType = task.type === "warning" ? "warning" : "task";
+        const normalizedType = isReminderType(task.type) ? "reminder" : "task";
         const normalizedDescription = task.description ?? "";
         const normalizedDependencies = Array.from(
           new Set<TaskId>(
             Array.from(task.dependencies ?? []).filter(
               (dependencyId) =>
-                dependencyId !== task.id &&
-                allTaskIds.has(dependencyId) &&
-                !warningTaskIds.has(dependencyId),
+                dependencyId !== task.id && allTaskIds.has(dependencyId),
             ),
           ),
+        );
+        const dependencyIdSet = new Set(normalizedDependencies);
+        const normalizedDependencyExpression = normalizeDependencyExpression(
+          task.dependencyExpression,
+          dependencyIdSet,
         );
 
         const normalizedTags = Array.from(
@@ -103,9 +199,18 @@ function normalizeChecklistDefinition(
           ...(normalizedDescription.length > 0
             ? { description: normalizedDescription }
             : {}),
-          ...(normalizedType === "warning" ? { type: "warning" as const } : {}),
+          ...(normalizedType === "reminder"
+            ? { type: "reminder" as const }
+            : {}),
           ...(normalizedDependencies.length > 0
             ? { dependencies: normalizedDependencies }
+            : {}),
+          ...(normalizedDependencyExpression &&
+          !isSimpleAndOfDependencies(
+            normalizedDependencyExpression,
+            normalizedDependencies,
+          )
+            ? { dependencyExpression: normalizedDependencyExpression }
             : {}),
           ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
         };
@@ -240,8 +345,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskTagValues,
     taskDependencyKeys,
     taskDependencyValues,
-    warningTaskKeys,
-    warningTaskValues,
+    taskDependencyExpressionKeys,
+    taskDependencyExpressionValues,
+    reminderTaskKeys,
+    reminderTaskValues,
     maybeCategories,
     categoryTaskKeys,
     categoryTaskValues,
@@ -256,8 +363,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.getAll(TASK_TAGS_STORE),
     db.getAllKeys(TASK_DEPENDENCIES_STORE),
     db.getAll(TASK_DEPENDENCIES_STORE),
-    db.getAllKeys(TASK_WARNINGS_STORE),
-    db.getAll(TASK_WARNINGS_STORE),
+    db.getAllKeys(TASK_DEPENDENCY_EXPRESSION_STORE),
+    db.getAll(TASK_DEPENDENCY_EXPRESSION_STORE),
+    db.getAllKeys(TASK_REMINDERS_STORE),
+    db.getAll(TASK_REMINDERS_STORE),
     db.get(CATEGORIES_STORE, "categories"),
     db.getAllKeys(CATEGORY_TASKS_STORE),
     db.getAll(CATEGORY_TASKS_STORE),
@@ -274,7 +383,14 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskDependencyKeys,
     taskDependencyValues,
   );
-  const warningTasksMap = fromKvPairsToMap(warningTaskKeys, warningTaskValues);
+  const taskDependencyExpressionsMap = fromKvPairsToMap(
+    taskDependencyExpressionKeys,
+    taskDependencyExpressionValues,
+  );
+  const reminderTasksMap = fromKvPairsToMap(
+    reminderTaskKeys,
+    reminderTaskValues,
+  );
   const categoryTasksMap = fromKvPairsToMap(
     categoryTaskKeys,
     categoryTaskValues,
@@ -299,6 +415,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
       const taskDependencies =
         taskDependenciesMap.get(taskId) ?? new Set<string>();
       const taskTags = taskTagsMap.get(taskId) ?? new Set<string>();
+      const taskDependencyExpression = taskDependencyExpressionsMap.get(taskId);
 
       categoryTasks.push({
         id: taskId,
@@ -307,9 +424,12 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(task.description.length > 0
           ? { description: task.description }
           : {}),
-        ...(warningTasksMap.has(taskId) ? { type: "warning" as const } : {}),
+        ...(reminderTasksMap.has(taskId) ? { type: "reminder" as const } : {}),
         ...(Array.from(taskDependencies).length > 0
           ? { dependencies: Array.from(taskDependencies) }
+          : {}),
+        ...(taskDependencyExpression !== undefined
+          ? { dependencyExpression: taskDependencyExpression }
           : {}),
         ...(Array.from(taskTags).length > 0
           ? { tags: Array.from(taskTags) }
@@ -345,16 +465,19 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
   const [
     taskCompletionKeys,
     taskCompletionValues,
+    hiddenTaskKeys,
     maybeVisibilityTask,
     maybeVisibilityEdit,
   ] = await Promise.all([
     db.getAllKeys(TASK_COMPLETION_STORE),
     db.getAll(TASK_COMPLETION_STORE),
+    db.getAllKeys(TASK_HIDDEN_STORE),
     db.get(CATEGORY_COLLAPSED_STORE, "task"),
     db.get(CATEGORY_COLLAPSED_STORE, "edit"),
   ]);
   const visibilityTask = maybeVisibilityTask ?? new Set<string>();
   const visibilityEdit = maybeVisibilityEdit ?? new Set<string>();
+  const hiddenTaskSet = new Set(hiddenTaskKeys);
 
   const taskCompletionMap = fromKvPairsToMap(
     taskCompletionKeys,
@@ -362,23 +485,23 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
   );
   const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
 
-  const warningTaskIds = new Set<TaskId>();
+  const reminderTaskIds = new Set<TaskId>();
   for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
-      if (task.type === "warning") {
-        warningTaskIds.add(task.id);
+      if (isReminderType(task.type)) {
+        reminderTaskIds.add(task.id);
       }
     }
   }
 
   const tasks = new Map<TaskId, ExportedChecklistTaskState>();
   taskCompletionKeys.forEach((taskId) => {
-    if (warningTaskIds.has(taskId)) {
+    if (reminderTaskIds.has(taskId)) {
       return;
     }
 
     const completed = Boolean(taskCompletionMap.get(taskId));
-    const explicitlyHidden = visibilityTask.has(taskId);
+    const explicitlyHidden = hiddenTaskSet.has(taskId);
     tasks.set(taskId, { completed, explicitlyHidden });
   });
 
@@ -410,7 +533,7 @@ export async function importChecklistDefinition(
 
   const normalizedDefinition = normalizeChecklistDefinition(definition);
 
-  // Clear existing IndexedDB tables relating to checklist definition (TASKS_STORE, TASK_TAGS_STORE, TASK_DEPENDENCIES_STORE, CATEGORIES_STORE, CATEGORY_TASKS_STORE, TAG_COLORS_STORE)
+  // Clear existing IndexedDB tables relating to checklist definition (TASKS_STORE, TASK_TAGS_STORE, TASK_DEPENDENCIES_STORE, TASK_DEPENDENCY_EXPRESSION_STORE, CATEGORIES_STORE, CATEGORY_TASKS_STORE, TAG_COLORS_STORE)
   // Replace the content of those tables with content appropriate to the new normalized definition.
   // Use a transaction.
   const transaction = db.transaction(
@@ -418,7 +541,8 @@ export async function importChecklistDefinition(
       TASKS_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
-      TASK_WARNINGS_STORE,
+      TASK_DEPENDENCY_EXPRESSION_STORE,
+      TASK_REMINDERS_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
       CATEGORY_DEPENDENCIES_STORE,
@@ -435,7 +559,10 @@ export async function importChecklistDefinition(
   const taskDependenciesStore = transaction.objectStore(
     TASK_DEPENDENCIES_STORE,
   );
-  const taskWarningsStore = transaction.objectStore(TASK_WARNINGS_STORE);
+  const taskDependencyExpressionsStore = transaction.objectStore(
+    TASK_DEPENDENCY_EXPRESSION_STORE,
+  );
+  const taskRemindersStore = transaction.objectStore(TASK_REMINDERS_STORE);
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
   const categoryDependenciesStore = transaction.objectStore(
@@ -450,7 +577,8 @@ export async function importChecklistDefinition(
     tasksStore.clear(),
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
-    taskWarningsStore.clear(),
+    taskDependencyExpressionsStore.clear(),
+    taskRemindersStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
     categoryDependenciesStore.clear(),
@@ -497,8 +625,15 @@ export async function importChecklistDefinition(
         task.id,
       );
 
-      if (task.type === "warning") {
-        await taskWarningsStore.put(true, task.id);
+      if (task.dependencyExpression) {
+        await taskDependencyExpressionsStore.put(
+          task.dependencyExpression,
+          task.id,
+        );
+      }
+
+      if (isReminderType(task.type)) {
+        await taskRemindersStore.put(true, task.id);
       }
 
       if (task.dependencies && task.dependencies.length > 0) {
@@ -521,11 +656,11 @@ export async function importChecklistState(state: ExportedChecklistState) {
   const definition = await exportChecklistDefinition();
   const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
 
-  const warningTaskIds = new Set<TaskId>();
+  const reminderTaskIds = new Set<TaskId>();
   for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
-      if (task.type === "warning") {
-        warningTaskIds.add(task.id);
+      if (isReminderType(task.type)) {
+        reminderTaskIds.add(task.id);
       }
     }
   }
@@ -553,7 +688,7 @@ export async function importChecklistState(state: ExportedChecklistState) {
   const stateTaskMap = recordToMap(normalizedState.tasks);
 
   for (const [taskId, taskState] of stateTaskMap.entries()) {
-    if (taskState.completed && !warningTaskIds.has(taskId)) {
+    if (taskState.completed && !reminderTaskIds.has(taskId)) {
       await taskCompletionStore.put(true, taskId);
     }
 

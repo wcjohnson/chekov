@@ -10,7 +10,7 @@ import {
   useCollapsedCategoriesQuery,
   useMoveTaskMutation,
 } from "@/app/lib/data";
-import { DragDropList } from "../DragDrop";
+import { DragDropReorderableGroup } from "../DragDrop";
 import { MultiSelectContext } from "@/app/lib/context";
 import { useContext } from "react";
 
@@ -21,11 +21,8 @@ type CategoryProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
 
-  editSelectedTaskIds: Set<TaskId>;
-
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
-  onToggleEditSelection: (taskId: TaskId) => void;
 
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -40,11 +37,8 @@ export function Category({
   mode,
   selectedTaskId,
 
-  editSelectedTaskIds,
-
   onSelectTask,
   onToggleComplete,
-  onToggleEditSelection,
 
   canMoveUp,
   canMoveDown,
@@ -58,20 +52,64 @@ export function Category({
   const categoryDependenciesMutation = useCategoryDependenciesMutation();
   const createTaskMutation = useCreateTaskMutation();
   const moveTaskMutation = useMoveTaskMutation();
-  const setEditContext = useContext(MultiSelectContext);
-  const isEditingSet = !!setEditContext.state;
+  const multiSelectContext = useContext(MultiSelectContext);
+  const isMultiSelecting = multiSelectContext.isActive();
 
   const onEditDependencies = () => {
-    setEditContext.setState({
+    const headerText = `Editing dependencies for category ${category}`;
+
+    multiSelectContext.setState({
       selectionContext: "categoryDependencies",
-      headerText: `Editing dependencies for category ${category}`,
       selectedTaskSet: new Set(categoryDependencies ?? new Set()),
-      onSetTasks: (taskIds) => {
-        categoryDependenciesMutation.mutate({
-          category,
-          dependencies: taskIds,
-        });
-      },
+      renderCustomHeader: (multiSelectState) => (
+        <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+          <p className="font-medium text-zinc-700 dark:text-zinc-200">
+            {headerText}
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                multiSelectContext.selectAll();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Select All
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                multiSelectContext.clearSelection();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Clear Selection
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                categoryDependenciesMutation.mutate({
+                  category,
+                  dependencies: multiSelectState.selectedTaskSet,
+                });
+                multiSelectContext.close();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                multiSelectContext.close();
+              }}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
     });
   };
 
@@ -86,7 +124,7 @@ export function Category({
     (mode === "edit" && !collapsedEditCategories?.has(category));
 
   return (
-    <DragDropList
+    <DragDropReorderableGroup
       as="details"
       group={category}
       onMoveItem={(fromGroup, fromIndex, toGroup, toIndex) => {
@@ -125,7 +163,7 @@ export function Category({
                 event.stopPropagation();
                 onEditDependencies();
               }}
-              disabled={isEditingSet}
+              disabled={isMultiSelecting}
               className="rounded border border-zinc-300 px-2 py-0.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
               Deps
@@ -166,11 +204,9 @@ export function Category({
               index={index}
               mode={mode}
               isSelected={selectedTaskId === taskId}
-              isEditSelected={editSelectedTaskIds.has(taskId)}
               dependenciesComplete={tasksWithCompleteDependencies.has(taskId)}
               onSelectTask={onSelectTask}
               onToggleComplete={onToggleComplete}
-              onToggleEditSelection={onToggleEditSelection}
             />
           );
         })}
@@ -184,6 +220,6 @@ export function Category({
           </button>
         )}
       </div>
-    </DragDropList>
+    </DragDropReorderableGroup>
   );
 }

@@ -22,64 +22,178 @@ import {
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box";
+import type { PolymorphicProps } from "../lib/utils";
 
-type PolymorphicProps<
-  ElementT extends React.ElementType,
-  CustomProps,
-> = React.PropsWithChildren<
-  // Includes the 'children' prop
-  React.ComponentPropsWithoutRef<ElementT> & {
-    // Extracts all native props of the tag T
-    /** The HTML element or React component you want to render */
-    as?: ElementT;
-  } & CustomProps
+export type DragDropStateType = {
+  /** For a drag source, if the source is being dragged. */
+  isDragging?: boolean;
+  /** For a drag target, if the target is being dragged over by a drag source matching its filters. */
+  isDraggedOver?: boolean;
+};
+
+export type DragDropSourceProps<
+  DragDataT,
+  ElementT extends React.ElementType = "div",
+> = PolymorphicProps<
+  ElementT,
+  {
+    dragData: DragDataT;
+    dragHandleRef?: RefObject<HTMLElement | null>;
+    dragDisabled?: boolean;
+    dragType?: string;
+    setDragDropState?: Dispatch<SetStateAction<DragDropStateType>>;
+  }
 >;
 
-type DragDropMoveItemHandlerType = (
+export function DragDropSource<
+  DragDataT,
+  ElementT extends React.ElementType = "div",
+>({
+  children,
+  dragData,
+  dragHandleRef,
+  dragDisabled,
+  dragType,
+  setDragDropState,
+  as,
+  ...restProps
+}: DragDropSourceProps<DragDataT, ElementT>) {
+  const divRef = useRef(null);
+  const Tag = as || "div";
+
+  useEffect(() => {
+    const dragHandle = dragHandleRef?.current ?? divRef.current;
+    if (!dragHandle) return;
+
+    return draggable({
+      element: divRef.current!,
+      dragHandle,
+      canDrag: () => !Boolean(dragDisabled),
+      getInitialData: () => ({ data: dragData, type: dragType }),
+      onDragStart: () => setDragDropState?.({ isDragging: true }),
+      onDrop: () => setDragDropState?.({ isDragging: false }),
+    });
+  }, [dragData, dragHandleRef, dragDisabled, setDragDropState, dragType]);
+
+  return (
+    <Tag {...restProps} ref={divRef}>
+      {children}
+    </Tag>
+  );
+}
+
+export type DragDropTargetProps<
+  DragDataT,
+  ElementT extends React.ElementType = "div",
+> = PolymorphicProps<
+  ElementT,
+  {
+    dragType?: string;
+    setDragDropState?: Dispatch<SetStateAction<DragDropStateType>>;
+    onDropDragData?: (dragData: DragDataT) => void;
+  }
+>;
+
+export function DragDropTarget<
+  DragDataT,
+  ElementT extends React.ElementType = "div",
+>({
+  children,
+  index,
+  dragType,
+  setDragDropState,
+  onDropDragData,
+  as,
+  ...restProps
+}: DragDropTargetProps<DragDataT, ElementT>) {
+  const divRef = useRef(null);
+  const Tag = as || "div";
+
+  useEffect(() => {
+    const dropTarget = divRef.current;
+    if (!dropTarget) return;
+
+    return dropTargetForElements({
+      element: dropTarget,
+      onDragEnter: ({ source }) => {
+        const sourceData = source.data as { data: DragDataT; type: string };
+        if (dragType && sourceData.type !== dragType) {
+          setDragDropState?.({ isDraggedOver: false });
+          return;
+        }
+        setDragDropState?.({ isDraggedOver: true });
+      },
+      onDragLeave: () => setDragDropState?.({ isDraggedOver: false }),
+      onDrop({ source }) {
+        setDragDropState?.({ isDraggedOver: false });
+        const sourceData = source.data as { data: DragDataT; type: string };
+        if (dragType && sourceData.type !== dragType) {
+          return;
+        }
+        const dragData = sourceData.data;
+
+        onDropDragData?.(dragData);
+      },
+    });
+  }, [index, onDropDragData, setDragDropState, dragType]);
+
+  return (
+    <Tag {...restProps} ref={divRef}>
+      {children}
+    </Tag>
+  );
+}
+
+////////////////////// REORDERABLE
+
+type DragDropReorderHandlerType = (
   fromGroup: string | undefined,
   from: number,
   toGroup: string | undefined,
   to: number,
 ) => void;
 
-type DragDropGroupContextType = {
+type DragDropReorderableGroupContextType = {
   group?: string;
-  onMoveItem?: DragDropMoveItemHandlerType;
+  onMoveItem?: DragDropReorderHandlerType;
 };
 
-export type DragDropItemStateType = {
-  isDragging: boolean;
-};
+export const DragDropReorderableGroupContext =
+  createContext<DragDropReorderableGroupContextType>({});
 
-export const DragDropGroupContext = createContext<DragDropGroupContextType>({});
-
-export type DragDropListItemProps<ElementT extends React.ElementType> =
+export type DragDropReorderableProps<ElementT extends React.ElementType> =
   PolymorphicProps<
     ElementT,
     {
       index: number;
       dragHandleRef?: RefObject<HTMLElement | null>;
       dragDisabled?: boolean;
-      setDragDropState?: Dispatch<SetStateAction<DragDropItemStateType>>;
+      dragType?: string;
+      setDragDropState?: Dispatch<SetStateAction<DragDropStateType>>;
     }
   >;
 
-export type DragDropListItemPositionData = {
+export type DragDropReorderableItemData = {
   index: number;
   group: string;
+  type?: string;
 };
 
-export function DragDropListItem<ElementT extends React.ElementType = "div">({
+/** A single reorderable element. */
+export function DragDropReorderable<
+  ElementT extends React.ElementType = "div",
+>({
   children,
   index,
   dragHandleRef,
   dragDisabled,
+  dragType,
   setDragDropState,
   as,
   ...restProps
-}: DragDropListItemProps<ElementT>) {
+}: DragDropReorderableProps<ElementT>) {
   const divRef = useRef(null);
-  const { group, onMoveItem } = useContext(DragDropGroupContext);
+  const { group, onMoveItem } = useContext(DragDropReorderableGroupContext);
   const Tag = as || "div";
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
 
@@ -95,7 +209,7 @@ export function DragDropListItem<ElementT extends React.ElementType = "div">({
         element: dropTarget,
         dragHandle: dragHandle,
         canDrag: () => !Boolean(dragDisabled),
-        getInitialData: () => ({ index, group }),
+        getInitialData: () => ({ index, group, type: dragType }),
         onDragStart: () => setDragDropState?.({ isDragging: true }),
         onDrop: () => setDragDropState?.({ isDragging: false }),
       }),
@@ -104,16 +218,27 @@ export function DragDropListItem<ElementT extends React.ElementType = "div">({
         element: dropTarget,
         getData: ({ input }) =>
           attachClosestEdge(
-            { index, group },
+            { index, group, type: dragType },
             { element: dropTarget, input, allowedEdges: ["top", "bottom"] },
           ),
-        onDrag: ({ self }) => setClosestEdge(extractClosestEdge(self.data)),
+        onDrag: ({ self, source }) => {
+          const sourceData = source.data as DragDropReorderableItemData;
+          if (sourceData.type !== dragType) {
+            setClosestEdge(null);
+            return;
+          }
+
+          setClosestEdge(extractClosestEdge(self.data));
+        },
         onDragLeave: () => setClosestEdge(null),
         onDrop({ source, self }) {
           setClosestEdge(null);
           if (!group) return;
-          const sourceData = source.data as DragDropListItemPositionData;
-          const targetData = self.data as DragDropListItemPositionData;
+          const sourceData = source.data as DragDropReorderableItemData;
+          if (sourceData.type !== dragType) {
+            return;
+          }
+          const targetData = self.data as DragDropReorderableItemData;
 
           // Adjust index based on whether the top or bottom edge is being dragged into
           const edge = extractClosestEdge(self.data);
@@ -132,7 +257,15 @@ export function DragDropListItem<ElementT extends React.ElementType = "div">({
         },
       }),
     );
-  }, [index, group, onMoveItem, dragHandleRef, dragDisabled, setDragDropState]);
+  }, [
+    index,
+    group,
+    onMoveItem,
+    dragHandleRef,
+    dragDisabled,
+    setDragDropState,
+    dragType,
+  ]);
 
   const nextStyle: CSSProperties = restProps.style
     ? Object.assign({}, restProps.style)
@@ -147,7 +280,7 @@ export function DragDropListItem<ElementT extends React.ElementType = "div">({
   );
 }
 
-export type DragDropListProps<ElementT extends React.ElementType> =
+export type DragDropReorderableGroupProps<ElementT extends React.ElementType> =
   PolymorphicProps<
     ElementT,
     {
@@ -161,22 +294,25 @@ export type DragDropListProps<ElementT extends React.ElementType> =
     }
   >;
 
-export function DragDropList<ElementT extends React.ElementType = "div">({
+/** Group reorderable elements into categories while unifying their drop handling code. */
+export function DragDropReorderableGroup<
+  ElementT extends React.ElementType = "div",
+>({
   children,
   group,
   onMoveItem,
   as,
   ...restProps
-}: DragDropListProps<ElementT>) {
-  const contextValue: DragDropGroupContextType = {
+}: DragDropReorderableGroupProps<ElementT>) {
+  const contextValue: DragDropReorderableGroupContextType = {
     group,
     onMoveItem,
   };
   const Tag = as || "div";
 
   return (
-    <DragDropGroupContext value={contextValue}>
+    <DragDropReorderableGroupContext value={contextValue}>
       <Tag {...restProps}>{children}</Tag>
-    </DragDropGroupContext>
+    </DragDropReorderableGroupContext>
   );
 }

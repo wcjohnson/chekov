@@ -8,36 +8,31 @@ import {
   useCategoryDependenciesQuery,
   useCategoriesQuery,
   useCategoriesTasksQuery,
-  useCompletionsQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
-  useWarningsQuery,
+  useRemindersQuery,
 } from "@/app/lib/data";
 
 type LeftColumnProps = {
   mode: ChecklistMode;
+  showCompletedTasks: boolean;
+  completionsWithReminders: Set<TaskId>;
   tasksWithCompleteDependencies: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
-  editSelectedTaskIds: Set<TaskId>;
-  onSelectAll: () => void;
-  onClearSelection: () => void;
   onSelectTask: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
-  onToggleEditSelection: (taskId: TaskId) => void;
 };
 
 export function LeftColumn({
   mode,
+  showCompletedTasks,
+  completionsWithReminders,
   tasksWithCompleteDependencies,
   tasksMatchingSearch,
   selectedTaskId,
-  editSelectedTaskIds,
-  onSelectAll,
-  onClearSelection,
   onSelectTask,
   onToggleComplete,
-  onToggleEditSelection,
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -62,8 +57,7 @@ export function LeftColumn({
   const categories = useCategoriesQuery().data;
   const categoriesTasks = useCategoriesTasksQuery().data;
   const categoryDependencies = useCategoryDependenciesQuery().data;
-  const allCompletions = useCompletionsQuery().data;
-  const allWarnings = useWarningsQuery().data;
+  const allReminders = useRemindersQuery().data;
 
   const taskBreakout: TaskBreakout = useMemo(() => {
     const visibleCategories: string[] = [];
@@ -87,7 +81,7 @@ export function LeftColumn({
         let dependenciesMet = true;
         if (dependencies) {
           for (const dependencyId of dependencies) {
-            if (!allCompletions?.has(dependencyId)) {
+            if (!completionsWithReminders.has(dependencyId)) {
               dependenciesMet = false;
               break;
             }
@@ -102,13 +96,18 @@ export function LeftColumn({
       const tasks = categoriesTasks.get(category) ?? [];
       const filtered = tasks.filter((taskId) => {
         const matchesSearch = tasksMatchingSearch.has(taskId);
-        const isWarning = allWarnings?.has(taskId);
+        const isReminder = allReminders?.has(taskId);
         if (mode === "task") {
           const hasCompleteDependencies =
             tasksWithCompleteDependencies.has(taskId);
+          if (isReminder) {
+            const shouldShow = !hasCompleteDependencies || showCompletedTasks;
+            return shouldShow && matchesSearch;
+          }
+
+          const isCompleted = completionsWithReminders.has(taskId);
           const shouldShow =
-            (isWarning && !hasCompleteDependencies) ||
-            (!isWarning && hasCompleteDependencies);
+            hasCompleteDependencies && (showCompletedTasks || !isCompleted);
           return shouldShow && matchesSearch;
         } else {
           return matchesSearch;
@@ -136,8 +135,9 @@ export function LeftColumn({
     mode,
     categoriesTasks,
     categoryDependencies,
-    allCompletions,
-    allWarnings,
+    allReminders,
+    completionsWithReminders,
+    showCompletedTasks,
   ]);
 
   return (
@@ -145,9 +145,6 @@ export function LeftColumn({
       <LeftHeader
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
-        editSelectedCount={editSelectedTaskIds.size}
-        onSelectAll={onSelectAll}
-        onClearSelection={onClearSelection}
       />
 
       <div
@@ -162,10 +159,8 @@ export function LeftColumn({
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             mode={mode}
             selectedTaskId={selectedTaskId}
-            editSelectedTaskIds={editSelectedTaskIds}
             onSelectTask={onSelectTask}
             onToggleComplete={onToggleComplete}
-            onToggleEditSelection={onToggleEditSelection}
             canMoveUp={index > 0}
             canMoveDown={index < taskBreakout.visibleCategories.length - 1}
             onMoveUp={() => moveCategory(index, index - 1)}

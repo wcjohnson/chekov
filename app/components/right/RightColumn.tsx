@@ -8,6 +8,7 @@ import { useTaskDetailQuery } from "@/app/lib/data";
 type RightColumnProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
+  completionsWithReminders: Set<TaskId>;
   tasksWithCompleteDependencies: Set<TaskId>;
   errorMessage: string | null;
 };
@@ -15,6 +16,7 @@ type RightColumnProps = {
 export function RightColumn({
   mode,
   selectedTaskId,
+  completionsWithReminders,
   tasksWithCompleteDependencies,
   errorMessage,
 }: RightColumnProps) {
@@ -40,6 +42,7 @@ export function RightColumn({
             mode={mode}
             selectedTaskId={selectedTaskId}
             selectedTaskDetail={detail}
+            completionsWithReminders={completionsWithReminders}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
           />
         </div>

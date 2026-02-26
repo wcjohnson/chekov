@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 import { AppLayout } from "./components/layout/AppLayout";
@@ -10,18 +10,27 @@ import { TopBar } from "./components/TopBar";
 import type { ChecklistMode, TaskId } from "./lib/types";
 import {
   useClearDatabaseMutation,
+  useCollapsedCategoriesQuery,
   queryClient,
+  useCompletionsWithReminders,
   useCompletionsQuery,
-  useDeleteTasksMutation,
   useDependenciesQuery,
+  useRemindersQuery,
+  useTaskDependencyExpressions,
   useTaskCompletionMutation,
+  useTaskCategoryById,
   useTasksMatchingSearch,
   useTaskStructure,
   useTasksWithCompleteDependencies,
   useUncompleteAllTasksMutation,
   useUnhideAllTasksMutation,
 } from "./lib/data";
-import { MultiSelectContext, type MultiSelectState } from "@/app/lib/context";
+import {
+  MultiSelectContext,
+  type MultiSelectContextId,
+  type MultiSelectState,
+} from "@/app/lib/context";
+import { useStableCallback } from "@/app/lib/utils";
 import {
   downloadJson,
   exportChecklistDefinition,
@@ -37,19 +46,36 @@ const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
 
 export function AppMain() {
   const [mode, setMode] = useState<ChecklistMode>("task");
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [stateSelectedTaskId, setSelectedTaskId] = useState<TaskId | null>(
     null,
   );
-  const [editSelectedTaskIds, setEditSelectedTaskIds] = useState<Set<TaskId>>(
-    new Set(),
-  );
-  const [leftPaneWidth, setLeftPaneWidth] = useState(32);
+  const [leftPaneWidth, setLeftPaneWidth] = useState(() => {
+    if (typeof window === "undefined") {
+      return 32;
+    }
+
+    const storedWidth = window.localStorage.getItem(PANE_WIDTH_STORAGE_KEY);
+    if (!storedWidth) {
+      return 32;
+    }
+
+    const parsedWidth = Number.parseFloat(storedWidth);
+    if (!Number.isFinite(parsedWidth)) {
+      return 32;
+    }
+
+    return Math.min(75, Math.max(20, parsedWidth));
+  });
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [multiSelectState, setMultiSelectState] =
     useState<MultiSelectState | null>(null);
+  const closeMultiSelect = useCallback(() => {
+    setMultiSelectState(null);
+  }, []);
 
   const importDefinitionInputRef = useRef<HTMLInputElement>(null);
   const importStateInputRef = useRef<HTMLInputElement>(null);
@@ -59,15 +85,30 @@ export function AppMain() {
 
   const taskStructure = useTaskStructure();
   const allDependencies = useDependenciesQuery().data ?? new Map();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const allCompletions = useCompletionsQuery().data ?? new Set<string>();
+  const dependencyExpressions = useTaskDependencyExpressions();
+  const allCompletionsRaw = useCompletionsQuery().data;
+  const allReminders = useRemindersQuery().data;
+  const allCompletions = useCompletionsWithReminders(
+    taskStructure.taskSet,
+    allCompletionsRaw,
+    allReminders,
+    allDependencies,
+    dependencyExpressions,
+  );
 
   const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
     taskStructure.taskSet,
     allDependencies,
     allCompletions,
+    dependencyExpressions,
   );
   const tasksMatchingSearch = useTasksMatchingSearch(searchText);
+  const collapsedCategories = useCollapsedCategoriesQuery().data;
+  const collapsedEditCategories = useMemo(
+    () => collapsedCategories?.edit ?? new Set<string>(),
+    [collapsedCategories],
+  );
+  const taskCategoryById = useTaskCategoryById(taskStructure.categoryTasks);
 
   ///////////////////////////////////////// Events
 
@@ -77,15 +118,44 @@ export function AppMain() {
       ? stateSelectedTaskId
       : null;
 
-  // Clear edit mode data on switch to task mode
-  useEffect(() => {
-    if (mode === "edit") {
-      return;
+  const effectiveMultiSelectState = useMemo(() => {
+    if (!multiSelectState) {
+      return null;
     }
 
-    setEditSelectedTaskIds(new Set());
-    setMultiSelectState(null);
-  }, [mode]);
+    const nextSelectedSet = new Set(
+      Array.from(multiSelectState.selectedTaskSet).filter((taskId) =>
+        taskStructure.taskSet.has(taskId),
+      ),
+    );
+
+    if (nextSelectedSet.size === multiSelectState.selectedTaskSet.size) {
+      return multiSelectState;
+    }
+
+    return {
+      ...multiSelectState,
+      selectedTaskSet: nextSelectedSet,
+    };
+  }, [multiSelectState, taskStructure.taskSet]);
+  const isMultiSelectActive = useCallback(
+    (selectionContext?: MultiSelectContextId) => {
+      if (!effectiveMultiSelectState) {
+        return false;
+      }
+
+      if (!selectionContext) {
+        return true;
+      }
+
+      return effectiveMultiSelectState.selectionContext === selectionContext;
+    },
+    [effectiveMultiSelectState],
+  );
+  const getMultiSelectSelection = useCallback(
+    () => effectiveMultiSelectState?.selectedTaskSet ?? new Set<TaskId>(),
+    [effectiveMultiSelectState],
+  );
 
   // Determine if on desktop
   useEffect(() => {
@@ -100,22 +170,6 @@ export function AppMain() {
     return () => {
       mediaQuery.removeEventListener("change", handleMediaChange);
     };
-  }, []);
-
-  // Restore stored width on mount
-  useEffect(() => {
-    const storedWidth = window.localStorage.getItem(PANE_WIDTH_STORAGE_KEY);
-    if (!storedWidth) {
-      return;
-    }
-
-    const parsedWidth = Number.parseFloat(storedWidth);
-    if (!Number.isFinite(parsedWidth)) {
-      return;
-    }
-
-    const clamped = Math.min(75, Math.max(20, parsedWidth));
-    setLeftPaneWidth(clamped);
   }, []);
 
   // Store pane width on handle drag
@@ -155,52 +209,76 @@ export function AppMain() {
     };
   }, [isDesktop, isResizing]);
 
-  useEffect(() => {
-    const validTaskIds = taskStructure.taskSet;
-
-    setEditSelectedTaskIds((previous) => {
-      const next = new Set(
-        Array.from(previous).filter((taskId) => validTaskIds.has(taskId)),
-      );
-      return next.size === previous.size ? previous : next;
-    });
-
-    if (multiSelectState) {
-      const nextSelectedSet =
-        multiSelectState.selectedTaskSet.intersection(validTaskIds);
-      if (nextSelectedSet.size !== multiSelectState.selectedTaskSet.size) {
-        setMultiSelectState({
-          ...multiSelectState,
-          selectedTaskSet: nextSelectedSet,
-        });
+  const clearSelection = useCallback(() => {
+    setMultiSelectState((previous) => {
+      if (!previous) {
+        return previous;
       }
-    }
-  }, [taskStructure.taskSet, selectedTaskId, multiSelectState]);
 
-  const selectAllFilteredTasks = useCallback(() => {
-    // TODO: filter against hiddenness of categories
-    setEditSelectedTaskIds(new Set(tasksMatchingSearch));
-  }, [tasksMatchingSearch]);
-
-  const deleteTasksMutation = useDeleteTasksMutation();
-
-  const deleteSelectedTasks = () => {
-    const selectedIds = editSelectedTaskIds;
-    if (selectedIds.size === 0) {
-      return;
-    }
-    deleteTasksMutation.mutate(Array.from(selectedIds));
-    setEditSelectedTaskIds(new Set());
-  };
-
-  const clearSelection = () => {
-    setEditSelectedTaskIds(new Set());
-    if (multiSelectState) {
-      setMultiSelectState({
-        ...multiSelectState,
+      return {
+        ...previous,
         selectedTaskSet: new Set(),
-      });
-    }
+      };
+    });
+  }, []);
+
+  const setTaskSelected = useCallback((taskId: TaskId, isSelected: boolean) => {
+    setMultiSelectState((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const nextSelectedSet = new Set(previous.selectedTaskSet);
+      if (isSelected) {
+        nextSelectedSet.add(taskId);
+      } else {
+        nextSelectedSet.delete(taskId);
+      }
+
+      return {
+        ...previous,
+        selectedTaskSet: nextSelectedSet,
+      };
+    });
+  }, []);
+
+  const selectAllFilteredTasks = useStableCallback(() => {
+    setMultiSelectState((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const nextSelectedSet = new Set(
+        Array.from(tasksMatchingSearch).filter((taskId) => {
+          const category = taskCategoryById.get(taskId);
+          if (category && collapsedEditCategories.has(category)) {
+            return false;
+          }
+
+          if (!previous.taskFilter) {
+            return true;
+          }
+
+          return !!previous.taskFilter(taskId, undefined, previous);
+        }),
+      );
+
+      return {
+        ...previous,
+        selectedTaskSet: nextSelectedSet,
+      };
+    });
+  });
+
+  const toggleMode = () => {
+    setMode((current) => {
+      if (current === "edit") {
+        setMultiSelectState(null);
+        return "task";
+      }
+
+      return "edit";
+    });
   };
 
   const taskCompletionMutation = useTaskCompletionMutation();
@@ -212,18 +290,6 @@ export function AppMain() {
     },
     [allCompletions, taskCompletionMutation],
   );
-
-  const toggleEditTaskSelection = (taskId: TaskId) => {
-    setEditSelectedTaskIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(taskId)) {
-        next.delete(taskId);
-      } else {
-        next.add(taskId);
-      }
-      return next;
-    });
-  };
 
   const unhideAllTasksMutation = useUnhideAllTasksMutation();
   const unhideAllTasks = () => {
@@ -239,7 +305,6 @@ export function AppMain() {
   const clearDatabase = () => {
     clearDatabaseMutation.mutate();
     setSelectedTaskId(null);
-    setEditSelectedTaskIds(new Set());
     setMultiSelectState(null);
     setErrorMessage(null);
   };
@@ -277,7 +342,16 @@ export function AppMain() {
 
   return (
     <MultiSelectContext
-      value={{ setState: setMultiSelectState, state: multiSelectState }}
+      value={{
+        setState: setMultiSelectState,
+        state: effectiveMultiSelectState,
+        isActive: isMultiSelectActive,
+        getSelection: getMultiSelectSelection,
+        close: closeMultiSelect,
+        clearSelection,
+        selectAll: selectAllFilteredTasks,
+        setTaskSelected,
+      }}
     >
       <AppLayout
         mainPaneRef={mainPaneRef}
@@ -291,16 +365,16 @@ export function AppMain() {
         topBar={
           <TopBar
             mode={mode}
-            editSelectedCount={editSelectedTaskIds.size}
             searchText={searchText}
             importDefinitionInputRef={importDefinitionInputRef}
             importStateInputRef={importStateInputRef}
-            onToggleMode={() =>
-              setMode((current) => (current === "task" ? "edit" : "task"))
-            }
-            onDeleteAll={deleteSelectedTasks}
+            onToggleMode={toggleMode}
             onUnhideAll={unhideAllTasks}
             onResetCompleted={resetAllCompletedTasks}
+            showCompletedTasks={showCompletedTasks}
+            onToggleShowCompletedTasks={() =>
+              setShowCompletedTasks((current) => !current)
+            }
             onClearDatabase={clearDatabase}
             onSearchTextChange={setSearchText}
             onExportDefinition={handleExportDefinition}
@@ -320,21 +394,20 @@ export function AppMain() {
         leftColumn={
           <LeftColumn
             mode={mode}
+            showCompletedTasks={showCompletedTasks}
+            completionsWithReminders={allCompletions}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             tasksMatchingSearch={tasksMatchingSearch}
             selectedTaskId={selectedTaskId}
-            editSelectedTaskIds={editSelectedTaskIds}
-            onSelectAll={selectAllFilteredTasks}
-            onClearSelection={clearSelection}
             onSelectTask={setSelectedTaskId}
             onToggleComplete={toggleTaskCompletion}
-            onToggleEditSelection={toggleEditTaskSelection}
           />
         }
         rightColumn={
           <RightColumn
             mode={mode}
             selectedTaskId={selectedTaskId}
+            completionsWithReminders={allCompletions}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
             errorMessage={errorMessage}
           />
