@@ -2,11 +2,8 @@ import { openDB, type DBSchema } from "idb";
 import type { TagColorKey } from "./tagColors";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import type { BooleanExpression, CategoryName, TaskId } from "./types";
-import {
-  detectCycle,
-  evaluateBooleanExpression,
-  fromKvPairsToMap,
-} from "./utils";
+import { detectCycle, fromKvPairsToMap } from "./utils";
+import { evaluateBooleanExpression } from "./booleanExpression";
 import { useMemo } from "react";
 import { BooleanOp } from "./types";
 

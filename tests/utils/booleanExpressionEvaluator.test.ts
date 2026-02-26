@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BooleanOp, type BooleanExpression } from "../../app/lib/types";
-import { evaluateBooleanExpression } from "../../app/lib/utils";
+import { evaluateBooleanExpression } from "../../app/lib/booleanExpression";
 
 describe("evaluateBooleanExpression", () => {
   it("evaluates a task-id leaf from truthy set membership", () => {
