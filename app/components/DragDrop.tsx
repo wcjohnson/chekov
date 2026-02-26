@@ -90,7 +90,7 @@ export type DragDropTargetProps<
   {
     dragType?: string;
     setDragDropState?: Dispatch<SetStateAction<DragDropStateType>>;
-    onDrop?: (dragData: DragDataT) => void;
+    onDropDragData?: (dragData: DragDataT) => void;
   }
 >;
 
@@ -102,7 +102,7 @@ export function DragDropTarget<
   index,
   dragType,
   setDragDropState,
-  onDrop,
+  onDropDragData,
   as,
   ...restProps
 }: DragDropTargetProps<DragDataT, ElementT>) {
@@ -132,10 +132,10 @@ export function DragDropTarget<
         }
         const dragData = sourceData.data;
 
-        onDrop?.(dragData);
+        onDropDragData?.(dragData);
       },
     });
-  }, [index, onDrop, setDragDropState, dragType]);
+  }, [index, onDropDragData, setDragDropState, dragType]);
 
   return (
     <Tag {...restProps} ref={divRef}>

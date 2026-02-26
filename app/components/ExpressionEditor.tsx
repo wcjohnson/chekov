@@ -1,85 +1,95 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { BooleanOp, type BooleanExpression, type TaskId } from "../lib/types";
 import {
+  useDetailsQuery,
   useTaskDependencyExpressionMutation,
   useTaskDependencyExpressionQuery,
 } from "../lib/data";
+import {
+  DragDropSource,
+  DragDropTarget,
+  type DragDropStateType,
+} from "./DragDrop";
 
-function buildImplicitAndExpression(
-  dependencyIds: Set<TaskId>,
-): Extract<BooleanExpression, [BooleanOp.And, ...BooleanExpression[]]> {
-  return [BooleanOp.And, ...Array.from(dependencyIds)];
+type NodeDraft =
+  | { kind: "empty" }
+  | { kind: "primitive"; taskId: TaskId }
+  | {
+      kind: "operator";
+      op: BooleanOp.And | BooleanOp.Or | BooleanOp.Not;
+      children: NodeDraft[];
+    };
+
+type PaletteNodeDragData =
+  | { kind: "primitive"; taskId: TaskId }
+  | { kind: "operator"; op: BooleanOp.And | BooleanOp.Or | BooleanOp.Not };
+
+const EXPRESSION_NODE_DRAG_TYPE = "expression-node";
+
+function buildImplicitNodeDraft(dependencyIds: TaskId[]): NodeDraft {
+  if (dependencyIds.length === 0) {
+    return { kind: "empty" };
+  }
+
+  return {
+    kind: "operator",
+    op: BooleanOp.And,
+    children: dependencyIds.map((taskId) => ({ kind: "primitive", taskId })),
+  };
 }
 
-function deepCloneExpression(expression: BooleanExpression): BooleanExpression {
-  if (typeof expression === "string") {
-    return expression;
+function paletteNodeToDraft(dragData: PaletteNodeDragData): NodeDraft {
+  if (dragData.kind === "primitive") {
+    return { kind: "primitive", taskId: dragData.taskId };
   }
 
-  const [operator, ...operands] = expression;
-  const clonedOperands = operands.map((operand) =>
-    deepCloneExpression(operand),
-  );
-  if (operator === BooleanOp.Not) {
-    return [BooleanOp.Not, clonedOperands[0]];
-  }
-
-  if (operator === BooleanOp.And) {
-    return [BooleanOp.And, ...clonedOperands];
-  }
-
-  return [BooleanOp.Or, ...clonedOperands];
+  return { kind: "operator", op: dragData.op, children: [] };
 }
 
-function ensureEditableRoot(
-  expression: BooleanExpression | null,
-  dependencyIds: Set<TaskId>,
-): Extract<
-  BooleanExpression,
-  [BooleanOp.And | BooleanOp.Or, ...BooleanExpression[]]
-> {
-  if (!expression) {
-    return buildImplicitAndExpression(dependencyIds);
+function cloneNodeDraft(node: NodeDraft): NodeDraft {
+  if (node.kind === "empty") {
+    return { kind: "empty" };
   }
 
-  if (typeof expression === "string") {
-    return [BooleanOp.And, expression];
+  if (node.kind === "primitive") {
+    return { kind: "primitive", taskId: node.taskId };
   }
 
-  const [operator] = expression;
-  if (operator === BooleanOp.And || operator === BooleanOp.Or) {
-    return expression;
-  }
-
-  return [BooleanOp.And, expression];
+  return {
+    kind: "operator",
+    op: node.op,
+    children: node.children.map((child) => cloneNodeDraft(child)),
+  };
 }
 
-function normalizeToDependencies(
+function normalizeExpressionToDependencies(
   expression: BooleanExpression,
-  dependencyIds: Set<TaskId>,
+  dependencyIdSet: Set<TaskId>,
 ): BooleanExpression | null {
   if (typeof expression === "string") {
-    return dependencyIds.has(expression) ? expression : null;
+    return dependencyIdSet.has(expression) ? expression : null;
   }
 
   const [operator, ...operands] = expression;
   if (operator === BooleanOp.Not) {
-    const normalizedOperand = normalizeToDependencies(
+    const normalized = normalizeExpressionToDependencies(
       operands[0],
-      dependencyIds,
+      dependencyIdSet,
     );
-    if (!normalizedOperand) {
+    if (!normalized) {
       return null;
     }
 
-    return [BooleanOp.Not, normalizedOperand];
+    return [BooleanOp.Not, normalized];
   }
 
   if (operator === BooleanOp.And || operator === BooleanOp.Or) {
     const normalizedOperands = operands
-      .map((operand) => normalizeToDependencies(operand, dependencyIds))
+      .map((operand) =>
+        normalizeExpressionToDependencies(operand, dependencyIdSet),
+      )
       .filter((operand): operand is BooleanExpression => operand !== null);
 
     return [operator, ...normalizedOperands];
@@ -88,375 +98,322 @@ function normalizeToDependencies(
   return null;
 }
 
-function unwrapNot(operand: BooleanExpression): {
-  expression: BooleanExpression;
-  negated: boolean;
-} {
-  if (typeof operand !== "string" && operand[0] === BooleanOp.Not) {
-    return { expression: operand[1], negated: true };
-  }
-
-  return { expression: operand, negated: false };
-}
-
-function wrapNotIfNeeded(
+function expressionToNodeDraft(
   expression: BooleanExpression,
-  negated: boolean,
-): BooleanExpression {
-  return negated ? [BooleanOp.Not, expression] : expression;
-}
-
-function setNodeAtPath(
-  expression: BooleanExpression,
-  path: number[],
-  updater: (node: BooleanExpression) => BooleanExpression,
-): BooleanExpression {
-  if (path.length === 0) {
-    return updater(expression);
-  }
-
+  dependencyIdSet: Set<TaskId>,
+): NodeDraft {
   if (typeof expression === "string") {
-    return expression;
+    if (!dependencyIdSet.has(expression)) {
+      return { kind: "empty" };
+    }
+
+    return { kind: "primitive", taskId: expression };
   }
 
   const [operator, ...operands] = expression;
-  if (operator !== BooleanOp.And && operator !== BooleanOp.Or) {
-    return expression;
+  if (operator === BooleanOp.Not) {
+    return {
+      kind: "operator",
+      op: BooleanOp.Not,
+      children: [expressionToNodeDraft(operands[0], dependencyIdSet)],
+    };
   }
 
-  const [nextIndex, ...restPath] = path;
-  const nextOperands = [...operands];
-  nextOperands[nextIndex] = setNodeAtPath(
-    nextOperands[nextIndex],
+  if (operator === BooleanOp.And || operator === BooleanOp.Or) {
+    return {
+      kind: "operator",
+      op: operator,
+      children: operands.map((operand) =>
+        expressionToNodeDraft(operand, dependencyIdSet),
+      ),
+    };
+  }
+
+  return { kind: "empty" };
+}
+
+function nodeDraftToExpression(node: NodeDraft): BooleanExpression | null {
+  if (node.kind === "empty") {
+    return null;
+  }
+
+  if (node.kind === "primitive") {
+    return node.taskId;
+  }
+
+  if (node.op === BooleanOp.Not) {
+    const childExpression = node.children[0]
+      ? nodeDraftToExpression(node.children[0])
+      : null;
+    if (!childExpression) {
+      return null;
+    }
+
+    return [BooleanOp.Not, childExpression];
+  }
+
+  return [
+    node.op,
+    ...node.children
+      .map((child) => nodeDraftToExpression(child))
+      .filter((child): child is BooleanExpression => child !== null),
+  ];
+}
+
+function insertNodeAtSlot(
+  node: NodeDraft,
+  slotPath: number[],
+  incomingNode: NodeDraft,
+): NodeDraft {
+  if (slotPath.length === 0) {
+    return cloneNodeDraft(incomingNode);
+  }
+
+  if (node.kind !== "operator") {
+    return node;
+  }
+
+  const [nextIndex, ...restPath] = slotPath;
+  const nextChildren = [...node.children];
+
+  if (restPath.length === 0) {
+    if (nextIndex === nextChildren.length) {
+      if (node.op === BooleanOp.Not && nextChildren.length >= 1) {
+        return node;
+      }
+
+      nextChildren.push(cloneNodeDraft(incomingNode));
+      return { ...node, children: nextChildren };
+    }
+
+    const existingChild = nextChildren[nextIndex];
+    if (!existingChild || existingChild.kind !== "empty") {
+      return node;
+    }
+
+    nextChildren[nextIndex] = cloneNodeDraft(incomingNode);
+    return { ...node, children: nextChildren };
+  }
+
+  const existingChild = nextChildren[nextIndex];
+  if (!existingChild) {
+    return node;
+  }
+
+  nextChildren[nextIndex] = insertNodeAtSlot(
+    existingChild,
     restPath,
-    updater,
+    incomingNode,
   );
-  return [operator, ...nextOperands];
+  return { ...node, children: nextChildren };
 }
 
-function removeOperandAtPath(
-  expression: BooleanExpression,
-  operandPath: number[],
-): BooleanExpression {
-  if (operandPath.length === 0) {
-    return expression;
+function renderTokenLabel(
+  node: NodeDraft,
+  dependencyTitleById: Map<TaskId, string>,
+) {
+  if (node.kind === "empty") {
+    return "+";
   }
 
-  const parentPath = operandPath.slice(0, -1);
-  const removeIndex = operandPath[operandPath.length - 1];
+  if (node.kind === "primitive") {
+    return dependencyTitleById.get(node.taskId) ?? node.taskId;
+  }
 
-  return setNodeAtPath(expression, parentPath, (node) => {
-    if (typeof node === "string") {
-      return node;
-    }
-
-    const [operator, ...operands] = node;
-    if (operator !== BooleanOp.And && operator !== BooleanOp.Or) {
-      return node;
-    }
-
-    const nextOperands = operands.filter((_, index) => index !== removeIndex);
-    return [operator, ...nextOperands];
-  });
+  return node.op === BooleanOp.And
+    ? "AND"
+    : node.op === BooleanOp.Or
+      ? "OR"
+      : "NOT";
 }
 
-function appendOperandAtGroupPath(
-  expression: BooleanExpression,
-  groupPath: number[],
-  operand: BooleanExpression,
-): BooleanExpression {
-  return setNodeAtPath(expression, groupPath, (node) => {
-    if (typeof node === "string") {
-      return node;
-    }
-
-    const [operator, ...operands] = node;
-    if (operator !== BooleanOp.And && operator !== BooleanOp.Or) {
-      return node;
-    }
-
-    return [operator, ...operands, operand];
-  });
-}
-
-function ExpressionTreeEditor({
-  expression,
-  dependencyIds,
-  onChange,
+function SlotTarget({
+  onDrop,
 }: {
-  expression: BooleanExpression;
-  dependencyIds: TaskId[];
-  onChange: (expression: BooleanExpression) => void;
+  onDrop: (dragData: PaletteNodeDragData) => void;
 }) {
-  const firstDependencyId = dependencyIds[0] ?? "";
-
-  const renderGroup = (
-    groupExpression: Extract<
-      BooleanExpression,
-      [BooleanOp.And | BooleanOp.Or, ...BooleanExpression[]]
-    >,
-    groupPath: number[],
-  ) => {
-    const [operator, ...operands] = groupExpression;
-
-    return (
-      <div className="space-y-2 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            Group
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              onChange(
-                setNodeAtPath(expression, groupPath, (node) => {
-                  if (typeof node === "string") {
-                    return node;
-                  }
-
-                  const [, ...nodeOperands] = node;
-                  return [BooleanOp.And, ...nodeOperands];
-                }),
-              );
-            }}
-            className={`rounded border px-2 py-1 text-xs ${
-              operator === BooleanOp.And
-                ? "border-zinc-500 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800"
-                : "border-zinc-300 dark:border-zinc-700"
-            }`}
-          >
-            AND
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onChange(
-                setNodeAtPath(expression, groupPath, (node) => {
-                  if (typeof node === "string") {
-                    return node;
-                  }
-
-                  const [, ...nodeOperands] = node;
-                  return [BooleanOp.Or, ...nodeOperands];
-                }),
-              );
-            }}
-            className={`rounded border px-2 py-1 text-xs ${
-              operator === BooleanOp.Or
-                ? "border-zinc-500 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800"
-                : "border-zinc-300 dark:border-zinc-700"
-            }`}
-          >
-            OR
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {operands.map((operand, operandIndex) => {
-            const operandPath = [...groupPath, operandIndex];
-            const { expression: baseExpression, negated } = unwrapNot(operand);
-
-            return (
-              <div
-                key={operandPath.join("-")}
-                className="space-y-2 rounded border border-zinc-200 p-2 dark:border-zinc-800"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="inline-flex items-center gap-1 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={negated}
-                      onChange={(event) => {
-                        onChange(
-                          setNodeAtPath(expression, operandPath, (node) => {
-                            const { expression: rawExpression } =
-                              unwrapNot(node);
-                            return wrapNotIfNeeded(
-                              rawExpression,
-                              event.target.checked,
-                            );
-                          }),
-                        );
-                      }}
-                    />
-                    NOT
-                  </label>
-
-                  {typeof baseExpression === "string" ? (
-                    <select
-                      value={baseExpression}
-                      onChange={(event) => {
-                        onChange(
-                          setNodeAtPath(expression, operandPath, (node) => {
-                            const { negated: currentNegated } = unwrapNot(node);
-                            return wrapNotIfNeeded(
-                              event.target.value,
-                              currentNegated,
-                            );
-                          }),
-                        );
-                      }}
-                      className="rounded border border-zinc-300 bg-transparent px-2 py-1 text-xs dark:border-zinc-700"
-                    >
-                      {dependencyIds.map((dependencyId) => (
-                        <option key={dependencyId} value={dependencyId}>
-                          {dependencyId}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Nested group
-                    </span>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(removeOperandAtPath(expression, operandPath));
-                    }}
-                    className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                {typeof baseExpression !== "string" &&
-                  (baseExpression[0] === BooleanOp.And ||
-                    baseExpression[0] === BooleanOp.Or) &&
-                  renderGroup(baseExpression, operandPath)}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (!firstDependencyId) {
-                return;
-              }
-
-              onChange(
-                appendOperandAtGroupPath(
-                  expression,
-                  groupPath,
-                  firstDependencyId,
-                ),
-              );
-            }}
-            disabled={!firstDependencyId}
-            className="rounded border border-zinc-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Add dependency
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onChange(
-                appendOperandAtGroupPath(expression, groupPath, [
-                  BooleanOp.And,
-                ]),
-              );
-            }}
-            className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Add group
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  if (typeof expression === "string") {
-    return null;
-  }
-
-  const [operator] = expression;
-  if (operator !== BooleanOp.And && operator !== BooleanOp.Or) {
-    return null;
-  }
-
-  return renderGroup(expression, []);
-}
-
-export function ExpressionEditor({
-  taskId,
-  dependencyIds,
-}: {
-  taskId: TaskId | null;
-  dependencyIds: Set<TaskId>;
-}) {
-  const selectedTaskDependencyExpression = useTaskDependencyExpressionQuery(
-    taskId ?? "",
-  ).data;
-
-  const editablePersistedExpression = useMemo(() => {
-    const normalized = normalizeToDependencies(
-      selectedTaskDependencyExpression ??
-        buildImplicitAndExpression(dependencyIds),
-      dependencyIds,
-    );
-
-    return ensureEditableRoot(normalized, dependencyIds);
-  }, [selectedTaskDependencyExpression, dependencyIds]);
-
-  const draftKey = `${taskId ?? ""}:${JSON.stringify(editablePersistedExpression)}`;
+  const [state, setState] = useState<DragDropStateType>({});
 
   return (
-    <ExpressionEditorDraft
-      key={draftKey}
-      taskId={taskId}
-      dependencyIds={dependencyIds}
-      editablePersistedExpression={editablePersistedExpression}
-    />
+    <DragDropTarget<PaletteNodeDragData, "button">
+      dragType={EXPRESSION_NODE_DRAG_TYPE}
+      onDropDragData={onDrop}
+      setDragDropState={setState}
+      as="button"
+      type="button"
+      className={`rounded-full border px-3 py-1 text-xs font-medium ${
+        state.isDraggedOver
+          ? "border-zinc-500 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800"
+          : "border-zinc-300 bg-transparent dark:border-zinc-700"
+      }`}
+    >
+      +
+    </DragDropTarget>
   );
+}
+
+function PaletteSource({
+  dragData,
+  children,
+}: {
+  dragData: PaletteNodeDragData;
+  children: ReactNode;
+}) {
+  const [state, setState] = useState<DragDropStateType>({});
+
+  return (
+    <DragDropSource<PaletteNodeDragData, "button">
+      dragData={dragData}
+      dragType={EXPRESSION_NODE_DRAG_TYPE}
+      setDragDropState={setState}
+      as="button"
+      type="button"
+      className={`rounded-full border px-3 py-1 text-xs font-medium ${
+        state.isDragging
+          ? "border-zinc-500 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800"
+          : "border-zinc-300 bg-transparent dark:border-zinc-700"
+      }`}
+    >
+      {children}
+    </DragDropSource>
+  );
+}
+
+function collectPrefixTokens(
+  node: NodeDraft,
+  path: number[],
+  dependencyTitleById: Map<TaskId, string>,
+  onDropAtSlot: (slotPath: number[], dragData: PaletteNodeDragData) => void,
+): ReactNode[] {
+  if (node.kind === "empty") {
+    return [
+      <SlotTarget
+        key={`slot-${path.join("-") || "root"}`}
+        onDrop={(dragData) => onDropAtSlot(path, dragData)}
+      />,
+    ];
+  }
+
+  if (node.kind === "primitive") {
+    return [
+      <span
+        key={`primitive-${path.join("-") || "root"}`}
+        className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium dark:border-zinc-700"
+      >
+        {renderTokenLabel(node, dependencyTitleById)}
+      </span>,
+    ];
+  }
+
+  const tokens: ReactNode[] = [
+    <span
+      key={`operator-${path.join("-") || "root"}`}
+      className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium dark:border-zinc-700"
+    >
+      {renderTokenLabel(node, dependencyTitleById)}
+    </span>,
+  ];
+
+  node.children.forEach((child, childIndex) => {
+    tokens.push(
+      ...collectPrefixTokens(
+        child,
+        [...path, childIndex],
+        dependencyTitleById,
+        onDropAtSlot,
+      ),
+    );
+  });
+
+  const isGrowable =
+    node.op === BooleanOp.And ||
+    node.op === BooleanOp.Or ||
+    (node.op === BooleanOp.Not && node.children.length === 0);
+
+  if (isGrowable) {
+    tokens.push(
+      <SlotTarget
+        key={`append-${path.join("-") || "root"}`}
+        onDrop={(dragData) =>
+          onDropAtSlot([...path, node.children.length], dragData)
+        }
+      />,
+    );
+  }
+
+  return tokens;
 }
 
 function ExpressionEditorDraft({
   taskId,
   dependencyIds,
-  editablePersistedExpression,
+  persistedDraft,
+  dependencyTitleById,
 }: {
   taskId: TaskId | null;
-  dependencyIds: Set<TaskId>;
-  editablePersistedExpression: Extract<
-    BooleanExpression,
-    [BooleanOp.And | BooleanOp.Or, ...BooleanExpression[]]
-  >;
+  dependencyIds: TaskId[];
+  persistedDraft: NodeDraft;
+  dependencyTitleById: Map<TaskId, string>;
 }) {
   const taskDependencyExpressionMutation =
     useTaskDependencyExpressionMutation();
+  const [draft, setDraft] = useState<NodeDraft>(cloneNodeDraft(persistedDraft));
 
-  const [dependencyExpressionDraft, setDependencyExpressionDraft] =
-    useState<BooleanExpression>(editablePersistedExpression);
+  const persistedExpression = nodeDraftToExpression(persistedDraft);
+  const draftExpression = nodeDraftToExpression(draft);
+  const dirty =
+    JSON.stringify(draftExpression) !== JSON.stringify(persistedExpression);
 
-  const dependencyExpressionDirty =
-    JSON.stringify(dependencyExpressionDraft) !==
-    JSON.stringify(editablePersistedExpression);
+  const prefixTokens = collectPrefixTokens(
+    draft,
+    [],
+    dependencyTitleById,
+    (slotPath, dragData) => {
+      setDraft((previous) =>
+        insertNodeAtSlot(previous, slotPath, paletteNodeToDraft(dragData)),
+      );
+    },
+  );
+
+  const implicitDraft = buildImplicitNodeDraft(dependencyIds);
 
   return (
     <div>
       <p className="mb-2 text-sm font-medium">Dependency Expression</p>
       <div className="space-y-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Build a boolean expression using the current dependency set. No custom
-          text syntax is used.
-        </p>
-
-        {dependencyIds.size === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Add dependencies first. With no dependencies, this task uses the
-            default implicit AND behavior.
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            Palette
           </p>
-        ) : (
-          <ExpressionTreeEditor
-            expression={dependencyExpressionDraft}
-            dependencyIds={Array.from(dependencyIds)}
-            onChange={setDependencyExpressionDraft}
-          />
-        )}
+          <div className="flex flex-wrap items-center gap-2">
+            <PaletteSource dragData={{ kind: "operator", op: BooleanOp.And }}>
+              AND
+            </PaletteSource>
+            <PaletteSource dragData={{ kind: "operator", op: BooleanOp.Or }}>
+              OR
+            </PaletteSource>
+            <PaletteSource dragData={{ kind: "operator", op: BooleanOp.Not }}>
+              NOT
+            </PaletteSource>
+            {dependencyIds.map((dependencyId) => (
+              <PaletteSource
+                key={`palette-dep-${dependencyId}`}
+                dragData={{ kind: "primitive", taskId: dependencyId }}
+              >
+                {dependencyTitleById.get(dependencyId) ?? dependencyId}
+              </PaletteSource>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            Expression (Prefix)
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {prefixTokens}
+          </div>
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -464,10 +421,10 @@ function ExpressionEditorDraft({
             onClick={() => {
               taskDependencyExpressionMutation.mutate({
                 taskId: taskId ?? "",
-                dependencyExpression: dependencyExpressionDraft,
+                dependencyExpression: draftExpression,
               });
             }}
-            disabled={!dependencyExpressionDirty || !taskId}
+            disabled={!dirty || !taskId}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Save Expression
@@ -475,11 +432,9 @@ function ExpressionEditorDraft({
           <button
             type="button"
             onClick={() => {
-              setDependencyExpressionDraft(
-                deepCloneExpression(editablePersistedExpression),
-              );
+              setDraft(cloneNodeDraft(persistedDraft));
             }}
-            disabled={!dependencyExpressionDirty}
+            disabled={!dirty}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Reset Draft
@@ -487,8 +442,7 @@ function ExpressionEditorDraft({
           <button
             type="button"
             onClick={() => {
-              const implicit = buildImplicitAndExpression(dependencyIds);
-              setDependencyExpressionDraft(implicit);
+              setDraft(implicitDraft);
               taskDependencyExpressionMutation.mutate({
                 taskId: taskId ?? "",
                 dependencyExpression: null,
@@ -502,5 +456,63 @@ function ExpressionEditorDraft({
         </div>
       </div>
     </div>
+  );
+}
+
+export function ExpressionEditor({
+  taskId,
+  dependencyIds,
+}: {
+  taskId: TaskId | null;
+  dependencyIds: Set<TaskId>;
+}) {
+  const dependencyIdList = useMemo(
+    () => Array.from(dependencyIds),
+    [dependencyIds],
+  );
+  const dependencyIdSet = useMemo(
+    () => new Set(dependencyIdList),
+    [dependencyIdList],
+  );
+
+  const details = useDetailsQuery().data;
+  const dependencyTitleById = useMemo(() => {
+    const map = new Map<TaskId, string>();
+    for (const dependencyId of dependencyIdList) {
+      const dependencyDetail = details?.get(dependencyId);
+      map.set(dependencyId, dependencyDetail?.title ?? dependencyId);
+    }
+    return map;
+  }, [dependencyIdList, details]);
+
+  const selectedTaskDependencyExpression = useTaskDependencyExpressionQuery(
+    taskId ?? "",
+  ).data;
+
+  const persistedDraft = useMemo(() => {
+    const normalizedExpression = selectedTaskDependencyExpression
+      ? normalizeExpressionToDependencies(
+          selectedTaskDependencyExpression,
+          dependencyIdSet,
+        )
+      : null;
+
+    if (!normalizedExpression) {
+      return { kind: "empty" } as NodeDraft;
+    }
+
+    return expressionToNodeDraft(normalizedExpression, dependencyIdSet);
+  }, [selectedTaskDependencyExpression, dependencyIdSet]);
+
+  const draftKey = `${taskId ?? ""}:${JSON.stringify(persistedDraft)}`;
+
+  return (
+    <ExpressionEditorDraft
+      key={draftKey}
+      taskId={taskId}
+      dependencyIds={dependencyIdList}
+      persistedDraft={persistedDraft}
+      dependencyTitleById={dependencyTitleById}
+    />
   );
 }
