@@ -43,7 +43,13 @@ export function LeftColumn({
     if (!normalizedCategory) {
       return;
     }
-    createTaskMutation.mutate(normalizedCategory);
+    createTaskMutation.mutate(normalizedCategory, {
+      onSuccess: (taskId) => {
+        if (taskId) {
+          onSelectTask(taskId);
+        }
+      },
+    });
 
     setNewCategoryName("");
     setIsAddingCategory(false);

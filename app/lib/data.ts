@@ -167,6 +167,8 @@ export function useCreateTaskMutation() {
       );
 
       await tx.done;
+
+      return task.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["taskSet"] });

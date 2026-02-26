@@ -213,7 +213,15 @@ export function Category({
         {mode === "edit" && (
           <button
             type="button"
-            onClick={() => createTaskMutation.mutate(category)}
+            onClick={() =>
+              createTaskMutation.mutate(category, {
+                onSuccess: (taskId) => {
+                  if (taskId) {
+                    onSelectTask(taskId);
+                  }
+                },
+              })
+            }
             className="mt-2 w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Add Task
