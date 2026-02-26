@@ -29,6 +29,27 @@ type PaletteNodeDragData =
 
 const EXPRESSION_NODE_DRAG_TYPE = "expression-node";
 
+function getPaletteSourceClasses(
+  dragData: PaletteNodeDragData,
+  isDragging: boolean,
+) {
+  if (dragData.kind === "operator") {
+    return isDragging
+      ? "border-indigo-500 bg-indigo-100 text-indigo-900 dark:border-indigo-400 dark:bg-indigo-900/40 dark:text-indigo-100"
+      : "border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-900/50";
+  }
+
+  return isDragging
+    ? "border-emerald-500 bg-emerald-100 text-emerald-900 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
+    : "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50";
+}
+
+function getDropSlotClasses(isDraggedOver: boolean) {
+  return isDraggedOver
+    ? "border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-400 dark:bg-amber-900/40 dark:text-amber-100"
+    : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/50";
+}
+
 function paletteNodeToDraft(dragData: PaletteNodeDragData): NodeDraft {
   if (dragData.kind === "primitive") {
     return { kind: "primitive", taskId: dragData.taskId };
@@ -221,11 +242,9 @@ function SlotTarget({
       setDragDropState={setState}
       as="button"
       type="button"
-      className={`inline-flex h-7 items-center rounded-full border px-3 text-xs font-medium ${
-        state.isDraggedOver
-          ? "border-zinc-500 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800"
-          : "border-zinc-300 bg-transparent dark:border-zinc-700"
-      }`}
+      className={`inline-flex h-7 items-center rounded-full border px-3 text-xs font-medium transition-colors ${getDropSlotClasses(
+        !!state.isDraggedOver,
+      )}`}
     >
       +
     </DragDropTarget>
@@ -248,11 +267,10 @@ function PaletteSource({
       setDragDropState={setState}
       as="button"
       type="button"
-      className={`rounded-full border px-3 py-1 text-xs font-medium ${
-        state.isDragging
-          ? "border-zinc-500 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800"
-          : "border-zinc-300 bg-transparent dark:border-zinc-700"
-      }`}
+      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${getPaletteSourceClasses(
+        dragData,
+        !!state.isDragging,
+      )}`}
     >
       {children}
     </DragDropSource>
@@ -386,6 +404,10 @@ function ExpressionEditorDraft({
   return (
     <div>
       <p className="mb-2 text-sm font-medium">Dependency Expression</p>
+      <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+        Drag items from the palette into the expression row to build an
+        expression.
+      </p>
       <div className="space-y-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
         <div className="space-y-2">
           <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
