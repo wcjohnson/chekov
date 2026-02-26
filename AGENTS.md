@@ -16,6 +16,7 @@
   - Top bar: `app/components/TopBar.tsx`
   - Left side: `app/components/left/LeftColumn.tsx`, `LeftHeader.tsx`, `Category.tsx`, `Task.tsx`
   - Right side: `app/components/right/RightColumn.tsx`, `RightHeader.tsx`, `TaskDetails.tsx`
+  - Dependency expression editor: `app/components/ExpressionEditor.tsx` (drag/drop palette + expression tree editor)
 - Set-edit workflow is centralized with React context in `app/lib/context.ts`:
   - `MultiSelectContext` carries selection mode, selected set, header text, and `onSetTasks` callback.
   - Dependency editing uses this same context-driven selection flow (not ad hoc per-pane booleans).
@@ -23,6 +24,8 @@
 - Drag-and-drop abstractions are centralized in `app/components/DragDrop.tsx` via:
   - `DragDropList` (group-level wrapper + context)
   - `DragDropListItem` (draggable + drop target + edge indicator)
+  - `DragDropSource` / `DragDropTarget` are also used by `ExpressionEditor` for palette and expression-slot interactions
+  - `DragDropTarget` uses `onDropDragData` for custom drop payload handling (avoid using `onDrop` prop name for custom drag data)
 - Left pane auto-scroll during drag uses `@atlaskit/pragmatic-drag-and-drop-auto-scroll` and targets the left list scroll container (`[data-left-pane-scroll='true']`).
 - Task move orchestration runs from `left/Category.tsx` (`onMoveItem`) and persists via `useMoveTaskMutation` in `app/lib/data.ts`.
 - App remains fully client-side (no API routes / no server persistence).
@@ -53,7 +56,19 @@
   - Category dependency-setting mode is context-based (`Deps` in category header → select tasks in left list → confirm/cancel in fixed left header banner)
   - Category `Deps` buttons are disabled while any set-edit workflow is active
   - `Clear Dependencies` action for selected task
+  - `Edit Expression` button adjacent to dependency controls opens expression editor on demand; while open, the button is disabled and editor stays open until details-panel navigation
   - Task details no longer include editable category input (category change from details removed)
+- Dependency expression authoring:
+  - Expression persistence is separate from task details and stored per task
+  - Visual editor is drag/drop only (no text parser entry)
+  - Palette and drop-slot UI is colorized by role (operators, primitives, add-slot)
+  - Expression nodes include remove affordances (`×`) for subtree deletion
+  - `Clear Expression` clears draft and persists `null` expression (implicit AND fallback); expression actions disable when the draft is empty
+- Dependency expression display:
+  - Dependencies in task details (both Task Mode and Edit Mode) render as infix boolean expressions, not unordered lists
+  - Parentheses are only shown where required by precedence
+  - Operators render as all-caps (`AND`/`OR`/`NOT`) with distinct text styling
+  - In dependency detail display, completion strikethrough applies in Task Mode only (not Edit Mode)
 - Reminder tasks:
   - Tasks can be marked as `reminder` in edit details
   - Reminder tasks cannot be directly completed
@@ -67,11 +82,12 @@
 
 ## Data Model & Storage
 
-- IndexedDB schema is defined in `app/lib/data.ts` (`ChekovDB`, `DB_VERSION = 5`).
+- IndexedDB schema is defined in `app/lib/data.ts` (`ChekovDB`, `DB_VERSION = 6`).
 - Canonical persisted model is normalized across object stores:
   - `tasks`: `{ id, title, description, category }`
   - `taskTags`: `Set<string>` by task id
   - `taskDependencies`: `Set<string>` by task id
+  - `taskDependencyExpressions`: `BooleanExpression` by task id (only persisted when custom; `null`/implicit AND is represented by absence)
   - `taskCompletion`: `true` by task id (presence = completed)
   - `taskWarnings`: `true` by task id (presence = reminder; legacy store key name retained)
   - `taskHidden`: `true` by task id (presence = hidden)
@@ -83,13 +99,21 @@
 - React Query hooks in `data.ts` are the data access layer; UI generally should not read/write IndexedDB directly.
 - Task/category ordering is source-of-truth in `categories` and `categoryTasks` stores.
 - Query return types were partially refactored from records to `Map`:
-  - `useTagsQuery` → `Map<TaskId, Set<string>>`
-  - `useDetailsQuery` → `Map<TaskId, StoredTask>`
-  - `useDependenciesQuery` → `Map<TaskId, Set<string>>`
-  - `useCategoriesTasksQuery` → `Map<string, string[]>`
-  - `useCategoryDependenciesQuery` → `Map<string, Set<TaskId>>`
-  - `useTagColorsQuery` → `Map<string, TagColorKey>`
-  - `useRemindersQuery` → `Set<TaskId>`
+- Query return types are `Map`/`Set` based where appropriate:
+- `useTagsQuery` → `Map<TaskId, Set<string>>`
+- `useDetailsQuery` → `Map<TaskId, StoredTask>`
+- `useDependenciesQuery` → `Map<TaskId, Set<string>>`
+- `useCategoriesTasksQuery` → `Map<string, string[]>`
+- `useCategoryDependenciesQuery` → `Map<string, Set<TaskId>>`
+- `useTagColorsQuery` → `Map<string, TagColorKey>`
+- `useRemindersQuery` → `Set<TaskId>`
+- `useDependencyExpressionsQuery` → `Map<TaskId, BooleanExpression>`
+- `useTaskDependencyExpressionQuery` → `BooleanExpression | null` (`null` sentinel for missing)
+- Shared boolean-expression logic is centralized in `app/lib/booleanExpression.ts`:
+  - `evaluateBooleanExpression(...)`
+  - `normalizeExpressionToDependencies(...)`
+  - `buildImplicitAndExpression(...)`
+  - `getExpressionPrecedence(...)`
 
 ## Import/Export
 
@@ -135,6 +159,9 @@
 - Test environment is configured for browser-like behavior (`jsdom`) and IndexedDB simulation (`fake-indexeddb`) so data-layer and import/export logic can be unit tested without a real browser.
 - `tests/setup.ts` is the shared setup file and is the right place for test-wide browser/indexeddb shims.
 - Start new coverage by adding `*.test.ts` files in `tests/` (for example `tests/data/*.test.ts` or `tests/export/*.test.ts`).
+- Boolean-expression utility tests live in `tests/utils/`:
+  - `booleanExpressionEvaluator.test.ts` (evaluation semantics)
+  - `booleanExpression.test.ts` (precedence, normalization, implicit-AND construction)
 - Any change to the data model must be accompanied by corresponding unit tests for data, referential integrity, and import/export.
 - Any change to the data model (stores, query/mutation behavior, import/export normalization, or dependency/completion semantics) must run the full test suite before handoff.
 - Any change to the data model must audit query return sentinels in `app/lib/data.ts` so query functions never return `undefined` for missing records (use explicit `null` / empty collections / booleans as appropriate).
@@ -148,6 +175,7 @@
 - Place defensive validation/guardrails at mutation boundaries instead: UX actions that write data and import/export normalization in `app/lib/export.ts`.
 - Run `npm test` for every data-model-affecting change, especially changes in `app/lib/data.ts` and `app/lib/export.ts`; do not run unit tests for purely UX-only changes.
 - Keep storage/query contracts in `data.ts` and export/import schema contracts in `export.ts` aligned.
+- Keep shared boolean-expression logic in `app/lib/booleanExpression.ts`; avoid duplicating precedence/normalization/evaluation helpers in UI components.
 - Keep dependency cycle prevention enforced when changing dependency logic (`detectCycle` in `app/lib/utils.ts`).
 - Preserve current interaction contracts:
   - Edit Mode checkboxes are for selection workflows, not completion toggling
@@ -156,6 +184,8 @@
   - Category expand/collapse state is persisted per mode in `categoryCollapsed`
   - In Task Mode, categories with unmet category dependencies are not rendered
   - Reminder state should be read from reminder queries/store (`useTaskReminderQuery` / `useRemindersQuery`), not from `StoredTask`
+  - Dependency display in `TaskDetails` is infix-expression based (not list based), with Task-Mode-only strikethrough semantics for completed dependency terms
+  - Expression editor is opt-in via `Edit Expression` and starts closed by default when selecting a task
 - Preserve drag-reorder semantics:
   - Reorder/move tasks by updating `categoryTasks` arrays and task `category`
   - Keep `categories` order intact unless explicitly changing category-ordering behavior
@@ -168,6 +198,7 @@
 - `useDeleteTasksMutation` accepts `TaskId[]` and performs batch deletion in one transaction, including referential cleanup (dependencies, category cleanup, empty-category removal).
 - `useMoveTaskMutation` resolves moved task from `fromCategory + fromIndex`; if source task is missing, it aborts transaction and returns without throwing.
 - `useTaskDependenciesMutation` performs cycle detection using `detectCycle` and throws when a cycle would be created.
+- `useTaskDependencyExpressionMutation` stores custom expressions in `taskDependencyExpressions`; it deletes the persisted expression when receiving `null` or an expression equivalent to implicit AND over current dependencies.
 - `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
 - `useTaskDetailMutation` updates title/description only.
 - `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion + incoming dependency references in one transaction.
@@ -178,9 +209,11 @@
 - Data/types: `app/lib/types.ts`
 - Shared context state: `app/lib/context.ts`
 - Storage schema + query/mutation layer: `app/lib/data.ts`
+- Shared boolean-expression helpers: `app/lib/booleanExpression.ts`
 - JSON schema + import/export normalization: `app/lib/export.ts`
 - Utility functions (including cycle detection): `app/lib/utils.ts`
 - Drag/drop abstraction layer: `app/components/DragDrop.tsx`
+- Dependency expression editor UI: `app/components/ExpressionEditor.tsx`
 - App orchestration/state: `app/page.tsx`
 - Left list/task wiring: `app/components/left/LeftColumn.tsx`, `app/components/left/Category.tsx`, `app/components/left/Task.tsx`
 - Right details rendering/editing: `app/components/right/TaskDetails.tsx`
