@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "react-hot-toast";
+import { Toaster, resolveValue } from "react-hot-toast";
 
 import { AppLayout } from "./components/layout/AppLayout";
 import { LeftColumn } from "./components/left/LeftColumn";
@@ -426,7 +426,30 @@ export function AppMain() {
             />
           }
         />
-        <Toaster position="bottom-right" />
+        <Toaster position="bottom-center">
+          {(toast) => (
+            <div
+              className={`pointer-events-auto w-full max-w-lg rounded-md border px-4 py-3 text-base shadow-sm ${
+                toast.type === "error"
+                  ? "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200"
+                  : "border-zinc-300 bg-zinc-50 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 text-sm">
+                  {toast.type === "error"
+                    ? "⚠"
+                    : toast.type === "success"
+                      ? "✓"
+                      : "•"}
+                </span>
+                <span className="min-w-0 break-words">
+                  {resolveValue(toast.message, toast)}
+                </span>
+              </div>
+            </div>
+          )}
+        </Toaster>
       </>
     </MultiSelectContext>
   );
