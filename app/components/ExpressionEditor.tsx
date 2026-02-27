@@ -13,7 +13,7 @@ import {
   DragDropTarget,
   type DragDropStateType,
 } from "./DragDrop";
-import { useTaskDependencyExpressionMutation } from "../lib/data/mutations";
+import { useTaskDependenciesMutation } from "../lib/data/mutations";
 import { useDetailsQuery, useTaskDependenciesQuery } from "../lib/data/queries";
 
 type NodeDraft =
@@ -380,8 +380,7 @@ function ExpressionEditorDraft({
   persistedDraft: NodeDraft;
   dependencyTitleById: Map<TaskId, string>;
 }) {
-  const taskDependencyExpressionMutation =
-    useTaskDependencyExpressionMutation();
+  const taskDependenciesMutation = useTaskDependenciesMutation();
   const [draft, setDraft] = useState<NodeDraft>(cloneNodeDraft(persistedDraft));
 
   const persistedExpression = nodeDraftToExpression(persistedDraft);
@@ -449,9 +448,12 @@ function ExpressionEditorDraft({
           <button
             type="button"
             onClick={() => {
-              taskDependencyExpressionMutation.mutate({
+              taskDependenciesMutation.mutate({
                 taskId: taskId ?? "",
-                dependencyExpression: draftExpression,
+                dependencyExpression: {
+                  taskSet: new Set(dependencyIds),
+                  expression: draftExpression ?? undefined,
+                },
               });
             }}
             disabled={!dirty || !taskId || !draftExpression}
@@ -463,9 +465,12 @@ function ExpressionEditorDraft({
             type="button"
             onClick={() => {
               setDraft({ kind: "empty" });
-              taskDependencyExpressionMutation.mutate({
+              taskDependenciesMutation.mutate({
                 taskId: taskId ?? "",
-                dependencyExpression: null,
+                dependencyExpression: {
+                  taskSet: new Set(dependencyIds),
+                  expression: undefined,
+                },
               });
             }}
             disabled={!taskId || !draftExpression}

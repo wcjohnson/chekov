@@ -17,7 +17,6 @@ import {
   TASKS_STORE,
 } from "@/app/lib/data/store";
 import {
-  type BooleanExpression,
   type CategoryName,
   type DependencyExpression,
   type StoredTask,
@@ -509,16 +508,15 @@ export function useTaskDependenciesMutation() {
   return useMutation({
     mutationFn: async ({
       taskId,
-      dependencies,
+      dependencyExpression,
     }: {
       taskId: TaskId;
-      dependencies: Set<string>;
+      dependencyExpression: DependencyExpression;
     }) => {
       const db = await getDb();
-      const existingDependencyExpression = await db.get(
-        TASK_DEPENDENCIES_STORE,
-        taskId,
-      );
+      const persistedDependencyExpression =
+        normalizeDependencyExpression(dependencyExpression);
+      const dependencies = persistedDependencyExpression.taskSet;
 
       // Easy case, no cycle detection needed
       if (dependencies.size === 0) {
@@ -544,11 +542,6 @@ export function useTaskDependenciesMutation() {
         throw new Error("Dependency cycle detected");
       }
 
-      const persistedDependencyExpression = normalizeDependencyExpression({
-        ...existingDependencyExpression,
-        taskSet: dependencies,
-      });
-
       await dependenciesStore.put(persistedDependencyExpression, taskId);
 
       await tx.done;
@@ -568,54 +561,6 @@ export function useTaskDependenciesMutation() {
           queryKey: ["dependencies"],
         });
       }
-    },
-  });
-}
-
-export function useTaskDependencyExpressionMutation() {
-  return useMutation({
-    mutationFn: async ({
-      taskId,
-      dependencyExpression,
-    }: {
-      taskId: TaskId;
-      dependencyExpression: BooleanExpression | null;
-    }) => {
-      if (!taskId) {
-        return;
-      }
-
-      const db = await getDb();
-      const existingDependencyExpression = await db.get(
-        TASK_DEPENDENCIES_STORE,
-        taskId,
-      );
-      const taskDependencies =
-        existingDependencyExpression?.taskSet ?? new Set<TaskId>();
-
-      if (taskDependencies.size === 0) {
-        await db.delete(TASK_DEPENDENCIES_STORE, taskId);
-        return;
-      }
-
-      const normalizedDependencyExpression = normalizeDependencyExpression({
-        taskSet: taskDependencies,
-        expression: dependencyExpression,
-      });
-
-      await db.put(
-        TASK_DEPENDENCIES_STORE,
-        normalizedDependencyExpression,
-        taskId,
-      );
-    },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["task", "dependencies", variables.taskId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["dependencies"],
-      });
     },
   });
 }

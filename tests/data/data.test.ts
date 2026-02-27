@@ -18,7 +18,6 @@ import {
   useMoveTaskMutation,
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
-  useTaskDependencyExpressionMutation,
   useTaskDetailMutation,
   useTaskReminderMutation,
 } from "../../app/lib/data/mutations";
@@ -285,7 +284,7 @@ describe("data layer", () => {
 
     const { result } = renderHook(
       () => ({
-        setDependencyExpression: useTaskDependencyExpressionMutation(),
+        setDependencies: useTaskDependenciesMutation(),
         perTaskDependencies: useTaskDependenciesQuery("t").data,
         dependencies:
           useDependenciesQuery().data ??
@@ -302,9 +301,12 @@ describe("data layer", () => {
     });
 
     await act(async () => {
-      await result.current.setDependencyExpression.mutateAsync({
+      await result.current.setDependencies.mutateAsync({
         taskId: "t",
-        dependencyExpression: [BooleanOp.Or, "a", "b"],
+        dependencyExpression: {
+          taskSet: new Set(["a", "b"]),
+          expression: [BooleanOp.Or, "a", "b"],
+        },
       });
     });
 
@@ -321,9 +323,12 @@ describe("data layer", () => {
     });
 
     await act(async () => {
-      await result.current.setDependencyExpression.mutateAsync({
+      await result.current.setDependencies.mutateAsync({
         taskId: "t",
-        dependencyExpression: [BooleanOp.And, "a", "b"],
+        dependencyExpression: {
+          taskSet: new Set(["a", "b"]),
+          expression: [BooleanOp.And, "a", "b"],
+        },
       });
     });
 
@@ -441,7 +446,9 @@ describe("data layer", () => {
     await act(async () => {
       await result.current.setDependencies.mutateAsync({
         taskId: dependentTaskId,
-        dependencies: new Set([dependencyId]),
+        dependencyExpression: {
+          taskSet: new Set([dependencyId]),
+        },
       });
     });
 
@@ -675,7 +682,10 @@ describe("data layer", () => {
       act(async () => {
         await result.current.setDependencies.mutateAsync({
           taskId: "b",
-          dependencies: new Set(["a"]),
+          dependencyExpression: {
+            taskSet: new Set(["a"]),
+            expression: undefined,
+          },
         });
       }),
     ).rejects.toThrow("Dependency cycle detected");

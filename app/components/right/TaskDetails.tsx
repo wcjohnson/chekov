@@ -314,7 +314,10 @@ export function TaskDetails({
       return null;
     }
 
-    return normalizeDependencyExpression(selectedTaskDependencyData).expression ?? null;
+    return (
+      normalizeDependencyExpression(selectedTaskDependencyData).expression ??
+      null
+    );
   }, [selectedTaskDependencyData]);
   const taskModeDependencyExpression = useMemo(() => {
     return (
@@ -398,14 +401,20 @@ export function TaskDetails({
     const handleSetDependencies = (taskIds: Set<TaskId>) => {
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
-        dependencies: taskIds,
+        dependencyExpression: {
+          taskSet: taskIds,
+          expression: selectedTaskDependencyExpression ?? undefined,
+        },
       });
     };
 
     const handleClearDependencies = () => {
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
-        dependencies: new Set(),
+        dependencyExpression: {
+          taskSet: new Set(),
+          expression: undefined,
+        },
       });
     };
 
@@ -416,7 +425,10 @@ export function TaskDetails({
 
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
-        dependencies: new Set(multiSelectContext.getSelection()),
+        dependencyExpression: {
+          taskSet: new Set(multiSelectContext.getSelection()),
+          expression: selectedTaskDependencyExpression ?? undefined,
+        },
       });
     };
 

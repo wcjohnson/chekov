@@ -18,11 +18,7 @@ import {
   TASK_TAGS_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
-import type {
-  CategoryName,
-  DependencyExpression,
-  TaskId,
-} from "@/app/lib/data/types";
+import type { CategoryName, TaskId } from "@/app/lib/data/types";
 import { fromKvPairsToMap } from "@/app/lib/utils";
 
 function getQueryArgs_categories() {
