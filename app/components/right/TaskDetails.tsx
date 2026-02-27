@@ -3,11 +3,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import {
-  getTagBadgeClasses,
-  getTagSwatchClasses,
-  TAG_COLOR_OPTIONS,
-} from "../../lib/tagColors";
+import { getTagSwatchClasses, TAG_COLOR_OPTIONS } from "../../lib/tagColors";
 import {
   type ChecklistMode,
   type DependencyExpression,
@@ -23,6 +19,7 @@ import {
   DependencyExpressionView,
 } from "./DependencyExpressionEditor";
 import { Button } from "@/app/components/catalyst/button";
+import { Badge } from "@/app/components/catalyst/badge";
 import {
   useAllKnownTagsQuery,
   useDetailsQuery,
@@ -476,9 +473,9 @@ export function TaskDetails({
                           previous === tag ? null : tag,
                         );
                       }}
-                      className={`cursor-pointer list-none rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
+                      className="cursor-pointer list-none"
                     >
-                      {tag}
+                      <Badge color={tagColors.get(tag) ?? "zinc"}>{tag}</Badge>
                     </button>
                     {activeTagColorPickerTag === tag && (
                       <div className="absolute left-0 z-20 mt-1 w-52 rounded-md border border-zinc-200 bg-white p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -491,9 +488,9 @@ export function TaskDetails({
                             tagColorMutation.mutate({ tag, colorKey: null });
                             setActiveTagColorPickerTag(null);
                           }}
-                          className={`mb-2 w-full rounded border px-2 py-1 text-left text-xs ${getTagBadgeClasses(undefined)}`}
+                          className="mb-2 w-full text-left"
                         >
-                          Default
+                          <Badge color="zinc">Default</Badge>
                         </button>
                         <div className="grid grid-cols-8 gap-1">
                           {TAG_COLOR_OPTIONS.map((colorOption) => {
@@ -608,12 +605,12 @@ export function TaskDetails({
         ) : (
           <div className="flex flex-wrap gap-2">
             {Array.from(selectedTaskTags).map((tag) => (
-              <span
+              <Badge
                 key={`${selectedTaskId}-tag-view-${tag}`}
-                className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
+                color={tagColors.get(tag) ?? "zinc"}
               >
                 {tag}
-              </span>
+              </Badge>
             ))}
           </div>
         )}

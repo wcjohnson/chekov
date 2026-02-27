@@ -1,10 +1,10 @@
 "use client";
 
-import { getTagBadgeClasses } from "../../lib/tagColors";
 import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
+import { Badge } from "@/app/components/catalyst/badge";
 import {
   useTagColorsQuery,
   useTaskCompletionQuery,
@@ -155,13 +155,14 @@ export function Task({
         {tags.length > 0 && (
           <div className="ml-auto flex max-w-[50%] items-center justify-end gap-1 overflow-hidden">
             {tags.map((tag) => (
-              <span
+              <Badge
                 key={`${taskId}-tag-${tag}`}
-                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
+                color={tagColors.get(tag) ?? "zinc"}
+                className="max-w-28 truncate"
                 title={tag}
               >
                 {tag}
-              </span>
+              </Badge>
             ))}
           </div>
         )}
