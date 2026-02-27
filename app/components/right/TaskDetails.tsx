@@ -11,9 +11,11 @@ import {
 import {
   type ChecklistMode,
   type DependencyExpression,
+  type TaskDependencies,
   type TaskId,
   type TaskDetail,
 } from "@/app/lib/data/types";
+import { toast } from "react-hot-toast";
 import { buildImplicitAndExpression } from "@/app/lib/booleanExpression";
 import { MultiSelectContext } from "@/app/lib/context";
 import {
@@ -180,6 +182,25 @@ export function TaskDetails({
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
+  const mutateTaskDependencies = (taskDependencies: TaskDependencies) => {
+    taskDependenciesMutation.mutate(
+      {
+        taskId: selectedTaskId ?? "",
+        taskDependencies,
+      },
+      {
+        onError: (error) => {
+          if (error instanceof Error && /cycle/i.test(error.message)) {
+            toast.error("Circular dependency is not allowed.");
+            return;
+          }
+
+          toast.error("Failed to update dependencies.");
+        },
+      },
+    );
+  };
+
   const tagColors = useTagColorsQuery().data ?? new Map();
   const tagColorMutation = useTagColorMutation();
 
@@ -232,28 +253,22 @@ export function TaskDetails({
 
   if (mode === "edit") {
     const handleSetOpeners = (taskIds: Set<TaskId>) => {
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: {
-            taskSet: taskIds,
-            expression: selectedTaskOpenersExpression ?? undefined,
-          },
-          closers: selectedTaskClosers,
+      mutateTaskDependencies({
+        openers: {
+          taskSet: taskIds,
+          expression: selectedTaskOpenersExpression ?? undefined,
         },
+        closers: selectedTaskClosers,
       });
     };
 
     const handleClearOpeners = () => {
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: {
-            taskSet: new Set(),
-            expression: undefined,
-          },
-          closers: selectedTaskClosers,
+      mutateTaskDependencies({
+        openers: {
+          taskSet: new Set(),
+          expression: undefined,
         },
+        closers: selectedTaskClosers,
       });
     };
 
@@ -262,52 +277,40 @@ export function TaskDetails({
         return;
       }
 
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: {
-            taskSet: new Set(multiSelectContext.getSelection()),
-            expression: selectedTaskOpenersExpression ?? undefined,
-          },
-          closers: selectedTaskClosers,
+      mutateTaskDependencies({
+        openers: {
+          taskSet: new Set(multiSelectContext.getSelection()),
+          expression: selectedTaskOpenersExpression ?? undefined,
         },
+        closers: selectedTaskClosers,
       });
     };
 
     const handleSetOpenersExpression = (
       nextDependencyExpression: DependencyExpression,
     ) => {
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: nextDependencyExpression,
-          closers: selectedTaskClosers,
-        },
+      mutateTaskDependencies({
+        openers: nextDependencyExpression,
+        closers: selectedTaskClosers,
       });
     };
 
     const handleSetClosers = (taskIds: Set<TaskId>) => {
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: selectedTaskOpeners,
-          closers: {
-            taskSet: taskIds,
-            expression: selectedTaskClosersExpression ?? undefined,
-          },
+      mutateTaskDependencies({
+        openers: selectedTaskOpeners,
+        closers: {
+          taskSet: taskIds,
+          expression: selectedTaskClosersExpression ?? undefined,
         },
       });
     };
 
     const handleClearClosers = () => {
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: selectedTaskOpeners,
-          closers: {
-            taskSet: new Set(),
-            expression: undefined,
-          },
+      mutateTaskDependencies({
+        openers: selectedTaskOpeners,
+        closers: {
+          taskSet: new Set(),
+          expression: undefined,
         },
       });
     };
@@ -317,14 +320,11 @@ export function TaskDetails({
         return;
       }
 
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: selectedTaskOpeners,
-          closers: {
-            taskSet: new Set(multiSelectContext.getSelection()),
-            expression: selectedTaskClosersExpression ?? undefined,
-          },
+      mutateTaskDependencies({
+        openers: selectedTaskOpeners,
+        closers: {
+          taskSet: new Set(multiSelectContext.getSelection()),
+          expression: selectedTaskClosersExpression ?? undefined,
         },
       });
     };
@@ -332,12 +332,9 @@ export function TaskDetails({
     const handleSetClosersExpression = (
       nextDependencyExpression: DependencyExpression,
     ) => {
-      taskDependenciesMutation.mutate({
-        taskId: selectedTaskId ?? "",
-        taskDependencies: {
-          openers: selectedTaskOpeners,
-          closers: nextDependencyExpression,
-        },
+      mutateTaskDependencies({
+        openers: selectedTaskOpeners,
+        closers: nextDependencyExpression,
       });
     };
 

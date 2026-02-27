@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "react-hot-toast";
 
 import { AppLayout } from "./components/layout/AppLayout";
 import { LeftColumn } from "./components/left/LeftColumn";
@@ -362,68 +363,71 @@ export function AppMain() {
         setTaskSelected,
       }}
     >
-      <AppLayout
-        mainPaneRef={mainPaneRef}
-        isDesktop={isDesktop}
-        leftPaneWidth={leftPaneWidth}
-        onResizeStart={() => {
-          if (isDesktop) {
-            setIsResizing(true);
+      <>
+        <AppLayout
+          mainPaneRef={mainPaneRef}
+          isDesktop={isDesktop}
+          leftPaneWidth={leftPaneWidth}
+          onResizeStart={() => {
+            if (isDesktop) {
+              setIsResizing(true);
+            }
+          }}
+          topBar={
+            <TopBar
+              mode={mode}
+              searchText={searchText}
+              importDefinitionInputRef={importDefinitionInputRef}
+              importStateInputRef={importStateInputRef}
+              onToggleMode={toggleMode}
+              onUnhideAll={unhideAllTasks}
+              onResetCompleted={resetAllCompletedTasks}
+              showCompletedTasks={showCompletedTasks}
+              onToggleShowCompletedTasks={() =>
+                setShowCompletedTasks((current) => !current)
+              }
+              onClearDatabase={clearDatabase}
+              onSearchTextChange={setSearchText}
+              onExportDefinition={handleExportDefinition}
+              onImportDefinitionClick={() =>
+                importDefinitionInputRef.current?.click()
+              }
+              onExportState={handleExportState}
+              onImportStateClick={() => importStateInputRef.current?.click()}
+              onImportDefinitionFile={(file) => {
+                void handleImportDefinition(file);
+              }}
+              onImportStateFile={(file) => {
+                void handleImportState(file);
+              }}
+            />
           }
-        }}
-        topBar={
-          <TopBar
-            mode={mode}
-            searchText={searchText}
-            importDefinitionInputRef={importDefinitionInputRef}
-            importStateInputRef={importStateInputRef}
-            onToggleMode={toggleMode}
-            onUnhideAll={unhideAllTasks}
-            onResetCompleted={resetAllCompletedTasks}
-            showCompletedTasks={showCompletedTasks}
-            onToggleShowCompletedTasks={() =>
-              setShowCompletedTasks((current) => !current)
-            }
-            onClearDatabase={clearDatabase}
-            onSearchTextChange={setSearchText}
-            onExportDefinition={handleExportDefinition}
-            onImportDefinitionClick={() =>
-              importDefinitionInputRef.current?.click()
-            }
-            onExportState={handleExportState}
-            onImportStateClick={() => importStateInputRef.current?.click()}
-            onImportDefinitionFile={(file) => {
-              void handleImportDefinition(file);
-            }}
-            onImportStateFile={(file) => {
-              void handleImportState(file);
-            }}
-          />
-        }
-        leftColumn={
-          <LeftColumn
-            mode={mode}
-            showCompletedTasks={showCompletedTasks}
-            completionsWithReminders={allEffectiveCompletions}
-            openTasks={openTasks}
-            tasksMatchingSearch={tasksMatchingSearch}
-            selectedTaskId={selectedTaskId}
-            onRequestTaskSelectionChange={handleSelectTask}
-            onToggleComplete={toggleTaskCompletion}
-          />
-        }
-        rightColumn={
-          <RightColumn
-            mode={mode}
-            selectedTaskId={selectedTaskId}
-            completionsWithReminders={allEffectiveCompletions}
-            openTasks={openTasks}
-            errorMessage={errorMessage}
-            titleFocusTaskId={titleFocusTaskId}
-            onTitleFocused={handleTitleFocused}
-          />
-        }
-      />
+          leftColumn={
+            <LeftColumn
+              mode={mode}
+              showCompletedTasks={showCompletedTasks}
+              completionsWithReminders={allEffectiveCompletions}
+              openTasks={openTasks}
+              tasksMatchingSearch={tasksMatchingSearch}
+              selectedTaskId={selectedTaskId}
+              onRequestTaskSelectionChange={handleSelectTask}
+              onToggleComplete={toggleTaskCompletion}
+            />
+          }
+          rightColumn={
+            <RightColumn
+              mode={mode}
+              selectedTaskId={selectedTaskId}
+              completionsWithReminders={allEffectiveCompletions}
+              openTasks={openTasks}
+              errorMessage={errorMessage}
+              titleFocusTaskId={titleFocusTaskId}
+              onTitleFocused={handleTitleFocused}
+            />
+          }
+        />
+        <Toaster position="bottom-right" />
+      </>
     </MultiSelectContext>
   );
 }
