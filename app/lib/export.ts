@@ -22,17 +22,8 @@ import {
   type DependencyExpression,
   type TaskId,
 } from "@/app/lib/data/types";
-
-export type ExportedTaskDefinition = {
-  id: TaskId;
-  category: CategoryName;
-  title: string;
-  description?: string;
-  type?: "task" | "warning" | "reminder";
-  dependencies?: TaskId[];
-  dependencyExpression?: BooleanExpression;
-  tags?: string[];
-};
+import { normalizeDependencyExpression as normalizeStoredDependencyExpression } from "./booleanExpression";
+import type { ExportedTaskDefinition } from "./data/jsonSchema";
 
 const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
   type === "warning" || type === "reminder";
@@ -89,40 +80,6 @@ function normalizeDependencyExpression(
   }
 
   return undefined;
-}
-
-function isSimpleAndOfDependencies(
-  expression: BooleanExpression,
-  dependencies: TaskId[],
-): boolean {
-  if (typeof expression === "string") {
-    return false;
-  }
-
-  if (expression[0] !== BooleanOp.And) {
-    return false;
-  }
-
-  const operands = expression.slice(1);
-  if (
-    !operands.every((operand): operand is TaskId => typeof operand === "string")
-  ) {
-    return false;
-  }
-
-  if (operands.length !== dependencies.length) {
-    return false;
-  }
-
-  const dependencySet = new Set(dependencies);
-  if (dependencySet.size !== dependencies.length) {
-    return false;
-  }
-
-  return (
-    new Set(operands).size === operands.length &&
-    operands.every((operand) => dependencySet.has(operand))
-  );
 }
 
 export type ExportedChecklistDefinition = {
@@ -183,6 +140,13 @@ function normalizeChecklistDefinition(
           task.dependencyExpression,
           dependencyIdSet,
         );
+        const normalizedStoredDependencyExpression =
+          normalizedDependencyExpression === undefined
+            ? undefined
+            : normalizeStoredDependencyExpression({
+                taskSet: dependencyIdSet,
+                expression: normalizedDependencyExpression,
+              });
 
         const normalizedTags = Array.from(
           new Set(
@@ -205,12 +169,11 @@ function normalizeChecklistDefinition(
           ...(normalizedDependencies.length > 0
             ? { dependencies: normalizedDependencies }
             : {}),
-          ...(normalizedDependencyExpression &&
-          !isSimpleAndOfDependencies(
-            normalizedDependencyExpression,
-            normalizedDependencies,
-          )
-            ? { dependencyExpression: normalizedDependencyExpression }
+          ...(normalizedStoredDependencyExpression?.expression
+            ? {
+                dependencyExpression:
+                  normalizedStoredDependencyExpression.expression,
+              }
             : {}),
           ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
         };
