@@ -109,7 +109,7 @@
 - `useCategoryDependenciesQuery` → `Map<string, Set<TaskId>>`
 - `useTagColorsQuery` → `Map<string, TagColorKey>`
 - `useRemindersQuery` → `Set<TaskId>`
-- `useTaskDependencyExpressionQuery` → `BooleanExpression | null` (`null` sentinel for missing)
+- `useTaskDependenciesQuery(taskId)` → `DependencyExpression | null` (`null` sentinel for missing)
 - Shared boolean-expression logic is centralized in `app/lib/booleanExpression.ts`:
   - `evaluateBooleanExpression(...)`
   - `normalizeExpressionToDependencies(...)`
@@ -118,9 +118,10 @@
 
 ## Import/Export
 
-- JSON schema is defined in `app/lib/export.ts` (`ExportedChecklistDefinition`, `ExportedChecklistState`, and related types).
+- JSON schema is defined in `app/lib/data/jsonSchema.ts` (`ExportedTaskDefinition` and related schema types).
+- Import/export types and logic are defined in `app/lib/data/export.ts` (`ExportedChecklistDefinition`, `ExportedChecklistState`, and normalization/import/export helpers).
 - Definition and state are independently exportable/importable JSON files.
-- Import/export normalization logic is centralized in `export.ts`:
+- Import/export normalization logic is centralized in `app/lib/data/export.ts`:
   - `normalizeChecklistDefinition(...)`
   - `normalizeChecklistState(...)`
 - Exported task definition supports optional `type?: "task" | "reminder" | "warning"`; `"task"` is omitted on export.
@@ -135,7 +136,7 @@
 - Category dependency normalization drops dependency IDs that do not correspond to existing tasks.
 - Normalization/import enforce reminder completion-state constraints.
 - Legacy concerns outside this schema are ignored.
-  - Old ad-hoc payload shapes (for example legacy flat task payloads) are no longer migration targets unless explicitly added back to `export.ts`.
+  - Old ad-hoc payload shapes (for example legacy flat task payloads) are no longer migration targets unless explicitly added back to `app/lib/data/export.ts`.
 
 ## Dependencies Added
 
@@ -173,9 +174,9 @@
 - The app is intentionally fully client-side with no server APIs.
 - Avoid introducing backend persistence unless explicitly requested.
 - Treat IndexedDB as the canonical, untainted source of truth on read paths; avoid defensive read-time filtering/checks in query logic when reading from DB stores.
-- Place defensive validation/guardrails at mutation boundaries instead: UX actions that write data and import/export normalization in `app/lib/export.ts`.
-- Run `npm test` for every data-model-affecting change, especially changes in `app/lib/data/store.ts`, `app/lib/data/queries.ts`, `app/lib/data/mutations.ts`, and `app/lib/export.ts`; do not run unit tests for purely UX-only changes.
-- Keep data contracts aligned across `app/lib/data/store.ts`, `app/lib/data/queries.ts`, `app/lib/data/mutations.ts`, `app/lib/data/derivedData.ts`, and `app/lib/export.ts`.
+- Place defensive validation/guardrails at mutation boundaries instead: UX actions that write data and import/export normalization in `app/lib/data/export.ts`.
+- Run `npm test` for every data-model-affecting change, especially changes in `app/lib/data/store.ts`, `app/lib/data/queries.ts`, `app/lib/data/mutations.ts`, `app/lib/data/derivedData.ts`, `app/lib/data/export.ts`, and `app/lib/data/jsonSchema.ts`; do not run unit tests for purely UX-only changes.
+- Keep data contracts aligned across `app/lib/data/store.ts`, `app/lib/data/queries.ts`, `app/lib/data/mutations.ts`, `app/lib/data/derivedData.ts`, `app/lib/data/export.ts`, and `app/lib/data/jsonSchema.ts`.
 - Keep shared boolean-expression logic in `app/lib/booleanExpression.ts`; avoid duplicating precedence/normalization/evaluation helpers in UI components.
 - Keep dependency cycle prevention enforced when changing dependency logic (`detectCycle` in `app/lib/utils.ts`).
 - Preserve current interaction contracts:
@@ -202,7 +203,6 @@
 - `useDeleteTasksMutation` accepts `TaskId[]` and performs batch deletion in one transaction, including referential cleanup (dependencies, category cleanup, empty-category removal).
 - `useMoveTaskMutation` resolves moved task from `fromCategory + fromIndex`; if source task is missing, it aborts transaction and returns without throwing.
 - `useTaskDependenciesMutation` performs cycle detection using `detectCycle` and throws when a cycle would be created.
-- `useTaskDependencyExpressionMutation` stores custom expressions inside `taskDependencies` values (`DependencyExpression.expression`); it omits `expression` for `null` or implicit-AND-equivalent expressions.
 - `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
 - `useTaskDetailMutation` updates title/description only.
 - `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion in one transaction.
@@ -216,8 +216,9 @@
 - Query hooks: `app/lib/data/queries.ts`
 - Mutation hooks: `app/lib/data/mutations.ts`
 - Derived data hooks: `app/lib/data/derivedData.ts`
+- JSON schema types: `app/lib/data/jsonSchema.ts`
+- Import/export normalization + IO: `app/lib/data/export.ts`
 - Shared boolean-expression helpers: `app/lib/booleanExpression.ts`
-- JSON schema + import/export normalization: `app/lib/export.ts`
 - Utility functions (including cycle detection): `app/lib/utils.ts`
 - Drag/drop abstraction layer: `app/components/DragDrop.tsx`
 - Dependency expression editor UI: `app/components/ExpressionEditor.tsx`
