@@ -6,6 +6,7 @@ import {
   useCategoryDependenciesQuery,
   useDetailsQuery,
   useTagsQuery,
+  useTaskHiddensQuery,
   useTaskSetQuery,
 } from "@/app/lib/data/queries";
 import { useMemo } from "react";
@@ -193,12 +194,14 @@ export function useTaskBreakout(
   const categories = useCategoriesQuery().data;
   const categoriesTasks = useCategoriesTasksQuery().data;
   const categoryDependencies = useCategoryDependenciesQuery().data;
+  const hiddenTasksData = useTaskHiddensQuery().data;
 
   return useMemo(() => {
     const visibleCategories: string[] = [];
     const categoryTasks = new Map<string, TaskId[]>();
     const orderedCategoryTasks: TaskId[][] = [];
     const visibleTasks = new Set<TaskId>();
+    const hiddenTasks = hiddenTasksData ?? new Set<TaskId>();
 
     if (!categories || !categoriesTasks) {
       return {
@@ -231,10 +234,13 @@ export function useTaskBreakout(
       const filtered = tasks.filter((taskId) => {
         const matchesSearch = tasksMatchingSearch.has(taskId);
         if (mode === "task") {
+          const isHidden = hiddenTasks.has(taskId);
           const hasCompleteOpeners = openTasks.has(taskId);
           const isCompleted = effectiveCompletions.has(taskId);
           const shouldShow =
-            hasCompleteOpeners && (showCompletedTasks || !isCompleted);
+            !isHidden &&
+            hasCompleteOpeners &&
+            (showCompletedTasks || !isCompleted);
           return shouldShow && matchesSearch;
         }
 
@@ -260,6 +266,7 @@ export function useTaskBreakout(
     categoriesTasks,
     categoryDependencies,
     effectiveCompletions,
+    hiddenTasksData,
     mode,
     openTasks,
     showCompletedTasks,
