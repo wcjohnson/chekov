@@ -93,7 +93,7 @@ export function Task({
           event.preventDefault();
           onRequestTaskSelectionChange(taskId);
         }}
-        className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
+        className={`flex h-[34px] w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
       >
         {canDrag && (
           <button
@@ -122,6 +122,7 @@ export function Task({
           <input
             type="checkbox"
             checked={isInMultiSelection}
+            className="m-0 h-4"
             onChange={(event) => {
               event.stopPropagation();
               multiSelectContext.setTaskSelected(taskId, !isInMultiSelection);
