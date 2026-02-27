@@ -31,7 +31,7 @@ import {
   useTaskCategoryById,
   useTasksMatchingSearch,
   useTaskStructure,
-  useTasksWithCompleteOpeners,
+  useOpenTasks,
 } from "./lib/data/derivedData";
 import {
   useCollapsedCategoriesQuery,
@@ -96,7 +96,7 @@ export function AppMain() {
     allDependencies,
   );
 
-  const tasksWithCompleteOpeners = useTasksWithCompleteOpeners(
+  const openTasks = useOpenTasks(
     taskStructure.taskSet,
     allDependencies,
     allEffectiveCompletions,
@@ -395,7 +395,7 @@ export function AppMain() {
             mode={mode}
             showCompletedTasks={showCompletedTasks}
             completionsWithReminders={allEffectiveCompletions}
-            tasksWithCompleteDependencies={tasksWithCompleteOpeners}
+            openTasks={openTasks}
             tasksMatchingSearch={tasksMatchingSearch}
             selectedTaskId={selectedTaskId}
             onSelectTask={setSelectedTaskId}
@@ -407,7 +407,7 @@ export function AppMain() {
             mode={mode}
             selectedTaskId={selectedTaskId}
             completionsWithReminders={allEffectiveCompletions}
-            tasksWithCompleteDependencies={tasksWithCompleteOpeners}
+            openTasks={openTasks}
             errorMessage={errorMessage}
           />
         }

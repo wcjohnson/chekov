@@ -9,7 +9,7 @@ type RightColumnProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
   completionsWithReminders: Set<TaskId>;
-  tasksWithCompleteDependencies: Set<TaskId>;
+  openTasks: Set<TaskId>;
   errorMessage: string | null;
 };
 
@@ -17,7 +17,7 @@ export function RightColumn({
   mode,
   selectedTaskId,
   completionsWithReminders,
-  tasksWithCompleteDependencies,
+  openTasks: tasksWithCompleteDependencies,
   errorMessage,
 }: RightColumnProps) {
   const detail = useTaskDetailQuery(selectedTaskId ?? "").data;

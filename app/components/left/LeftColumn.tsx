@@ -19,7 +19,7 @@ type LeftColumnProps = {
   mode: ChecklistMode;
   showCompletedTasks: boolean;
   completionsWithReminders: Set<TaskId>;
-  tasksWithCompleteDependencies: Set<TaskId>;
+  openTasks: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
   onSelectTask: (taskId: TaskId) => void;
@@ -30,7 +30,7 @@ export function LeftColumn({
   mode,
   showCompletedTasks,
   completionsWithReminders,
-  tasksWithCompleteDependencies,
+  openTasks: tasksWithCompleteDependencies,
   tasksMatchingSearch,
   selectedTaskId,
   onSelectTask,

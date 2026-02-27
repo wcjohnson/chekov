@@ -63,7 +63,7 @@ export function useTaskCategoryById(categoryTasks: Map<string, string[]>) {
  * @returns `Set<TaskId>` containing only tasks whose opener expression (or implicit opener task set) evaluates to true.
  * Returns an empty set while required query inputs are unresolved.
  */
-export function useTasksWithCompleteOpeners(
+export function useOpenTasks(
   taskSet: Set<string> | undefined,
   dependencies: Map<string, TaskDependencies> | undefined,
   completions: Set<string> | undefined,

@@ -40,7 +40,7 @@ import {
 import {
   useEffectiveCompletions,
   useTaskStructure,
-  useTasksWithCompleteOpeners,
+  useOpenTasks,
 } from "../../app/lib/data/derivedData";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
@@ -415,7 +415,7 @@ describe("data layer", () => {
           completions,
           dependencies,
         );
-        const tasksWithCompleteOpeners = useTasksWithCompleteOpeners(
+        const tasksWithCompleteOpeners = useOpenTasks(
           taskStructure.taskSet,
           dependencies,
           effectiveCompletions,
