@@ -28,6 +28,7 @@ import {
   Dropdown,
   DropdownButton,
   DropdownItem,
+  DropdownLabel,
   DropdownMenu,
 } from "@/app/components/catalyst/dropdown";
 import {
@@ -455,14 +456,15 @@ export function TaskDetails({
                             }}
                           >
                             <span
-                              title={colorOption.label}
-                              className={`h-5 w-5 rounded border border-zinc-300 dark:border-zinc-700 ${getTagSwatchClasses(colorOption.key)} ${
+                              data-slot="icon"
+                              aria-hidden="true"
+                              className={`rounded border border-zinc-300 dark:border-zinc-700 ${getTagSwatchClasses(colorOption.key)} ${
                                 isSelected
                                   ? "ring-2 ring-zinc-500 ring-offset-1 dark:ring-zinc-300 dark:ring-offset-zinc-950"
                                   : ""
                               }`}
                             />
-                            <span>{colorOption.label}</span>
+                            <DropdownLabel>{colorOption.label}</DropdownLabel>
                           </DropdownItem>
                         );
                       })}
