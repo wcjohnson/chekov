@@ -6,7 +6,8 @@ import { createContext } from "react";
 
 export type MultiSelectContextId =
   | "generic"
-  | "dependencies"
+  | "openers"
+  | "closers"
   | "categoryDependencies";
 
 export type MultiSelectState = {

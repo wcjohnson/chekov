@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -16,19 +9,17 @@ import {
   TAG_COLOR_OPTIONS,
 } from "../../lib/tagColors";
 import {
-  BooleanOp,
-  type BooleanExpression,
   type ChecklistMode,
   type DependencyExpression,
   type TaskId,
   type TaskDetail,
 } from "@/app/lib/data/types";
-import {
-  buildImplicitAndExpression,
-  getInfixExpressionPrecedence,
-} from "@/app/lib/booleanExpression";
+import { buildImplicitAndExpression } from "@/app/lib/booleanExpression";
 import { MultiSelectContext } from "@/app/lib/context";
-import { ExpressionEditor } from "../ExpressionEditor";
+import {
+  DependencyExpressionEditor,
+  DependencyExpressionView,
+} from "./DependencyExpressionEditor";
 import {
   useAllKnownTagsQuery,
   useDetailsQuery,
@@ -51,101 +42,6 @@ import {
 
 const EMPTY_TASK_ID_SET = new Set<TaskId>();
 
-function ExpressionOperator({ operator }: { operator: BooleanOp }) {
-  const label =
-    operator === BooleanOp.And
-      ? "AND"
-      : operator === BooleanOp.Or
-        ? "OR"
-        : "NOT";
-
-  return (
-    <span className="font-mono text-[11px] font-semibold tracking-wide text-zinc-600 dark:text-zinc-300">
-      {label}
-    </span>
-  );
-}
-
-function DependencyExpressionView({
-  mode,
-  expression,
-  dependencyTitleById,
-  completionsWithReminders,
-}: {
-  mode: ChecklistMode;
-  expression: BooleanExpression;
-  dependencyTitleById: Map<TaskId, string>;
-  completionsWithReminders: Set<TaskId>;
-}) {
-  const renderExpression = (
-    current: BooleanExpression,
-    parentPrecedence: number,
-    keyPrefix: string,
-  ): ReactNode => {
-    if (typeof current === "string") {
-      const isCompleted = completionsWithReminders.has(current);
-      return (
-        <span
-          key={`${keyPrefix}-task`}
-          className={mode === "task" && isCompleted ? "line-through" : ""}
-        >
-          {dependencyTitleById.get(current) ?? current}
-        </span>
-      );
-    }
-
-    const currentPrecedence = getInfixExpressionPrecedence(current);
-    const [operator, ...operands] = current;
-
-    let content: ReactNode;
-    if (operator === BooleanOp.Not) {
-      const operand = operands[0];
-      content = (
-        <>
-          <ExpressionOperator operator={BooleanOp.Not} />{" "}
-          {renderExpression(operand, currentPrecedence, `${keyPrefix}-not`)}
-        </>
-      );
-    } else {
-      content = (
-        <>
-          {operands.map((operand, index) => (
-            <span key={`${keyPrefix}-${index}`}>
-              {index > 0 && (
-                <>
-                  {" "}
-                  <ExpressionOperator operator={operator} />{" "}
-                </>
-              )}
-              {renderExpression(
-                operand,
-                currentPrecedence,
-                `${keyPrefix}-${index}`,
-              )}
-            </span>
-          ))}
-        </>
-      );
-    }
-
-    if (currentPrecedence < parentPrecedence) {
-      return (
-        <span key={`${keyPrefix}-group`}>
-          (<span>{content}</span>)
-        </span>
-      );
-    }
-
-    return <span key={`${keyPrefix}-expr`}>{content}</span>;
-  };
-
-  return (
-    <p className="text-sm text-zinc-600 dark:text-zinc-300">
-      {renderExpression(expression, 0, "dep")}
-    </p>
-  );
-}
-
 type TaskDetailsProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
@@ -153,122 +49,6 @@ type TaskDetailsProps = {
   completionsWithReminders: Set<TaskId>;
   tasksWithCompleteDependencies: Set<TaskId>;
 };
-
-function DependenciesSection({
-  mode,
-  selectedTaskDeps,
-  dependencyExpression,
-  editorDependencyExpression,
-  dependencyTitleById,
-  completionsWithReminders,
-  isMultiSelectActive,
-  isGenericMultiSelectActive,
-  isSettingDependencies,
-  onEditDependencies,
-  onClearDependencies,
-  onApplyDependencies,
-  onSetDependencyExpression,
-}: {
-  mode: ChecklistMode;
-  selectedTaskDeps: Set<TaskId>;
-  dependencyExpression: BooleanExpression | null;
-  editorDependencyExpression: DependencyExpression | null;
-  dependencyTitleById: Map<TaskId, string>;
-  completionsWithReminders: Set<TaskId>;
-  isMultiSelectActive: boolean;
-  isGenericMultiSelectActive: boolean;
-  isSettingDependencies: boolean;
-  onEditDependencies: () => void;
-  onClearDependencies: () => void;
-  onApplyDependencies: () => void;
-  onSetDependencyExpression: (
-    dependencyExpression: DependencyExpression,
-  ) => void;
-}) {
-  const [isExpressionEditorOpen, setIsExpressionEditorOpen] = useState(false);
-  const hasDependencies = selectedTaskDeps.size > 0;
-  const dependencyIdList = useMemo(
-    () => Array.from(selectedTaskDeps),
-    [selectedTaskDeps],
-  );
-  const implicitExpression = useMemo(
-    () => buildImplicitAndExpression(dependencyIdList),
-    [dependencyIdList],
-  );
-  const effectiveDependencyExpression =
-    dependencyExpression ?? implicitExpression;
-
-  return (
-    <>
-      <div>
-        <p className="mb-2 text-sm font-medium">Dependencies</p>
-        <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-          {!effectiveDependencyExpression ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
-          ) : (
-            <DependencyExpressionView
-              mode={mode}
-              expression={effectiveDependencyExpression}
-              dependencyTitleById={dependencyTitleById}
-              completionsWithReminders={completionsWithReminders}
-            />
-          )}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onEditDependencies}
-            disabled={isMultiSelectActive}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Set Dependencies
-          </button>
-          <button
-            type="button"
-            onClick={onClearDependencies}
-            disabled={!hasDependencies}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Clear Dependencies
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsExpressionEditorOpen(true)}
-            disabled={!hasDependencies || isExpressionEditorOpen}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Edit Expression
-          </button>
-          {isGenericMultiSelectActive && (
-            <button
-              type="button"
-              onClick={onApplyDependencies}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-            >
-              Apply Dependencies
-            </button>
-          )}
-          {isSettingDependencies && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Select dependency tasks from the left pane, then confirm or cancel
-              in the left header.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {hasDependencies &&
-        isExpressionEditorOpen &&
-        editorDependencyExpression && (
-          <ExpressionEditor
-            dependencyExpression={editorDependencyExpression}
-            dependencyTitleById={dependencyTitleById}
-            onSetDependencyExpression={onSetDependencyExpression}
-          />
-        )}
-    </>
-  );
-}
 
 export function TaskDetails({
   mode,
@@ -283,9 +63,6 @@ export function TaskDetails({
   >(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const multiSelectContext = useContext(MultiSelectContext);
-  const isMultiSelectActive = multiSelectContext.isActive();
-  const isSettingDependencies = multiSelectContext.isActive("dependencies");
-  const isGenericMultiSelectActive = multiSelectContext.isActive("generic");
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
@@ -295,12 +72,16 @@ export function TaskDetails({
   ).data;
   const selectedTaskOpeners = selectedTaskDependencyData?.openers;
   const selectedTaskClosers = selectedTaskDependencyData?.closers;
-  const selectedTaskDeps = useMemo(
+  const selectedTaskOpenersTaskSet = useMemo(
     () => selectedTaskOpeners?.taskSet ?? EMPTY_TASK_ID_SET,
     [selectedTaskOpeners],
   );
-  const selectedTaskDependencyExpression =
-    selectedTaskOpeners?.expression ?? null;
+  const selectedTaskClosersTaskSet = useMemo(
+    () => selectedTaskClosers?.taskSet ?? EMPTY_TASK_ID_SET,
+    [selectedTaskClosers],
+  );
+  const selectedTaskOpenersExpression = selectedTaskOpeners?.expression ?? null;
+  const selectedTaskClosersExpression = selectedTaskClosers?.expression ?? null;
   const isReminderTask =
     useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
@@ -310,33 +91,52 @@ export function TaskDetails({
 
   const knownTagSet = useAllKnownTagsQuery().data;
   const details = useDetailsQuery().data;
-  const dependencyTitleById = useMemo(() => {
+  const openerTitleById = useMemo(() => {
     const map = new Map<TaskId, string>();
-    for (const dependencyId of selectedTaskDeps) {
+    for (const dependencyId of selectedTaskOpenersTaskSet) {
       const dependencyDetail = details?.get(dependencyId);
       map.set(dependencyId, dependencyDetail?.title ?? dependencyId);
     }
     return map;
-  }, [details, selectedTaskDeps]);
-  const selectedTaskOpenersExpression = selectedTaskOpeners?.expression ?? null;
+  }, [details, selectedTaskOpenersTaskSet]);
+  const closerTitleById = useMemo(() => {
+    const map = new Map<TaskId, string>();
+    for (const dependencyId of selectedTaskClosersTaskSet) {
+      const dependencyDetail = details?.get(dependencyId);
+      map.set(dependencyId, dependencyDetail?.title ?? dependencyId);
+    }
+    return map;
+  }, [details, selectedTaskClosersTaskSet]);
   const taskModeDependencyExpression = useMemo(() => {
     return (
       selectedTaskOpenersExpression ??
-      buildImplicitAndExpression(Array.from(selectedTaskDeps))
+      buildImplicitAndExpression(Array.from(selectedTaskOpenersTaskSet))
     );
-  }, [selectedTaskOpenersExpression, selectedTaskDeps]);
-  const editorDependencyExpression = useMemo(() => {
-    if (selectedTaskDeps.size === 0) {
+  }, [selectedTaskOpenersExpression, selectedTaskOpenersTaskSet]);
+  const openerEditorDependencyExpression = useMemo(() => {
+    if (selectedTaskOpenersTaskSet.size === 0) {
       return null;
     }
 
     return {
-      taskSet: new Set(selectedTaskDeps),
+      taskSet: new Set(selectedTaskOpenersTaskSet),
       ...(selectedTaskOpenersExpression
         ? { expression: selectedTaskOpenersExpression }
         : {}),
     } satisfies DependencyExpression;
-  }, [selectedTaskDeps, selectedTaskOpenersExpression]);
+  }, [selectedTaskOpenersTaskSet, selectedTaskOpenersExpression]);
+  const closerEditorDependencyExpression = useMemo(() => {
+    if (selectedTaskClosersTaskSet.size === 0) {
+      return null;
+    }
+
+    return {
+      taskSet: new Set(selectedTaskClosersTaskSet),
+      ...(selectedTaskClosersExpression
+        ? { expression: selectedTaskClosersExpression }
+        : {}),
+    } satisfies DependencyExpression;
+  }, [selectedTaskClosersTaskSet, selectedTaskClosersExpression]);
   const allKnownTags = useMemo(() => {
     return Array.from(knownTagSet ?? []).sort((left, right) =>
       left.localeCompare(right),
@@ -410,20 +210,20 @@ export function TaskDetails({
   }, [activeTagColorPickerTag]);
 
   if (mode === "edit") {
-    const handleSetDependencies = (taskIds: Set<TaskId>) => {
+    const handleSetOpeners = (taskIds: Set<TaskId>) => {
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
         taskDependencies: {
           openers: {
             taskSet: taskIds,
-            expression: selectedTaskDependencyExpression ?? undefined,
+            expression: selectedTaskOpenersExpression ?? undefined,
           },
           closers: selectedTaskClosers,
         },
       });
     };
 
-    const handleClearDependencies = () => {
+    const handleClearOpeners = () => {
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
         taskDependencies: {
@@ -436,7 +236,7 @@ export function TaskDetails({
       });
     };
 
-    const handleApplyDependencies = () => {
+    const handleApplyOpeners = () => {
       if (!multiSelectContext.isActive("generic")) {
         return;
       }
@@ -446,14 +246,14 @@ export function TaskDetails({
         taskDependencies: {
           openers: {
             taskSet: new Set(multiSelectContext.getSelection()),
-            expression: selectedTaskDependencyExpression ?? undefined,
+            expression: selectedTaskOpenersExpression ?? undefined,
           },
           closers: selectedTaskClosers,
         },
       });
     };
 
-    const handleSetDependencyExpression = (
+    const handleSetOpenersExpression = (
       nextDependencyExpression: DependencyExpression,
     ) => {
       taskDependenciesMutation.mutate({
@@ -465,64 +265,57 @@ export function TaskDetails({
       });
     };
 
-    const onEditDependencies = () => {
-      const headerText = `Editing dependencies for ${selectedTaskDetail?.title ?? "unknown task"}`;
+    const handleSetClosers = (taskIds: Set<TaskId>) => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        taskDependencies: {
+          openers: selectedTaskOpeners,
+          closers: {
+            taskSet: taskIds,
+            expression: selectedTaskClosersExpression ?? undefined,
+          },
+        },
+      });
+    };
 
-      multiSelectContext.setState({
-        selectionContext: "dependencies",
-        selectedTaskSet: new Set(selectedTaskDeps),
-        renderCustomHeader: (multiSelectState) => (
-          <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
-            <p className="font-medium text-zinc-700 dark:text-zinc-200">
-              {headerText}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  multiSelectContext.selectAll();
-                }}
-                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              >
-                Select All
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  multiSelectContext.clearSelection();
-                }}
-                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              >
-                Clear Selection
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleSetDependencies(multiSelectState.selectedTaskSet);
-                  multiSelectContext.close();
-                }}
-                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              >
-                Confirm
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  multiSelectContext.close();
-                }}
-                className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ),
-        taskFilter: (taskId) => {
-          if (!selectedTaskId) {
-            return true;
-          }
+    const handleClearClosers = () => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        taskDependencies: {
+          openers: selectedTaskOpeners,
+          closers: {
+            taskSet: new Set(),
+            expression: undefined,
+          },
+        },
+      });
+    };
 
-          return taskId !== selectedTaskId;
+    const handleApplyClosers = () => {
+      if (!multiSelectContext.isActive("generic")) {
+        return;
+      }
+
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        taskDependencies: {
+          openers: selectedTaskOpeners,
+          closers: {
+            taskSet: new Set(multiSelectContext.getSelection()),
+            expression: selectedTaskClosersExpression ?? undefined,
+          },
+        },
+      });
+    };
+
+    const handleSetClosersExpression = (
+      nextDependencyExpression: DependencyExpression,
+    ) => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        taskDependencies: {
+          openers: selectedTaskOpeners,
+          closers: nextDependencyExpression,
         },
       });
     };
@@ -594,21 +387,42 @@ export function TaskDetails({
           </p>
         </div>
 
-        <DependenciesSection
-          key={selectedTaskId ?? "none"}
+        <DependencyExpressionEditor
+          key={`${selectedTaskId ?? "none"}-openers`}
+          label="Openers"
           mode={mode}
-          selectedTaskDeps={selectedTaskDeps}
+          selectedTaskId={selectedTaskId}
+          selectedTaskTitle={selectedTaskDetail?.title}
+          selectionContext="openers"
+          selectedTaskSet={selectedTaskOpenersTaskSet}
+          dependencyIds={selectedTaskOpenersTaskSet}
           dependencyExpression={selectedTaskOpenersExpression}
-          editorDependencyExpression={editorDependencyExpression}
-          dependencyTitleById={dependencyTitleById}
+          editorDependencyExpression={openerEditorDependencyExpression}
+          dependencyTitleById={openerTitleById}
           completionsWithReminders={completionsWithReminders}
-          isMultiSelectActive={isMultiSelectActive}
-          isGenericMultiSelectActive={isGenericMultiSelectActive}
-          isSettingDependencies={isSettingDependencies}
-          onEditDependencies={onEditDependencies}
-          onClearDependencies={handleClearDependencies}
-          onApplyDependencies={handleApplyDependencies}
-          onSetDependencyExpression={handleSetDependencyExpression}
+          onConfirmSelection={handleSetOpeners}
+          onClearSelection={handleClearOpeners}
+          onApplySelection={handleApplyOpeners}
+          onSetDependencyExpression={handleSetOpenersExpression}
+        />
+
+        <DependencyExpressionEditor
+          key={`${selectedTaskId ?? "none"}-closers`}
+          label="Closers"
+          mode={mode}
+          selectedTaskId={selectedTaskId}
+          selectedTaskTitle={selectedTaskDetail?.title}
+          selectionContext="closers"
+          selectedTaskSet={selectedTaskClosersTaskSet}
+          dependencyIds={selectedTaskClosersTaskSet}
+          dependencyExpression={selectedTaskClosersExpression}
+          editorDependencyExpression={closerEditorDependencyExpression}
+          dependencyTitleById={closerTitleById}
+          completionsWithReminders={completionsWithReminders}
+          onConfirmSelection={handleSetClosers}
+          onClearSelection={handleClearClosers}
+          onApplySelection={handleApplyClosers}
+          onSetDependencyExpression={handleSetClosersExpression}
         />
 
         <label className="block text-sm">
@@ -836,7 +650,7 @@ export function TaskDetails({
           <DependencyExpressionView
             mode={mode}
             expression={taskModeDependencyExpression}
-            dependencyTitleById={dependencyTitleById}
+            dependencyTitleById={openerTitleById}
             completionsWithReminders={completionsWithReminders}
           />
         )}
