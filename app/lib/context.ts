@@ -1,6 +1,6 @@
 // React global shared state, contexts, and utility hooks
 
-import type { TaskId, StoredTask } from "@/app/lib/data/types";
+import type { TaskId, TaskDetail } from "@/app/lib/data/types";
 import type { ReactNode } from "react";
 import { createContext } from "react";
 
@@ -13,7 +13,7 @@ export type MultiSelectState = {
   selectionContext: MultiSelectContextId;
   taskFilter?: (
     taskId: TaskId,
-    taskDetail: StoredTask | null | undefined,
+    taskDetail: TaskDetail | null | undefined,
     multiSelectState: MultiSelectState,
   ) => boolean | undefined;
   renderCustomHeader: (multiSelectState: MultiSelectState) => ReactNode;

@@ -20,7 +20,7 @@ import {
   type BooleanExpression,
   type ChecklistMode,
   type TaskId,
-  type StoredTask,
+  type TaskDetail,
 } from "@/app/lib/data/types";
 import {
   buildImplicitAndExpression,
@@ -149,7 +149,7 @@ function DependencyExpressionView({
 type TaskDetailsProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
-  selectedTaskDetail: StoredTask | null | undefined;
+  selectedTaskDetail: TaskDetail | null | undefined;
   completionsWithReminders: Set<TaskId>;
   tasksWithCompleteDependencies: Set<TaskId>;
 };

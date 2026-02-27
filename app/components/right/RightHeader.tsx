@@ -1,11 +1,11 @@
 "use client";
 
-import type { StoredTask, ChecklistMode } from "@/app/lib/data/types";
+import type { TaskDetail, ChecklistMode } from "@/app/lib/data/types";
 
 type RightHeaderProps = {
   mode: ChecklistMode;
   selectedTaskId: string | null;
-  selectedTaskDetail: StoredTask | null | undefined;
+  selectedTaskDetail: TaskDetail | null | undefined;
 };
 
 export function RightHeader({

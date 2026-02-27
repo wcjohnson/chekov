@@ -20,7 +20,7 @@ import {
 import {
   type CategoryName,
   type DependencyExpression,
-  type StoredTask,
+  type TaskDetail,
   type TaskId,
 } from "@/app/lib/data/types";
 import { normalizeDependencyExpression } from "@/app/lib/booleanExpression";
@@ -31,7 +31,7 @@ export function useCreateTaskMutation() {
   return useMutation({
     mutationFn: async (category: string) => {
       const db = await getDb();
-      const task: StoredTask = {
+      const task: TaskDetail = {
         id: crypto.randomUUID(),
         title: "Untitled task",
         description: "",

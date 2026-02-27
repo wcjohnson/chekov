@@ -22,7 +22,7 @@ export type BooleanExpression =
   | [BooleanOp.Or, ...BooleanExpression[]]
   | [BooleanOp.Not, BooleanExpression];
 
-export type StoredTask = {
+export type TaskDetail = {
   id: TaskId;
   title: string;
   description: string;

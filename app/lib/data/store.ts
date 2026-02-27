@@ -3,7 +3,7 @@
 import { openDB, type DBSchema } from "idb";
 import type {
   TaskId,
-  StoredTask,
+  TaskDetail,
   CategoryName,
   DependencyExpression,
 } from "./types";
@@ -28,7 +28,7 @@ export const CATEGORY_COLLAPSED_STORE = "categoryCollapsed";
 export interface ChekovDB extends DBSchema {
   [TASKS_STORE]: {
     key: TaskId;
-    value: StoredTask;
+    value: TaskDetail;
   };
   [TASK_TAGS_STORE]: {
     key: TaskId;
