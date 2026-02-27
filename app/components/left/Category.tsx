@@ -20,10 +20,11 @@ type CategoryProps = {
   category: string;
   taskBreakout: TaskBreakout;
   tasksWithCompleteDependencies: Set<TaskId>;
+  effectiveCompletions: Set<TaskId>;
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
 
-  onSelectTask: (taskId: TaskId) => void;
+  onRequestTaskSelectionChange: (taskId: TaskId, isNew?: boolean) => void;
   onToggleComplete: (taskId: TaskId) => void;
 
   canMoveUp: boolean;
@@ -36,10 +37,11 @@ export function Category({
   category,
   taskBreakout,
   tasksWithCompleteDependencies,
+  effectiveCompletions,
   mode,
   selectedTaskId,
 
-  onSelectTask,
+  onRequestTaskSelectionChange,
   onToggleComplete,
 
   canMoveUp,
@@ -207,7 +209,8 @@ export function Category({
               mode={mode}
               isSelected={selectedTaskId === taskId}
               dependenciesComplete={tasksWithCompleteDependencies.has(taskId)}
-              onSelectTask={onSelectTask}
+              isEffectivelyComplete={effectiveCompletions.has(taskId)}
+              onRequestTaskSelectionChange={onRequestTaskSelectionChange}
               onToggleComplete={onToggleComplete}
             />
           );
@@ -219,7 +222,7 @@ export function Category({
               createTaskMutation.mutate(category, {
                 onSuccess: (taskId) => {
                   if (taskId) {
-                    onSelectTask(taskId);
+                    onRequestTaskSelectionChange(taskId, true);
                   }
                 },
               })

@@ -22,7 +22,7 @@ type LeftColumnProps = {
   openTasks: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
-  onSelectTask: (taskId: TaskId) => void;
+  onRequestTaskSelectionChange: (taskId: TaskId, isNew?: boolean) => void;
   onToggleComplete: (taskId: TaskId) => void;
 };
 
@@ -33,7 +33,7 @@ export function LeftColumn({
   openTasks: tasksWithCompleteDependencies,
   tasksMatchingSearch,
   selectedTaskId,
-  onSelectTask,
+  onRequestTaskSelectionChange,
   onToggleComplete,
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -48,7 +48,7 @@ export function LeftColumn({
     createTaskMutation.mutate(normalizedCategory, {
       onSuccess: (taskId) => {
         if (taskId) {
-          onSelectTask(taskId);
+          onRequestTaskSelectionChange(taskId, true);
         }
       },
     });
@@ -165,9 +165,10 @@ export function LeftColumn({
             category={category}
             taskBreakout={taskBreakout}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            effectiveCompletions={completionsWithReminders}
             mode={mode}
             selectedTaskId={selectedTaskId}
-            onSelectTask={onSelectTask}
+            onRequestTaskSelectionChange={onRequestTaskSelectionChange}
             onToggleComplete={onToggleComplete}
             canMoveUp={index > 0}
             canMoveDown={index < taskBreakout.visibleCategories.length - 1}

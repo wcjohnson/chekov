@@ -11,6 +11,8 @@ type RightColumnProps = {
   completionsWithReminders: Set<TaskId>;
   openTasks: Set<TaskId>;
   errorMessage: string | null;
+  titleFocusTaskId: TaskId | null;
+  onTitleFocused: () => void;
 };
 
 export function RightColumn({
@@ -19,6 +21,8 @@ export function RightColumn({
   completionsWithReminders,
   openTasks: tasksWithCompleteDependencies,
   errorMessage,
+  titleFocusTaskId,
+  onTitleFocused,
 }: RightColumnProps) {
   const detail = useTaskDetailQuery(selectedTaskId ?? "").data;
 
@@ -44,6 +48,8 @@ export function RightColumn({
             selectedTaskDetail={detail}
             completionsWithReminders={completionsWithReminders}
             tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            shouldFocusTitle={titleFocusTaskId === selectedTaskId}
+            onTitleFocused={onTitleFocused}
           />
         </div>
       )}

@@ -55,6 +55,7 @@ export function AppMain() {
   const [stateSelectedTaskId, setSelectedTaskId] = useState<TaskId | null>(
     null,
   );
+  const [titleFocusTaskId, setTitleFocusTaskId] = useState<TaskId | null>(null);
   const [leftPaneWidth, setLeftPaneWidth] = useState(() => {
     if (typeof window === "undefined") {
       return 32;
@@ -116,6 +117,15 @@ export function AppMain() {
     stateSelectedTaskId && taskStructure.taskSet.has(stateSelectedTaskId)
       ? stateSelectedTaskId
       : null;
+
+  const handleSelectTask = useCallback((taskId: TaskId, isNew = false) => {
+    setSelectedTaskId(taskId);
+    setTitleFocusTaskId(isNew ? taskId : null);
+  }, []);
+
+  const handleTitleFocused = useCallback(() => {
+    setTitleFocusTaskId(null);
+  }, []);
 
   const effectiveMultiSelectState = useMemo(() => {
     if (!multiSelectState) {
@@ -398,7 +408,7 @@ export function AppMain() {
             openTasks={openTasks}
             tasksMatchingSearch={tasksMatchingSearch}
             selectedTaskId={selectedTaskId}
-            onSelectTask={setSelectedTaskId}
+            onRequestTaskSelectionChange={handleSelectTask}
             onToggleComplete={toggleTaskCompletion}
           />
         }
@@ -409,6 +419,8 @@ export function AppMain() {
             completionsWithReminders={allEffectiveCompletions}
             openTasks={openTasks}
             errorMessage={errorMessage}
+            titleFocusTaskId={titleFocusTaskId}
+            onTitleFocused={handleTitleFocused}
           />
         }
       />

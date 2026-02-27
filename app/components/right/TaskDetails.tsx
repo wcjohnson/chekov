@@ -48,6 +48,8 @@ type TaskDetailsProps = {
   selectedTaskDetail: TaskDetail | null | undefined;
   completionsWithReminders: Set<TaskId>;
   tasksWithCompleteDependencies: Set<TaskId>;
+  shouldFocusTitle: boolean;
+  onTitleFocused: () => void;
 };
 
 export function TaskDetails({
@@ -56,11 +58,14 @@ export function TaskDetails({
   selectedTaskDetail,
   completionsWithReminders,
   tasksWithCompleteDependencies,
+  shouldFocusTitle,
+  onTitleFocused,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
   const [activeTagColorPickerTag, setActiveTagColorPickerTag] = useState<
     string | null
   >(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const multiSelectContext = useContext(MultiSelectContext);
 
@@ -113,6 +118,12 @@ export function TaskDetails({
       buildImplicitAndExpression(Array.from(selectedTaskOpenersTaskSet))
     );
   }, [selectedTaskOpenersExpression, selectedTaskOpenersTaskSet]);
+  const taskModeCloserExpression = useMemo(() => {
+    return (
+      selectedTaskClosersExpression ??
+      buildImplicitAndExpression(Array.from(selectedTaskClosersTaskSet))
+    );
+  }, [selectedTaskClosersExpression, selectedTaskClosersTaskSet]);
   const openerEditorDependencyExpression = useMemo(() => {
     if (selectedTaskOpenersTaskSet.size === 0) {
       return null;
@@ -173,6 +184,16 @@ export function TaskDetails({
   const tagColorMutation = useTagColorMutation();
 
   const datalistId = `known-tags-${selectedTaskId}`;
+
+  useEffect(() => {
+    if (mode !== "edit" || !shouldFocusTitle) {
+      return;
+    }
+
+    titleInputRef.current?.focus();
+    titleInputRef.current?.select();
+    onTitleFocused();
+  }, [mode, onTitleFocused, shouldFocusTitle]);
 
   useEffect(() => {
     if (!activeTagColorPickerTag) {
@@ -339,6 +360,7 @@ export function TaskDetails({
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Title</span>
           <input
+            ref={titleInputRef}
             key={selectedTaskId ?? ""}
             defaultValue={selectedTaskDetail?.title ?? ""}
             onBlur={(event) => {
@@ -643,7 +665,7 @@ export function TaskDetails({
         </button>
       </div>
       <div>
-        <p className="mb-1 text-sm font-medium">Dependencies</p>
+        <p className="mb-1 text-sm font-medium">Openers</p>
         {!taskModeDependencyExpression ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
         ) : (
@@ -651,6 +673,19 @@ export function TaskDetails({
             mode={mode}
             expression={taskModeDependencyExpression}
             dependencyTitleById={openerTitleById}
+            completionsWithReminders={completionsWithReminders}
+          />
+        )}
+      </div>
+      <div>
+        <p className="mb-1 text-sm font-medium">Closers</p>
+        {!taskModeCloserExpression ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
+        ) : (
+          <DependencyExpressionView
+            mode={mode}
+            expression={taskModeCloserExpression}
+            dependencyTitleById={closerTitleById}
             completionsWithReminders={completionsWithReminders}
           />
         )}
