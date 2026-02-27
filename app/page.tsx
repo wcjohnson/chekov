@@ -2,29 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster, resolveValue } from "react-hot-toast";
 
 import { AppLayout } from "./components/layout/AppLayout";
 import { LeftColumn } from "./components/left/LeftColumn";
 import { RightColumn } from "./components/right/RightColumn";
 import { TopBar } from "./components/TopBar";
-import type { ChecklistMode, TaskId } from "./lib/types";
+import type { ChecklistMode, TaskId } from "./lib/data/types";
 import {
-  useClearDatabaseMutation,
-  useCollapsedCategoriesQuery,
-  queryClient,
-  useCompletionsWithReminders,
-  useCompletionsQuery,
-  useDependenciesQuery,
-  useRemindersQuery,
-  useTaskDependencyExpressions,
-  useTaskCompletionMutation,
-  useTaskCategoryById,
-  useTasksMatchingSearch,
-  useTaskStructure,
-  useTasksWithCompleteDependencies,
-  useUncompleteAllTasksMutation,
-  useUnhideAllTasksMutation,
-} from "./lib/data";
+  Alert,
+  AlertActions,
+  AlertBody,
+  AlertDescription,
+  AlertTitle,
+} from "@/app/components/catalyst/alert";
+import { Button } from "@/app/components/catalyst/button";
 import {
   MultiSelectContext,
   type MultiSelectContextId,
@@ -38,9 +30,32 @@ import {
   importChecklistDefinition,
   importChecklistState,
   uploadJson,
-  type ExportedChecklistDefinition,
+} from "./lib/data/export";
+import {
   type ExportedChecklistState,
-} from "./lib/export";
+  type ExportedChecklistDefinition,
+} from "@/app/lib/data/jsonSchema";
+import {
+  useEffectiveCompletions,
+  useTaskCategoryById,
+  useTasksMatchingSearch,
+  useTaskStructure,
+  useOpenTasks,
+} from "./lib/data/derivedData";
+import {
+  useCategoriesQuery,
+  useCollapsedCategoriesQuery,
+  useCompletionsQuery,
+  useDependenciesQuery,
+  useTaskSetQuery,
+} from "./lib/data/queries";
+import {
+  useClearDatabaseMutation,
+  useTaskCompletionMutation,
+  useUncompleteAllTasksMutation,
+  useUnhideAllTasksMutation,
+} from "./lib/data/mutations";
+import { queryClient } from "./lib/data/store";
 
 const PANE_WIDTH_STORAGE_KEY = "chekov-left-pane-width";
 
@@ -51,6 +66,7 @@ export function AppMain() {
   const [stateSelectedTaskId, setSelectedTaskId] = useState<TaskId | null>(
     null,
   );
+  const [titleFocusTaskId, setTitleFocusTaskId] = useState<TaskId | null>(null);
   const [leftPaneWidth, setLeftPaneWidth] = useState(() => {
     if (typeof window === "undefined") {
       return 32;
@@ -71,6 +87,11 @@ export function AppMain() {
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDefinitionOverwriteAlertOpen, setIsDefinitionOverwriteAlertOpen] =
+    useState(false);
+  const [pendingDefinitionFromQuery, setPendingDefinitionFromQuery] =
+    useState<ExportedChecklistDefinition | null>(null);
+  const hasProcessedDefinitionQueryRef = useRef(false);
   const [multiSelectState, setMultiSelectState] =
     useState<MultiSelectState | null>(null);
   const closeMultiSelect = useCallback(() => {
@@ -85,22 +106,19 @@ export function AppMain() {
 
   const taskStructure = useTaskStructure();
   const allDependencies = useDependenciesQuery().data ?? new Map();
-  const dependencyExpressions = useTaskDependencyExpressions();
   const allCompletionsRaw = useCompletionsQuery().data;
-  const allReminders = useRemindersQuery().data;
-  const allCompletions = useCompletionsWithReminders(
+  const taskSetQuery = useTaskSetQuery();
+  const categoriesQuery = useCategoriesQuery();
+  const allEffectiveCompletions = useEffectiveCompletions(
     taskStructure.taskSet,
     allCompletionsRaw,
-    allReminders,
     allDependencies,
-    dependencyExpressions,
   );
 
-  const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
+  const openTasks = useOpenTasks(
     taskStructure.taskSet,
     allDependencies,
-    allCompletions,
-    dependencyExpressions,
+    allEffectiveCompletions,
   );
   const tasksMatchingSearch = useTasksMatchingSearch(searchText);
   const collapsedCategories = useCollapsedCategoriesQuery().data;
@@ -117,6 +135,15 @@ export function AppMain() {
     stateSelectedTaskId && taskStructure.taskSet.has(stateSelectedTaskId)
       ? stateSelectedTaskId
       : null;
+
+  const handleSelectTask = useCallback((taskId: TaskId, isNew = false) => {
+    setSelectedTaskId(taskId);
+    setTitleFocusTaskId(isNew ? taskId : null);
+  }, []);
+
+  const handleTitleFocused = useCallback(() => {
+    setTitleFocusTaskId(null);
+  }, []);
 
   const effectiveMultiSelectState = useMemo(() => {
     if (!multiSelectState) {
@@ -285,10 +312,10 @@ export function AppMain() {
 
   const toggleTaskCompletion = useCallback(
     (taskId: TaskId) => {
-      const isCompleted = allCompletions.has(taskId);
+      const isCompleted = allEffectiveCompletions.has(taskId);
       taskCompletionMutation.mutate({ taskId, isCompleted: !isCompleted });
     },
-    [allCompletions, taskCompletionMutation],
+    [allEffectiveCompletions, taskCompletionMutation],
   );
 
   const unhideAllTasksMutation = useUnhideAllTasksMutation();
@@ -340,6 +367,53 @@ export function AppMain() {
     downloadJson("chekov-state.json", state);
   };
 
+  useEffect(() => {
+    if (hasProcessedDefinitionQueryRef.current) {
+      return;
+    }
+
+    if (taskSetQuery.data === undefined || categoriesQuery.data === undefined) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const definitionUrl = searchParams.get("def")?.trim();
+
+    hasProcessedDefinitionQueryRef.current = true;
+
+    if (!definitionUrl) {
+      return;
+    }
+
+    const hasExistingDefinition =
+      taskSetQuery.data.size > 0 || categoriesQuery.data.length > 0;
+
+    const importFromQueryString = async () => {
+      try {
+        const response = await fetch(definitionUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch definition file.");
+        }
+
+        const parsed = (await response.json()) as ExportedChecklistDefinition;
+
+        if (hasExistingDefinition) {
+          setPendingDefinitionFromQuery(parsed);
+          setIsDefinitionOverwriteAlertOpen(true);
+          return;
+        }
+
+        await importChecklistDefinition(parsed);
+        setSelectedTaskId(null);
+        setErrorMessage(null);
+      } catch {
+        setErrorMessage("Invalid or unreachable definition URL.");
+      }
+    };
+
+    void importFromQueryString();
+  }, [categoriesQuery.data, taskSetQuery.data]);
+
   return (
     <MultiSelectContext
       value={{
@@ -353,66 +427,149 @@ export function AppMain() {
         setTaskSelected,
       }}
     >
-      <AppLayout
-        mainPaneRef={mainPaneRef}
-        isDesktop={isDesktop}
-        leftPaneWidth={leftPaneWidth}
-        onResizeStart={() => {
-          if (isDesktop) {
-            setIsResizing(true);
+      <>
+        <AppLayout
+          mainPaneRef={mainPaneRef}
+          isDesktop={isDesktop}
+          leftPaneWidth={leftPaneWidth}
+          onResizeStart={() => {
+            if (isDesktop) {
+              setIsResizing(true);
+            }
+          }}
+          topBar={
+            <TopBar
+              mode={mode}
+              searchText={searchText}
+              importDefinitionInputRef={importDefinitionInputRef}
+              importStateInputRef={importStateInputRef}
+              onToggleMode={toggleMode}
+              onUnhideAll={unhideAllTasks}
+              onResetCompleted={resetAllCompletedTasks}
+              showCompletedTasks={showCompletedTasks}
+              onToggleShowCompletedTasks={() =>
+                setShowCompletedTasks((current) => !current)
+              }
+              onClearDatabase={clearDatabase}
+              onSearchTextChange={setSearchText}
+              onExportDefinition={handleExportDefinition}
+              onImportDefinitionClick={() =>
+                importDefinitionInputRef.current?.click()
+              }
+              onExportState={handleExportState}
+              onImportStateClick={() => importStateInputRef.current?.click()}
+              onImportDefinitionFile={(file) => {
+                void handleImportDefinition(file);
+              }}
+              onImportStateFile={(file) => {
+                void handleImportState(file);
+              }}
+            />
           }
-        }}
-        topBar={
-          <TopBar
-            mode={mode}
-            searchText={searchText}
-            importDefinitionInputRef={importDefinitionInputRef}
-            importStateInputRef={importStateInputRef}
-            onToggleMode={toggleMode}
-            onUnhideAll={unhideAllTasks}
-            onResetCompleted={resetAllCompletedTasks}
-            showCompletedTasks={showCompletedTasks}
-            onToggleShowCompletedTasks={() =>
-              setShowCompletedTasks((current) => !current)
-            }
-            onClearDatabase={clearDatabase}
-            onSearchTextChange={setSearchText}
-            onExportDefinition={handleExportDefinition}
-            onImportDefinitionClick={() =>
-              importDefinitionInputRef.current?.click()
-            }
-            onExportState={handleExportState}
-            onImportStateClick={() => importStateInputRef.current?.click()}
-            onImportDefinitionFile={(file) => {
-              void handleImportDefinition(file);
-            }}
-            onImportStateFile={(file) => {
-              void handleImportState(file);
-            }}
-          />
-        }
-        leftColumn={
-          <LeftColumn
-            mode={mode}
-            showCompletedTasks={showCompletedTasks}
-            completionsWithReminders={allCompletions}
-            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
-            tasksMatchingSearch={tasksMatchingSearch}
-            selectedTaskId={selectedTaskId}
-            onSelectTask={setSelectedTaskId}
-            onToggleComplete={toggleTaskCompletion}
-          />
-        }
-        rightColumn={
-          <RightColumn
-            mode={mode}
-            selectedTaskId={selectedTaskId}
-            completionsWithReminders={allCompletions}
-            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
-            errorMessage={errorMessage}
-          />
-        }
-      />
+          leftColumn={
+            <LeftColumn
+              mode={mode}
+              showCompletedTasks={showCompletedTasks}
+              completionsWithReminders={allEffectiveCompletions}
+              openTasks={openTasks}
+              tasksMatchingSearch={tasksMatchingSearch}
+              selectedTaskId={selectedTaskId}
+              onRequestTaskSelectionChange={handleSelectTask}
+              onToggleComplete={toggleTaskCompletion}
+            />
+          }
+          rightColumn={
+            <RightColumn
+              mode={mode}
+              selectedTaskId={selectedTaskId}
+              completionsWithReminders={allEffectiveCompletions}
+              openTasks={openTasks}
+              errorMessage={errorMessage}
+              titleFocusTaskId={titleFocusTaskId}
+              onTitleFocused={handleTitleFocused}
+            />
+          }
+        />
+        <Toaster position="bottom-center">
+          {(toast) => (
+            <div
+              className={`pointer-events-auto w-full max-w-lg rounded-md border px-4 py-3 text-base shadow-sm ${
+                toast.type === "error"
+                  ? "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200"
+                  : "border-zinc-300 bg-zinc-50 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 text-sm">
+                  {toast.type === "error"
+                    ? "⚠"
+                    : toast.type === "success"
+                      ? "✓"
+                      : "•"}
+                </span>
+                <span className="min-w-0 break-words">
+                  {resolveValue(toast.message, toast)}
+                </span>
+              </div>
+            </div>
+          )}
+        </Toaster>
+
+        <Alert
+          open={isDefinitionOverwriteAlertOpen}
+          onClose={setIsDefinitionOverwriteAlertOpen}
+          size="sm"
+        >
+          <AlertTitle>Import definition from URL?</AlertTitle>
+          <AlertDescription>
+            Your current definition is not empty and will be overwritten.
+          </AlertDescription>
+          <AlertBody>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Continuing will permanently replace your current definition.
+              Export your definition first if you may need to restore it.
+            </p>
+          </AlertBody>
+          <AlertActions>
+            <Button
+              type="button"
+              outline
+              onClick={() => {
+                setIsDefinitionOverwriteAlertOpen(false);
+                setPendingDefinitionFromQuery(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              color="red"
+              onClick={() => {
+                const pendingDefinition = pendingDefinitionFromQuery;
+                if (!pendingDefinition) {
+                  setIsDefinitionOverwriteAlertOpen(false);
+                  return;
+                }
+
+                void (async () => {
+                  try {
+                    await importChecklistDefinition(pendingDefinition);
+                    setSelectedTaskId(null);
+                    setErrorMessage(null);
+                  } catch {
+                    setErrorMessage("Invalid or unreachable definition URL.");
+                  } finally {
+                    setIsDefinitionOverwriteAlertOpen(false);
+                    setPendingDefinitionFromQuery(null);
+                  }
+                })();
+              }}
+            >
+              Confirm
+            </Button>
+          </AlertActions>
+        </Alert>
+      </>
     </MultiSelectContext>
   );
 }

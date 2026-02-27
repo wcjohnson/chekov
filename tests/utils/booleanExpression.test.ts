@@ -1,74 +1,136 @@
 import { describe, expect, it } from "vitest";
-import { BooleanOp, type BooleanExpression } from "../../app/lib/types";
+import {
+  BooleanOp,
+  type BooleanExpression,
+  type DependencyExpression,
+} from "../../app/lib/data/types";
 import {
   buildImplicitAndExpression,
-  getExpressionPrecedence,
-  normalizeExpressionToDependencies,
+  getInfixExpressionPrecedence,
+  normalizeDependencyExpression,
 } from "../../app/lib/booleanExpression";
 
 describe("getExpressionPrecedence", () => {
   it("returns highest precedence for task-id leaf", () => {
-    expect(getExpressionPrecedence("task-1")).toBe(4);
+    expect(getInfixExpressionPrecedence("task-1")).toBe(4);
   });
 
   it("returns NOT above AND above OR", () => {
-    expect(getExpressionPrecedence([BooleanOp.Not, "task-1"])).toBe(3);
-    expect(getExpressionPrecedence([BooleanOp.And, "a", "b"])).toBe(2);
-    expect(getExpressionPrecedence([BooleanOp.Or, "a", "b"])).toBe(1);
+    expect(getInfixExpressionPrecedence([BooleanOp.Not, "task-1"])).toBe(3);
+    expect(getInfixExpressionPrecedence([BooleanOp.And, "a", "b"])).toBe(2);
+    expect(getInfixExpressionPrecedence([BooleanOp.Or, "a", "b"])).toBe(1);
   });
 });
 
-describe("normalizeExpressionToDependencies", () => {
-  it("keeps a primitive dependency that exists", () => {
-    expect(normalizeExpressionToDependencies("a", new Set(["a", "b"]))).toBe(
-      "a",
+describe("normalizeDependencyExpression", () => {
+  it("returns the same object when no expression exists", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a", "b"]),
+    };
+
+    expect(normalizeDependencyExpression(dependencyExpression)).toBe(
+      dependencyExpression,
     );
   });
 
-  it("drops a primitive dependency that does not exist", () => {
-    expect(normalizeExpressionToDependencies("missing", new Set(["a"]))).toBe(
-      null,
+  it("treats null expression as omitted", () => {
+    expect(
+      normalizeDependencyExpression({
+        taskSet: new Set(["a", "b"]),
+        expression: null,
+      }),
+    ).toEqual({
+      taskSet: new Set(["a", "b"]),
+    });
+  });
+
+  it("returns the same object when expression is already valid", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a", "b"]),
+      expression: [BooleanOp.Or, "a", "b"],
+    };
+
+    expect(normalizeDependencyExpression(dependencyExpression)).toBe(
+      dependencyExpression,
     );
   });
 
-  it("returns null for NOT when its operand is removed", () => {
-    const expression: BooleanExpression = [BooleanOp.Not, "missing"];
+  it("drops invalid primitive expression and omits expression field", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a"]),
+      expression: "missing",
+    };
 
-    expect(normalizeExpressionToDependencies(expression, new Set(["a"]))).toBe(
-      null,
-    );
+    expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
+      taskSet: new Set(["a"]),
+    });
+  });
+
+  it("drops NOT when its operand is removed", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a"]),
+      expression: [BooleanOp.Not, "missing"],
+    };
+
+    expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
+      taskSet: new Set(["a"]),
+    });
   });
 
   it("keeps NOT when its operand remains valid", () => {
-    const expression: BooleanExpression = [BooleanOp.Not, "a"];
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a"]),
+      expression: [BooleanOp.Not, "a"],
+    };
 
-    expect(
-      normalizeExpressionToDependencies(expression, new Set(["a"])),
-    ).toEqual([BooleanOp.Not, "a"]);
-  });
-
-  it("filters invalid operands from AND and keeps valid ones", () => {
-    const expression: BooleanExpression = [BooleanOp.And, "a", "missing", "b"];
-
-    expect(
-      normalizeExpressionToDependencies(expression, new Set(["a", "b"])),
-    ).toEqual([BooleanOp.And, "a", "b"]);
-  });
-
-  it("returns null when all AND operands are filtered out", () => {
-    const expression: BooleanExpression = [BooleanOp.And, "x", "y"];
-
-    expect(normalizeExpressionToDependencies(expression, new Set(["a"]))).toBe(
-      null,
+    expect(normalizeDependencyExpression(dependencyExpression)).toBe(
+      dependencyExpression,
     );
   });
 
-  it("filters invalid operands from OR and keeps valid ones", () => {
-    const expression: BooleanExpression = [BooleanOp.Or, "x", "a", "y"];
+  it("filters invalid operands from AND and keeps valid ones", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a", "b"]),
+      expression: [BooleanOp.And, "a", "missing", "b"],
+    };
 
-    expect(
-      normalizeExpressionToDependencies(expression, new Set(["a"])),
-    ).toEqual([BooleanOp.Or, "a"]);
+    expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
+      taskSet: new Set(["a", "b"]),
+    });
+  });
+
+  it("omits expression when it is a simple AND of dependencies", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a", "b"]),
+      expression: [BooleanOp.And, "a", "b"],
+    };
+
+    expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
+      taskSet: new Set(["a", "b"]),
+    });
+  });
+
+  it("omits expression when all AND operands are filtered out", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a"]),
+      expression: [BooleanOp.And, "x", "y"],
+    };
+
+    expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
+      taskSet: new Set(["a"]),
+    });
+  });
+
+  it("filters invalid operands from OR and keeps valid ones", () => {
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a"]),
+      expression: [BooleanOp.Or, "x", "a", "y"],
+    };
+
+    expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
+      taskSet: new Set(["a"]),
+      expression: "a",
+    });
   });
 
   it("normalizes nested expressions recursively", () => {
@@ -78,10 +140,15 @@ describe("normalizeExpressionToDependencies", () => {
       [BooleanOp.Not, "b"],
       [BooleanOp.And, "y", "z"],
     ];
+    const dependencyExpression: DependencyExpression = {
+      taskSet: new Set(["a", "b"]),
+      expression,
+    };
 
-    expect(
-      normalizeExpressionToDependencies(expression, new Set(["a", "b"])),
-    ).toEqual([BooleanOp.And, [BooleanOp.Or, "a"], [BooleanOp.Not, "b"]]);
+    expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
+      taskSet: new Set(["a", "b"]),
+      expression: [BooleanOp.And, "a", [BooleanOp.Not, "b"]],
+    });
   });
 });
 

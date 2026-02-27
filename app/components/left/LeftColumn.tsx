@@ -1,26 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/types";
+import { useState } from "react";
+import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
+import { DragDropReorderableGroup } from "../DragDrop";
+import { Button } from "@/app/components/catalyst/button";
+import { useTaskBreakout } from "@/app/lib/data/derivedData";
 import {
-  useCategoryDependenciesQuery,
-  useCategoriesQuery,
-  useCategoriesTasksQuery,
   useCreateTaskMutation,
   useMoveCategoryMutation,
-  useRemindersQuery,
-} from "@/app/lib/data";
+} from "@/app/lib/data/mutations";
 
 type LeftColumnProps = {
   mode: ChecklistMode;
   showCompletedTasks: boolean;
   completionsWithReminders: Set<TaskId>;
-  tasksWithCompleteDependencies: Set<TaskId>;
+  openTasks: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   selectedTaskId: TaskId | null;
-  onSelectTask: (taskId: TaskId) => void;
+  onRequestTaskSelectionChange: (taskId: TaskId, isNew?: boolean) => void;
   onToggleComplete: (taskId: TaskId) => void;
 };
 
@@ -28,10 +27,10 @@ export function LeftColumn({
   mode,
   showCompletedTasks,
   completionsWithReminders,
-  tasksWithCompleteDependencies,
+  openTasks,
   tasksMatchingSearch,
   selectedTaskId,
-  onSelectTask,
+  onRequestTaskSelectionChange,
   onToggleComplete,
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -43,7 +42,13 @@ export function LeftColumn({
     if (!normalizedCategory) {
       return;
     }
-    createTaskMutation.mutate(normalizedCategory);
+    createTaskMutation.mutate(normalizedCategory, {
+      onSuccess: (taskId) => {
+        if (taskId) {
+          onRequestTaskSelectionChange(taskId, true);
+        }
+      },
+    });
 
     setNewCategoryName("");
     setIsAddingCategory(false);
@@ -54,94 +59,16 @@ export function LeftColumn({
     moveCategoryMutation.mutate({ fromIndex, toIndex });
   };
 
-  const categories = useCategoriesQuery().data;
-  const categoriesTasks = useCategoriesTasksQuery().data;
-  const categoryDependencies = useCategoryDependenciesQuery().data;
-  const allReminders = useRemindersQuery().data;
-
-  const taskBreakout: TaskBreakout = useMemo(() => {
-    const visibleCategories: string[] = [];
-    const categoryTasks = new Map<string, TaskId[]>();
-    const orderedCategoryTasks: TaskId[][] = [];
-    const visibleTasks = new Set<TaskId>();
-
-    if (!categories || !categoriesTasks) {
-      return {
-        visibleCategories,
-        categoryTasks,
-        orderedCategoryTasks,
-        visibleTasks,
-      };
-    }
-
-    for (const category of categories) {
-      // In task mode, only show categories whose deps are met.
-      if (mode === "task") {
-        const dependencies = categoryDependencies?.get(category);
-        let dependenciesMet = true;
-        if (dependencies) {
-          for (const dependencyId of dependencies) {
-            if (!completionsWithReminders.has(dependencyId)) {
-              dependenciesMet = false;
-              break;
-            }
-          }
-        }
-
-        if (!dependenciesMet) {
-          continue;
-        }
-      }
-
-      const tasks = categoriesTasks.get(category) ?? [];
-      const filtered = tasks.filter((taskId) => {
-        const matchesSearch = tasksMatchingSearch.has(taskId);
-        const isReminder = allReminders?.has(taskId);
-        if (mode === "task") {
-          const hasCompleteDependencies =
-            tasksWithCompleteDependencies.has(taskId);
-          if (isReminder) {
-            const shouldShow = !hasCompleteDependencies || showCompletedTasks;
-            return shouldShow && matchesSearch;
-          }
-
-          const isCompleted = completionsWithReminders.has(taskId);
-          const shouldShow =
-            hasCompleteDependencies && (showCompletedTasks || !isCompleted);
-          return shouldShow && matchesSearch;
-        } else {
-          return matchesSearch;
-        }
-      });
-      // TODO: possible visibility bug here, when editing
-      // show all the categories.
-      if (filtered.length > 0) {
-        visibleCategories.push(category);
-        categoryTasks.set(category, filtered);
-        orderedCategoryTasks.push(filtered);
-        filtered.forEach((taskId) => visibleTasks.add(taskId));
-      }
-    }
-    return {
-      visibleCategories,
-      categoryTasks,
-      orderedCategoryTasks,
-      visibleTasks,
-    };
-  }, [
-    tasksWithCompleteDependencies,
-    tasksMatchingSearch,
-    categories,
+  const taskBreakout = useTaskBreakout(
     mode,
-    categoriesTasks,
-    categoryDependencies,
-    allReminders,
-    completionsWithReminders,
     showCompletedTasks,
-  ]);
+    completionsWithReminders,
+    openTasks,
+    tasksMatchingSearch,
+  );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col p-4">
       <LeftHeader
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
@@ -149,37 +76,57 @@ export function LeftColumn({
 
       <div
         data-left-pane-scroll="true"
-        className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto -mx-4 px-4"
       >
-        {taskBreakout.visibleCategories.map((category, index) => (
-          <Category
-            key={category}
-            category={category}
-            taskBreakout={taskBreakout}
-            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
-            mode={mode}
-            selectedTaskId={selectedTaskId}
-            onSelectTask={onSelectTask}
-            onToggleComplete={onToggleComplete}
-            canMoveUp={index > 0}
-            canMoveDown={index < taskBreakout.visibleCategories.length - 1}
-            onMoveUp={() => moveCategory(index, index - 1)}
-            onMoveDown={() => moveCategory(index, index + 1)}
-          />
-        ))}
+        <DragDropReorderableGroup
+          group="categories"
+          onMoveItem={(fromGroup, fromIndex, toGroup, toIndex) => {
+            if (mode !== "edit") {
+              return;
+            }
+
+            if (fromGroup !== "categories" || toGroup !== "categories") {
+              return;
+            }
+
+            const adjustedToIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+
+            if (fromIndex === adjustedToIndex) {
+              return;
+            }
+
+            moveCategory(fromIndex, adjustedToIndex);
+          }}
+        >
+          {taskBreakout.visibleCategories.map((category, index) => (
+            <Category
+              key={category}
+              category={category}
+              categoryIndex={index}
+              taskBreakout={taskBreakout}
+              openTasks={openTasks}
+              effectiveCompletions={completionsWithReminders}
+              mode={mode}
+              selectedTaskId={selectedTaskId}
+              onRequestTaskSelectionChange={onRequestTaskSelectionChange}
+              onToggleComplete={onToggleComplete}
+            />
+          ))}
+        </DragDropReorderableGroup>
 
         {mode === "edit" && !isAddingCategory && (
-          <button
+          <Button
             type="button"
             onClick={() => setIsAddingCategory(true)}
-            className="w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="mt-2 w-full justify-start border-dashed text-sm"
           >
             Add Category
-          </button>
+          </Button>
         )}
 
         {mode === "edit" && isAddingCategory && (
-          <div className="flex items-center gap-2 rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
+          <div className="mt-2 flex items-center gap-2 rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
             <input
               type="text"
               value={newCategoryName}
@@ -194,19 +141,20 @@ export function LeftColumn({
               className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm dark:border-zinc-700"
               autoFocus
             />
-            <button
+            <Button
               type="button"
               onClick={submitNewCategory}
               disabled={newCategoryName.trim().length === 0}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              outline
+              className="text-sm"
             >
               Confirm
-            </button>
+            </Button>
           </div>
         )}
 
         {taskBreakout.visibleTasks.size === 0 && (
-          <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+          <p className="mt-2 rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             {"No tasks here. Add some or change your filters."}
           </p>
         )}

@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BooleanOp } from "../../app/lib/types";
+import { BooleanOp } from "../../app/lib/data/types";
 import {
   exportChecklistDefinition,
   exportChecklistState,
   importChecklistDefinition,
   importChecklistState,
-  type ExportedChecklistDefinition,
-  type ExportedChecklistState,
-} from "../../app/lib/export";
+} from "../../app/lib/data/export";
+import { type ExportedChecklistState } from "@/app/lib/data/jsonSchema";
+import { type ExportedChecklistDefinition } from "@/app/lib/data/jsonSchema";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
   categories: [],
@@ -94,7 +94,7 @@ describe("import/export normalization", () => {
             id: "t1",
             category: "A",
             title: "Task 1",
-            dependencies: ["t2", "t3"],
+            openers: { tasks: ["t2", "t3"] },
             tags: ["keep", "dup"],
           },
           {
@@ -116,8 +116,10 @@ describe("import/export normalization", () => {
             id: "t4",
             category: "B",
             title: "Task 4",
-            dependencies: ["t1", "t2"],
-            dependencyExpression: [BooleanOp.Or, "t1", "t2"],
+            openers: {
+              tasks: ["t1", "t2"],
+              expression: [BooleanOp.Or, "t1", "t2"],
+            },
           },
         ],
       },
@@ -156,11 +158,16 @@ describe("import/export normalization", () => {
 
     expect(exportedDefinition.tasksByCategory.Main).toEqual([
       { id: "a", category: "Main", title: "A" },
-      { id: "t", category: "Main", title: "Target", dependencies: ["a"] },
+      {
+        id: "t",
+        category: "Main",
+        title: "Target",
+        openers: { tasks: ["a"] },
+      },
     ]);
   });
 
-  it("omits dependencyExpression when it references task IDs outside dependencies", async () => {
+  it("drops dependencyExpression terms that reference task IDs outside dependencies", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["Main"],
       tasksByCategory: {
@@ -186,7 +193,53 @@ describe("import/export normalization", () => {
     expect(exportedDefinition.tasksByCategory.Main).toEqual([
       { id: "a", category: "Main", title: "A" },
       { id: "b", category: "Main", title: "B" },
-      { id: "t", category: "Main", title: "Target", dependencies: ["a"] },
+      {
+        id: "t",
+        category: "Main",
+        title: "Target",
+        openers: {
+          tasks: ["a"],
+          expression: "a",
+        },
+      },
+    ]);
+  });
+
+  it("maps legacy reminder dependencies to closers", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          {
+            id: "rem",
+            category: "Main",
+            title: "Reminder",
+            type: "warning",
+            dependencies: ["a"],
+            dependencyExpression: [BooleanOp.Not, "a"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.tasksByCategory.Main).toEqual([
+      { id: "a", category: "Main", title: "A" },
+      {
+        id: "rem",
+        category: "Main",
+        title: "Reminder",
+        type: "reminder",
+        closers: {
+          tasks: ["a"],
+          expression: [BooleanOp.Not, "a"],
+        },
+      },
     ]);
   });
 

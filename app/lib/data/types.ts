@@ -21,3 +21,20 @@ export type BooleanExpression =
   | [BooleanOp.And, ...BooleanExpression[]]
   | [BooleanOp.Or, ...BooleanExpression[]]
   | [BooleanOp.Not, BooleanExpression];
+
+export type TaskDetail = {
+  id: TaskId;
+  title: string;
+  description: string;
+  category: CategoryName;
+};
+
+export type DependencyExpression = {
+  taskSet: Set<TaskId>;
+  expression?: BooleanExpression;
+};
+
+export type TaskDependencies = {
+  openers?: DependencyExpression | null | undefined;
+  closers?: DependencyExpression | null | undefined;
+};

@@ -1,7 +1,22 @@
 "use client";
 
-import type { RefObject } from "react";
-import type { ChecklistMode } from "@/app/lib/types";
+import { useState, type RefObject } from "react";
+import type { ChecklistMode } from "@/app/lib/data/types";
+import { Button } from "@/app/components/catalyst/button";
+import {
+  Alert,
+  AlertActions,
+  AlertBody,
+  AlertDescription,
+  AlertTitle,
+} from "@/app/components/catalyst/alert";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownMenu,
+} from "@/app/components/catalyst/dropdown";
+import { Navbar, NavbarSection } from "@/app/components/catalyst/navbar";
 
 type TopBarProps = {
   mode: ChecklistMode;
@@ -42,48 +57,50 @@ export function TopBar({
   onImportDefinitionFile,
   onImportStateFile,
 }: TopBarProps) {
+  const [isClearDbAlertOpen, setIsClearDbAlertOpen] = useState(false);
+
   return (
-    <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex w-full items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold tracking-tight">Chekov</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
+    <>
+      <Navbar className="flex-wrap border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <NavbarSection>
+          <h1 className="text-xl font-semibold tracking-tight">Chekov</h1>
+        </NavbarSection>
+
+        <NavbarSection className="flex-wrap gap-2">
+          <Button
             type="button"
             onClick={onToggleMode}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             {mode === "task" ? "Switch to Edit Mode" : "Switch to Task Mode"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onUnhideAll}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Unhide All
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onResetCompleted}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Reset Completed
-          </button>
+          </Button>
           {mode === "task" && (
-            <button
+            <Button
               type="button"
               onClick={onToggleShowCompletedTasks}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              outline
+              className="text-sm"
             >
               {showCompletedTasks ? "Hide Completed" : "Show Completed"}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={onClearDatabase}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-          >
-            Clear DB
-          </button>
           <input
             type="search"
             value={searchText}
@@ -91,41 +108,26 @@ export function TopBar({
             placeholder="Search..."
             className="w-52 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm dark:border-zinc-700"
           />
-          <details className="relative">
-            <summary className="cursor-pointer list-none rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900">
+          <Dropdown>
+            <DropdownButton type="button" outline className="text-sm">
               Data
-            </summary>
-            <div className="absolute right-0 z-10 mt-2 w-52 rounded-md border border-zinc-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-              <button
-                type="button"
-                onClick={onExportDefinition}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-              >
+            </DropdownButton>
+            <DropdownMenu anchor="bottom end">
+              <DropdownItem onClick={onExportDefinition}>
                 Export Definition
-              </button>
-              <button
-                type="button"
-                onClick={onImportDefinitionClick}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-              >
+              </DropdownItem>
+              <DropdownItem onClick={onImportDefinitionClick}>
                 Import Definition
-              </button>
-              <button
-                type="button"
-                onClick={onExportState}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-              >
-                Export State
-              </button>
-              <button
-                type="button"
-                onClick={onImportStateClick}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
-              >
+              </DropdownItem>
+              <DropdownItem onClick={onExportState}>Export State</DropdownItem>
+              <DropdownItem onClick={onImportStateClick}>
                 Import State
-              </button>
-            </div>
-          </details>
+              </DropdownItem>
+              <DropdownItem onClick={() => setIsClearDbAlertOpen(true)}>
+                Clear DB
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
           <input
             ref={importDefinitionInputRef}
             type="file"
@@ -152,8 +154,45 @@ export function TopBar({
               event.currentTarget.value = "";
             }}
           />
-        </div>
-      </div>
-    </header>
+        </NavbarSection>
+      </Navbar>
+
+      <Alert
+        open={isClearDbAlertOpen}
+        onClose={setIsClearDbAlertOpen}
+        size="sm"
+      >
+        <AlertTitle>Clear all local data?</AlertTitle>
+        <AlertDescription>
+          This will permanently delete your checklist definition and state from
+          this browser.
+        </AlertDescription>
+        <AlertBody>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            Your data cannot be recovered after this action. Export your data
+            first if you may need it later.
+          </p>
+        </AlertBody>
+        <AlertActions>
+          <Button
+            type="button"
+            outline
+            onClick={() => setIsClearDbAlertOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            color="red"
+            onClick={() => {
+              onClearDatabase();
+              setIsClearDbAlertOpen(false);
+            }}
+          >
+            Confirm
+          </Button>
+        </AlertActions>
+      </Alert>
+    </>
   );
 }

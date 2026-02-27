@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BooleanOp, type BooleanExpression } from "../../app/lib/types";
+import { BooleanOp, type BooleanExpression } from "../../app/lib/data/types";
 import { evaluateBooleanExpression } from "../../app/lib/booleanExpression";
 
 describe("evaluateBooleanExpression", () => {
@@ -85,5 +85,19 @@ describe("evaluateBooleanExpression", () => {
     expect(
       evaluateBooleanExpression(reminderDeps, new Set(["dep-2", "dep-3"])),
     ).toBe(false);
+  });
+
+  it("treats null/undefined expression as implicit AND over supplied dependencies", () => {
+    expect(
+      evaluateBooleanExpression(null, new Set(["a", "b"]), new Set(["a", "b"])),
+    ).toBe(true);
+    expect(
+      evaluateBooleanExpression(undefined, new Set(["a"]), new Set(["a", "b"])),
+    ).toBe(false);
+  });
+
+  it("treats null/undefined expression with no dependency list as true", () => {
+    expect(evaluateBooleanExpression(null, new Set())).toBe(true);
+    expect(evaluateBooleanExpression(undefined, new Set(["a"]))).toBe(true);
   });
 });

@@ -1,8 +1,9 @@
 "use client";
 
 import { MultiSelectContext } from "@/app/lib/context";
-import { useDeleteTasksMutation } from "@/app/lib/data";
+import { useDeleteTasksMutation } from "@/app/lib/data/mutations";
 import { useContext } from "react";
+import { Button } from "@/app/components/catalyst/button";
 
 type LeftHeaderProps = {
   mode: "task" | "edit";
@@ -25,37 +26,37 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
             {visibleTasksCount}
           </span>
           {mode === "edit" && (
-            <button
+            <Button
               type="button"
+              small
               onClick={() => {
                 multiSelectContext.setState({
                   selectionContext: "generic",
                   selectedTaskSet: new Set(),
                   renderCustomHeader: (multiSelectState) => (
                     <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
-                      <p className="font-medium text-zinc-700 dark:text-zinc-200">
-                        Multi-select tasks
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <button
+                      <div className="flex items-center gap-2">
+                        <Button
                           type="button"
                           onClick={() => {
                             multiSelectContext.selectAll();
                           }}
-                          className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                          outline
+                          className="text-xs"
                         >
                           Select All
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => {
                             multiSelectContext.clearSelection();
                           }}
-                          className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                          outline
+                          className="text-xs"
                         >
                           Clear Selection
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => {
                             deleteTasksMutation.mutate(
@@ -64,29 +65,32 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
                             multiSelectContext.close();
                           }}
                           disabled={multiSelectState.selectedTaskSet.size === 0}
-                          className="rounded-md border border-zinc-300 px-2 py-1 font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                          outline
+                          className="text-xs"
                         >
                           Delete Selected
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => {
                             multiSelectContext.close();
                           }}
-                          className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                          outline
+                          className="text-xs"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ),
                 });
               }}
               disabled={isMultiSelecting}
-              className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              outline
+              className="text-xs"
             >
               Multiselect
-            </button>
+            </Button>
           )}
         </div>
       </div>

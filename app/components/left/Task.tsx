@@ -1,7 +1,10 @@
 "use client";
 
 import { getTagBadgeClasses } from "../../lib/tagColors";
-import type { ChecklistMode, TaskId } from "../../lib/types";
+import type { ChecklistMode, TaskId } from "../../lib/data/types";
+import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
+import { useContext, useRef, useState } from "react";
+import { MultiSelectContext } from "@/app/lib/context";
 import {
   useTagColorsQuery,
   useTaskCompletionQuery,
@@ -9,18 +12,16 @@ import {
   useTaskHiddenQuery,
   useTaskReminderQuery,
   useTaskTagsQuery,
-} from "@/app/lib/data";
-import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
-import { useContext, useRef, useState } from "react";
-import { MultiSelectContext } from "@/app/lib/context";
+} from "@/app/lib/data/queries";
 
 type TaskProps = {
   taskId: TaskId;
   index: number;
   mode: ChecklistMode;
   isSelected: boolean;
-  dependenciesComplete: boolean;
-  onSelectTask: (taskId: TaskId) => void;
+  openersComplete: boolean;
+  isEffectivelyComplete: boolean;
+  onRequestTaskSelectionChange: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
 };
 
@@ -29,8 +30,9 @@ export function Task({
   index,
   mode,
   isSelected,
-  dependenciesComplete,
-  onSelectTask,
+  openersComplete,
+  isEffectivelyComplete,
+  onRequestTaskSelectionChange,
   onToggleComplete,
 }: TaskProps) {
   const detail = useTaskDetailQuery(taskId).data;
@@ -55,10 +57,10 @@ export function Task({
     !!activeMultiSelectState.taskFilter(taskId, detail, activeMultiSelectState);
   const isInMultiSelection = multiSelectContext.getSelection().has(taskId);
 
-  const isEffectivelyComplete = isReminder ? dependenciesComplete : isComplete;
   const canDrag = mode === "edit" && !isMultiSelecting;
   const showTaskModeCheckbox =
-    mode === "task" && dependenciesComplete && !isReminder;
+    mode === "task" && openersComplete && !isReminder;
+  const isImplicitlyComplete = isEffectivelyComplete && !isComplete;
   const showEditSelectionCheckbox =
     mode === "edit" && isMultiSelecting && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
@@ -81,7 +83,7 @@ export function Task({
         role="button"
         tabIndex={0}
         onClick={() => {
-          onSelectTask(taskId);
+          onRequestTaskSelectionChange(taskId);
         }}
         onKeyDown={(event) => {
           if (event.key !== "Enter" && event.key !== " ") {
@@ -89,7 +91,7 @@ export function Task({
           }
 
           event.preventDefault();
-          onSelectTask(taskId);
+          onRequestTaskSelectionChange(taskId);
         }}
         className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
       >
@@ -107,7 +109,8 @@ export function Task({
         {showTaskModeCheckbox && (
           <input
             type="checkbox"
-            checked={isComplete}
+            checked={isEffectivelyComplete}
+            disabled={isImplicitlyComplete}
             onChange={(event) => {
               event.stopPropagation();
               onToggleComplete(taskId);
