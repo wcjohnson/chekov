@@ -17,6 +17,14 @@ import {
 } from "@/app/lib/data/types";
 import { evaluateBooleanExpression } from "@/app/lib/booleanExpression";
 
+/**
+ * Aggregates foundational checklist structure queries into stable collection types.
+ *
+ * @returns An object with three normalized collections:
+ * - `taskSet`: `Set<TaskId>` of all known task ids (empty set when query is unresolved).
+ * - `categories`: ordered `CategoryName[]` preserving persisted category order.
+ * - `categoryTasks`: `Map<CategoryName, TaskId[]>` where each value is the ordered task ids for that category.
+ */
 export function useTaskStructure() {
   const taskSet = useTaskSetQuery();
   const categories = useCategoriesQuery();
@@ -29,6 +37,12 @@ export function useTaskStructure() {
   };
 }
 
+/**
+ * Builds a reverse lookup map from task id to category name.
+ *
+ * @param categoryTasks Category-to-task adjacency map where values are ordered task id arrays.
+ * @returns `Map<TaskId, CategoryName>` containing one entry per task id, pointing to its owning category.
+ */
 export function useTaskCategoryById(categoryTasks: Map<string, string[]>) {
   return useMemo(() => {
     const map = new Map<TaskId, CategoryName>();
@@ -43,6 +57,12 @@ export function useTaskCategoryById(categoryTasks: Map<string, string[]>) {
   }, [categoryTasks]);
 }
 
+/**
+ * Computes which tasks have opener requirements satisfied by the provided completion set.
+ *
+ * @returns `Set<TaskId>` containing only tasks whose opener expression (or implicit opener task set) evaluates to true.
+ * Returns an empty set while required query inputs are unresolved.
+ */
 export function useTasksWithCompleteOpeners(
   taskSet: Set<string> | undefined,
   dependencies: Map<string, TaskDependencies> | undefined,
@@ -73,6 +93,14 @@ export function useTasksWithCompleteOpeners(
   }, [taskSet, dependencies, completions]);
 }
 
+/**
+ * Produces the set of task ids matching the current search text.
+ *
+ * Matching is case-insensitive across category, title, description, and tags.
+ * Query work is skipped for short input and all tasks are returned when search is disabled.
+ *
+ * @returns `Set<TaskId>` of task ids that match the active search criteria.
+ */
 export function useTasksMatchingSearch(searchQuery: string) {
   const taskSetQuery = useTaskSetQuery();
   const taskSet = taskSetQuery.data;
@@ -225,6 +253,17 @@ function computeEffectiveCompletions(
   return effectiveCompletions;
 }
 
+/**
+ * Computes the effective completion set by combining explicit completions with closer-derived completions.
+ *
+ * For each task id in `taskSet`:
+ * - Explicit completion in `completions` is honored directly.
+ * - Otherwise, closer dependencies are evaluated recursively and successful evaluations are added.
+ *
+ * @returns `Set<TaskId>` containing all effectively complete tasks.
+ * This includes initially explicit completions plus any additional tasks completed via closer logic.
+ * Returns an empty set while required query inputs are unresolved.
+ */
 export function useEffectiveCompletions(
   taskSet: Set<string> | undefined,
   completions: Set<string> | undefined,
