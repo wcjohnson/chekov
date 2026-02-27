@@ -24,32 +24,15 @@ import {
   normalizeBooleanExpression,
   normalizeDependencyExpression as normalizeStoredDependencyExpression,
 } from "./booleanExpression";
-import type { ExportedTaskDefinition } from "./data/jsonSchema";
+import type {
+  ExportedChecklistDefinition,
+  ExportedChecklistState,
+  ExportedChecklistTaskState,
+  ExportedTaskDefinition,
+} from "./data/jsonSchema";
 
 const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
   type === "warning" || type === "reminder";
-
-export type ExportedChecklistDefinition = {
-  categories: CategoryName[];
-  tasksByCategory: Record<CategoryName, ExportedTaskDefinition[]>;
-  tagColors: Record<string, TagColorKey>;
-  categoryDependencies?: Record<CategoryName, TaskId[]>;
-};
-
-export type ExportedChecklistTaskState = {
-  completed: boolean;
-  explicitlyHidden: boolean;
-};
-
-export type ExportedChecklistCategoryVisibilityByMode = {
-  task: Record<CategoryName, boolean>;
-  edit: Record<CategoryName, boolean>;
-};
-
-export type ExportedChecklistState = {
-  tasks: Record<TaskId, ExportedChecklistTaskState>;
-  categoryVisibilityByMode: ExportedChecklistCategoryVisibilityByMode;
-};
 
 function normalizeChecklistDefinition(
   definition: ExportedChecklistDefinition,

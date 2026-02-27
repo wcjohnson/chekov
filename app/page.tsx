@@ -21,9 +21,11 @@ import {
   importChecklistDefinition,
   importChecklistState,
   uploadJson,
-  type ExportedChecklistDefinition,
-  type ExportedChecklistState,
 } from "./lib/export";
+import {
+  type ExportedChecklistState,
+  type ExportedChecklistDefinition,
+} from "@/app/lib/data/jsonSchema";
 import {
   useCompletionsWithReminders,
   useTaskCategoryById,

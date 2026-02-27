@@ -1,3 +1,4 @@
+import type { TagColorKey } from "../tagColors";
 import type { TaskId, CategoryName, BooleanExpression } from "./types";
 
 export type ExportedTaskDefinition = {
@@ -9,4 +10,22 @@ export type ExportedTaskDefinition = {
   dependencies?: TaskId[];
   dependencyExpression?: BooleanExpression;
   tags?: string[];
+};
+export type ExportedChecklistDefinition = {
+  categories: CategoryName[];
+  tasksByCategory: Record<CategoryName, ExportedTaskDefinition[]>;
+  tagColors: Record<string, TagColorKey>;
+  categoryDependencies?: Record<CategoryName, TaskId[]>;
+};
+export type ExportedChecklistTaskState = {
+  completed: boolean;
+  explicitlyHidden: boolean;
+};
+export type ExportedChecklistCategoryVisibilityByMode = {
+  task: Record<CategoryName, boolean>;
+  edit: Record<CategoryName, boolean>;
+};
+export type ExportedChecklistState = {
+  tasks: Record<TaskId, ExportedChecklistTaskState>;
+  categoryVisibilityByMode: ExportedChecklistCategoryVisibilityByMode;
 };

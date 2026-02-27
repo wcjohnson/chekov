@@ -8,9 +8,9 @@ import {
   exportChecklistState,
   importChecklistDefinition,
   importChecklistState,
-  type ExportedChecklistDefinition,
-  type ExportedChecklistState,
 } from "../../app/lib/export";
+import { type ExportedChecklistState } from "@/app/lib/data/jsonSchema";
+import { type ExportedChecklistDefinition } from "@/app/lib/data/jsonSchema";
 import { queryClient } from "../../app/lib/data/store";
 import {
   useCreateTaskMutation,
