@@ -84,8 +84,8 @@ export function StackedLayout({
       </header>
 
       {/* Content */}
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden pb-2 lg:px-2">
-        <div className="grow min-h-0 p-4 lg:rounded-lg lg:bg-white lg:p-4 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden pb-1 lg:px-1">
+        <div className="grow min-h-0 p-2 lg:rounded-lg lg:bg-white lg:p-2 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10">
           <div className="h-full w-full">{children}</div>
         </div>
       </main>

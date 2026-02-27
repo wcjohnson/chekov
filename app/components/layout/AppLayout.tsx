@@ -57,7 +57,7 @@ export function AppLayout({
           <div className="h-full min-h-0">{leftColumn}</div>
         </section>
 
-        <div className="relative hidden w-4 shrink-0 md:block">
+        <div className="relative hidden w-2 shrink-0 md:block">
           <div
             role="separator"
             aria-orientation="vertical"
