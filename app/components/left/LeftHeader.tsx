@@ -35,10 +35,7 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
                   selectedTaskSet: new Set(),
                   renderCustomHeader: (multiSelectState) => (
                     <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
-                      <p className="font-medium text-zinc-700 dark:text-zinc-200">
-                        Multi-select tasks
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           onClick={() => {
