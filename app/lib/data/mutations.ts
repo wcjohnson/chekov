@@ -26,7 +26,7 @@ import {
 } from "@/app/lib/data/types";
 import { normalizeDependencyExpression } from "@/app/lib/booleanExpression";
 import { detectCycle, fromKvPairsToMap } from "@/app/lib/utils";
-import type { TagColorKey } from "@/app/lib/tagColors";
+import { getStoredTagColorKey, type TagColorKey } from "@/app/lib/tagColors";
 
 const EMPTY_DEPENDENCY_SET = new Set<TaskId>();
 
@@ -962,8 +962,9 @@ export function useTagColorMutation() {
       colorKey: TagColorKey | null | undefined;
     }) => {
       const db = await getDb();
-      if (colorKey) {
-        await db.put(TAG_COLORS_STORE, colorKey, tag);
+      const storedColorKey = getStoredTagColorKey(colorKey);
+      if (storedColorKey) {
+        await db.put(TAG_COLORS_STORE, storedColorKey, tag);
       } else {
         await db.delete(TAG_COLORS_STORE, tag);
       }

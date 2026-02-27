@@ -14,7 +14,7 @@ import {
   TASK_REMINDERS_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
-import type { TagColorKey } from "@/app/lib/tagColors";
+import { getStoredTagColorKey, type TagColorKey } from "@/app/lib/tagColors";
 import {
   type CategoryName,
   type DependencyExpression,
@@ -223,8 +223,9 @@ function normalizeChecklistDefinition(
   const tagColorEntries = Object.entries(definition.tagColors ?? {});
   const normalizedTagColors = new Map<string, TagColorKey>();
   for (const [tag, color] of tagColorEntries) {
-    if (usedTags.has(tag)) {
-      normalizedTagColors.set(tag, color);
+    const storedColorKey = getStoredTagColorKey(color);
+    if (usedTags.has(tag) && storedColorKey) {
+      normalizedTagColors.set(tag, storedColorKey);
     }
   }
 

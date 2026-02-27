@@ -1,5 +1,12 @@
 export const TAG_COLOR_OPTIONS = [
   {
+    key: "zinc",
+    label: "Gray",
+    badgeClass:
+      "border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
+    swatchClass: "bg-zinc-500",
+  },
+  {
     key: "red",
     label: "Red",
     badgeClass:
@@ -146,15 +153,26 @@ const TAG_COLOR_KEY_SET = new Set<string>(
 export const isTagColorKey = (value: string): value is TagColorKey =>
   TAG_COLOR_KEY_SET.has(value);
 
-export const DEFAULT_TAG_BADGE_CLASS =
-  "border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300";
+export const IMPLICIT_TAG_COLOR_KEY: TagColorKey = "zinc";
 
-export const getTagBadgeClasses = (colorKey?: TagColorKey): string => {
-  if (!colorKey) {
-    return DEFAULT_TAG_BADGE_CLASS;
+export const getEffectiveTagColorKey = (
+  colorKey?: TagColorKey | null,
+): TagColorKey => colorKey ?? IMPLICIT_TAG_COLOR_KEY;
+
+export const getStoredTagColorKey = (
+  colorKey?: TagColorKey | null,
+): TagColorKey | undefined => {
+  const effectiveColorKey = getEffectiveTagColorKey(colorKey);
+  if (effectiveColorKey === IMPLICIT_TAG_COLOR_KEY) {
+    return undefined;
   }
 
-  return TAG_COLOR_OPTION_MAP[colorKey]?.badgeClass ?? DEFAULT_TAG_BADGE_CLASS;
+  return effectiveColorKey;
+};
+
+export const getTagBadgeClasses = (colorKey?: TagColorKey): string => {
+  const effectiveColorKey = getEffectiveTagColorKey(colorKey);
+  return TAG_COLOR_OPTION_MAP[effectiveColorKey].badgeClass;
 };
 
 export const getTagSwatchClasses = (colorKey: TagColorKey): string =>

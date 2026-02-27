@@ -5,6 +5,7 @@ import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
 import { Badge } from "@/app/components/catalyst/badge";
+import { getEffectiveTagColorKey } from "@/app/lib/tagColors";
 import {
   useTagColorsQuery,
   useTaskCompletionQuery,
@@ -157,7 +158,7 @@ export function Task({
             {tags.map((tag) => (
               <Badge
                 key={`${taskId}-tag-${tag}`}
-                color={tagColors.get(tag) ?? "zinc"}
+                color={getEffectiveTagColorKey(tagColors.get(tag))}
                 className="max-w-28 truncate"
                 title={tag}
               >
