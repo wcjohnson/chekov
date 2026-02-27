@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { MultiSelectContext } from "@/app/lib/context";
+import { useContext, useState } from "react";
 import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
@@ -58,6 +59,8 @@ export function LeftColumn({
   const moveCategory = (fromIndex: number, toIndex: number) => {
     moveCategoryMutation.mutate({ fromIndex, toIndex });
   };
+  const multiSelectContext = useContext(MultiSelectContext);
+  const isMultiSelecting = multiSelectContext.isActive();
 
   const taskBreakout = useTaskBreakout(
     mode,
@@ -68,11 +71,21 @@ export function LeftColumn({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-4">
+    <div className="relative flex h-full min-h-0 flex-col p-4">
       <LeftHeader
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
       />
+
+      {isMultiSelecting && multiSelectContext.state ? (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 px-4">
+          <div className="pointer-events-auto">
+            {multiSelectContext.state.renderCustomHeader(
+              multiSelectContext.state,
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <div
         data-left-pane-scroll="true"

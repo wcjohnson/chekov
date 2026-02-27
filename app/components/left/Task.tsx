@@ -1,10 +1,11 @@
 "use client";
 
-import { getTagBadgeClasses } from "../../lib/tagColors";
 import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { DragDropReorderable, type DragDropStateType } from "../DragDrop";
 import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
+import { Badge } from "@/app/components/catalyst/badge";
+import { getEffectiveTagColorKey } from "@/app/lib/tagColors";
 import {
   useTagColorsQuery,
   useTaskCompletionQuery,
@@ -93,7 +94,7 @@ export function Task({
           event.preventDefault();
           onRequestTaskSelectionChange(taskId);
         }}
-        className={`flex w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
+        className={`flex h-[34px] w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
       >
         {canDrag && (
           <button
@@ -122,6 +123,7 @@ export function Task({
           <input
             type="checkbox"
             checked={isInMultiSelection}
+            className="m-0 h-4"
             onChange={(event) => {
               event.stopPropagation();
               multiSelectContext.setTaskSelected(taskId, !isInMultiSelection);
@@ -154,13 +156,14 @@ export function Task({
         {tags.length > 0 && (
           <div className="ml-auto flex max-w-[50%] items-center justify-end gap-1 overflow-hidden">
             {tags.map((tag) => (
-              <span
+              <Badge
                 key={`${taskId}-tag-${tag}`}
-                className={`max-w-28 truncate rounded border px-1.5 py-0.5 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
+                color={getEffectiveTagColorKey(tagColors.get(tag))}
+                className="max-w-28 truncate"
                 title={tag}
               >
                 {tag}
-              </span>
+              </Badge>
             ))}
           </div>
         )}

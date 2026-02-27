@@ -94,10 +94,6 @@ export function LeftHeader({ mode, visibleTasksCount }: LeftHeaderProps) {
           )}
         </div>
       </div>
-
-      {isMultiSelecting && multiSelectContext.state
-        ? multiSelectContext.state.renderCustomHeader(multiSelectContext.state)
-        : null}
     </div>
   );
 }

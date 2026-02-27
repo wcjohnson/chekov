@@ -4,7 +4,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  getTagBadgeClasses,
+  getEffectiveTagColorKey,
   getTagSwatchClasses,
   TAG_COLOR_OPTIONS,
 } from "../../lib/tagColors";
@@ -23,6 +23,14 @@ import {
   DependencyExpressionView,
 } from "./DependencyExpressionEditor";
 import { Button } from "@/app/components/catalyst/button";
+import { Badge, BadgeButton } from "@/app/components/catalyst/badge";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/app/components/catalyst/dropdown";
 import {
   useAllKnownTagsQuery,
   useDetailsQuery,
@@ -64,11 +72,7 @@ export function TaskDetails({
   onTitleFocused,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
-  const [activeTagColorPickerTag, setActiveTagColorPickerTag] = useState<
-    string | null
-  >(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const tagWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const multiSelectContext = useContext(MultiSelectContext);
 
   const selectedTaskTags =
@@ -167,9 +171,6 @@ export function TaskDetails({
 
   const taskRemoveTagMutation = useTaskRemoveTagMutation();
   const removeTag = (tagToRemove: string) => {
-    if (activeTagColorPickerTag === tagToRemove) {
-      setActiveTagColorPickerTag(null);
-    }
     taskRemoveTagMutation.mutate({
       taskId: selectedTaskId ?? "",
       tag: tagToRemove,
@@ -214,41 +215,6 @@ export function TaskDetails({
     titleInputRef.current?.select();
     onTitleFocused();
   }, [mode, onTitleFocused, shouldFocusTitle]);
-
-  useEffect(() => {
-    if (!activeTagColorPickerTag) {
-      return;
-    }
-
-    const handleDocumentMouseDown = (event: MouseEvent) => {
-      const activeWrapper = tagWrapperRefs.current[activeTagColorPickerTag];
-
-      if (!activeWrapper) {
-        setActiveTagColorPickerTag(null);
-        return;
-      }
-
-      if (activeWrapper.contains(event.target as Node)) {
-        return;
-      }
-
-      setActiveTagColorPickerTag(null);
-    };
-
-    const handleDocumentKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setActiveTagColorPickerTag(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleDocumentMouseDown);
-    document.addEventListener("keydown", handleDocumentKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handleDocumentMouseDown);
-      document.removeEventListener("keydown", handleDocumentKeyDown);
-    };
-  }, [activeTagColorPickerTag]);
 
   if (mode === "edit") {
     const handleSetOpeners = (taskIds: Set<TaskId>) => {
@@ -464,66 +430,46 @@ export function TaskDetails({
                 <div
                   key={`${selectedTaskId}-tag-remove-${tag}`}
                   className="flex items-center gap-1"
-                  ref={(element) => {
-                    tagWrapperRefs.current[tag] = element;
-                  }}
                 >
-                  <div className="relative">
-                    <button
+                  <Dropdown>
+                    <DropdownButton
+                      as={BadgeButton}
                       type="button"
-                      onClick={() => {
-                        setActiveTagColorPickerTag((previous) =>
-                          previous === tag ? null : tag,
-                        );
-                      }}
-                      className={`cursor-pointer list-none rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
+                      color={getEffectiveTagColorKey(tagColors.get(tag))}
                     >
                       {tag}
-                    </button>
-                    {activeTagColorPickerTag === tag && (
-                      <div className="absolute left-0 z-20 mt-1 w-52 rounded-md border border-zinc-200 bg-white p-2 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-                        <p className="mb-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                          Set tag color
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            tagColorMutation.mutate({ tag, colorKey: null });
-                            setActiveTagColorPickerTag(null);
-                          }}
-                          className={`mb-2 w-full rounded border px-2 py-1 text-left text-xs ${getTagBadgeClasses(undefined)}`}
-                        >
-                          Default
-                        </button>
-                        <div className="grid grid-cols-8 gap-1">
-                          {TAG_COLOR_OPTIONS.map((colorOption) => {
-                            const isSelected =
-                              tagColors.get(tag) === colorOption.key;
+                    </DropdownButton>
+                    <DropdownMenu anchor="top start" className="w-52">
+                      {TAG_COLOR_OPTIONS.map((colorOption) => {
+                        const isSelected =
+                          getEffectiveTagColorKey(tagColors.get(tag)) ===
+                          colorOption.key;
 
-                            return (
-                              <button
-                                key={`${selectedTaskId}-tag-color-${tag}-${colorOption.key}`}
-                                type="button"
-                                onClick={() => {
-                                  tagColorMutation.mutate({
-                                    tag,
-                                    colorKey: colorOption.key,
-                                  });
-                                  setActiveTagColorPickerTag(null);
-                                }}
-                                title={colorOption.label}
-                                className={`h-5 w-5 rounded border border-zinc-300 dark:border-zinc-700 ${getTagSwatchClasses(colorOption.key)} ${
-                                  isSelected
-                                    ? "ring-2 ring-zinc-500 ring-offset-1 dark:ring-zinc-300 dark:ring-offset-zinc-950"
-                                    : ""
-                                }`}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                        return (
+                          <DropdownItem
+                            key={`${selectedTaskId}-tag-color-${tag}-${colorOption.key}`}
+                            onClick={() => {
+                              tagColorMutation.mutate({
+                                tag,
+                                colorKey: colorOption.key,
+                              });
+                            }}
+                          >
+                            <span
+                              data-slot="icon"
+                              aria-hidden="true"
+                              className={`rounded border border-zinc-300 dark:border-zinc-700 ${getTagSwatchClasses(colorOption.key)} ${
+                                isSelected
+                                  ? "ring-2 ring-zinc-500 ring-offset-1 dark:ring-zinc-300 dark:ring-offset-zinc-950"
+                                  : ""
+                              }`}
+                            />
+                            <DropdownLabel>{colorOption.label}</DropdownLabel>
+                          </DropdownItem>
+                        );
+                      })}
+                    </DropdownMenu>
+                  </Dropdown>
                   <button
                     type="button"
                     onClick={() => removeTag(tag)}
@@ -608,12 +554,12 @@ export function TaskDetails({
         ) : (
           <div className="flex flex-wrap gap-2">
             {Array.from(selectedTaskTags).map((tag) => (
-              <span
+              <Badge
                 key={`${selectedTaskId}-tag-view-${tag}`}
-                className={`rounded border px-2 py-1 text-xs ${getTagBadgeClasses(tagColors.get(tag))}`}
+                color={getEffectiveTagColorKey(tagColors.get(tag))}
               >
                 {tag}
-              </span>
+              </Badge>
             ))}
           </div>
         )}
