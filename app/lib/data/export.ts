@@ -128,17 +128,22 @@ function normalizeChecklistDefinition(
           task.id,
         );
 
+        const normalizedLegacyClosers =
+          normalizedType === "reminder" ? normalizedLegacyOpeners : undefined;
+
         const normalizedOpeners =
           normalizeExportedDependencyExpression(
             task.openers,
             allTaskIds,
             task.id,
-          ) ?? normalizedLegacyOpeners;
-        const normalizedClosers = normalizeExportedDependencyExpression(
-          task.closers,
-          allTaskIds,
-          task.id,
-        );
+          ) ??
+          (normalizedType === "reminder" ? undefined : normalizedLegacyOpeners);
+        const normalizedClosers =
+          normalizeExportedDependencyExpression(
+            task.closers,
+            allTaskIds,
+            task.id,
+          ) ?? normalizedLegacyClosers;
         const normalizedTaskDependencies = normalizeTaskDependencies(
           normalizedOpeners,
           normalizedClosers,

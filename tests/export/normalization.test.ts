@@ -205,6 +205,44 @@ describe("import/export normalization", () => {
     ]);
   });
 
+  it("maps legacy reminder dependencies to closers", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          {
+            id: "rem",
+            category: "Main",
+            title: "Reminder",
+            type: "warning",
+            dependencies: ["a"],
+            dependencyExpression: [BooleanOp.Not, "a"],
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.tasksByCategory.Main).toEqual([
+      { id: "a", category: "Main", title: "A" },
+      {
+        id: "rem",
+        category: "Main",
+        title: "Reminder",
+        type: "reminder",
+        closers: {
+          tasks: ["a"],
+          expression: [BooleanOp.Not, "a"],
+        },
+      },
+    ]);
+  });
+
   it("normalizes imported state by dropping unknown and reminder completion", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["Main"],
