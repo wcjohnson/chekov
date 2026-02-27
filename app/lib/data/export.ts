@@ -18,6 +18,7 @@ import type { TagColorKey } from "@/app/lib/tagColors";
 import {
   type CategoryName,
   type DependencyExpression,
+  type TaskDependencies,
   type TaskId,
 } from "@/app/lib/data/types";
 import {
@@ -26,6 +27,7 @@ import {
 } from "../booleanExpression";
 import type {
   ExportedChecklistDefinition,
+  ExportedDependencyExpression,
   ExportedChecklistState,
   ExportedChecklistTaskState,
   ExportedTaskDefinition,
@@ -33,6 +35,56 @@ import type {
 
 const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
   type === "warning" || type === "reminder";
+
+function normalizeExportedDependencyExpression(
+  exportedDependencyExpression: ExportedDependencyExpression | undefined,
+  allTaskIds: Set<TaskId>,
+  currentTaskId: TaskId,
+): DependencyExpression | undefined {
+  const normalizedDependencies = Array.from(
+    new Set<TaskId>(
+      Array.from(exportedDependencyExpression?.tasks ?? []).filter(
+        (dependencyId) =>
+          dependencyId !== currentTaskId && allTaskIds.has(dependencyId),
+      ),
+    ),
+  );
+
+  const dependencyIdSet = new Set(normalizedDependencies);
+  const normalizedExpression = normalizeBooleanExpression(
+    exportedDependencyExpression?.expression,
+    dependencyIdSet,
+  );
+
+  const normalizedStoredDependencyExpression =
+    normalizeStoredDependencyExpression({
+      taskSet: dependencyIdSet,
+      ...(normalizedExpression ? { expression: normalizedExpression } : {}),
+    });
+
+  if (normalizedStoredDependencyExpression.taskSet.size === 0) {
+    return undefined;
+  }
+
+  return normalizedStoredDependencyExpression;
+}
+
+function normalizeTaskDependencies(
+  openers: DependencyExpression | undefined,
+  closers: DependencyExpression | undefined,
+): TaskDependencies | undefined {
+  const normalizedOpeners = openers;
+  const normalizedClosers = closers;
+
+  if (!normalizedOpeners && !normalizedClosers) {
+    return undefined;
+  }
+
+  return {
+    ...(normalizedOpeners ? { openers: normalizedOpeners } : {}),
+    ...(normalizedClosers ? { closers: normalizedClosers } : {}),
+  };
+}
 
 function normalizeChecklistDefinition(
   definition: ExportedChecklistDefinition,
@@ -65,18 +117,34 @@ function normalizeChecklistDefinition(
             ),
           ),
         );
-        const dependencyIdSet = new Set(normalizedDependencies);
-        const normalizedDependencyExpression = normalizeBooleanExpression(
-          task.dependencyExpression,
-          dependencyIdSet,
+        const normalizedLegacyOpeners = normalizeExportedDependencyExpression(
+          {
+            tasks: normalizedDependencies,
+            ...(task.dependencyExpression
+              ? { expression: task.dependencyExpression }
+              : {}),
+          },
+          allTaskIds,
+          task.id,
         );
-        const normalizedStoredDependencyExpression =
-          normalizedDependencyExpression === null
-            ? undefined
-            : normalizeStoredDependencyExpression({
-                taskSet: dependencyIdSet,
-                expression: normalizedDependencyExpression,
-              });
+
+        const normalizedOpeners =
+          normalizeExportedDependencyExpression(
+            task.openers,
+            allTaskIds,
+            task.id,
+          ) ?? normalizedLegacyOpeners;
+        const normalizedClosers = normalizeExportedDependencyExpression(
+          task.closers,
+          allTaskIds,
+          task.id,
+        );
+        const normalizedTaskDependencies = normalizeTaskDependencies(
+          normalizedOpeners,
+          normalizedClosers,
+        );
+        const normalizedTaskOpeners = normalizedTaskDependencies?.openers;
+        const normalizedTaskClosers = normalizedTaskDependencies?.closers;
 
         const normalizedTags = Array.from(
           new Set(
@@ -96,13 +164,28 @@ function normalizeChecklistDefinition(
           ...(normalizedType === "reminder"
             ? { type: "reminder" as const }
             : {}),
-          ...(normalizedDependencies.length > 0
-            ? { dependencies: normalizedDependencies }
-            : {}),
-          ...(normalizedStoredDependencyExpression?.expression
+          ...(normalizedTaskOpeners?.taskSet.size
             ? {
-                dependencyExpression:
-                  normalizedStoredDependencyExpression.expression,
+                openers: {
+                  tasks: Array.from(normalizedTaskOpeners.taskSet),
+                  ...(normalizedTaskOpeners.expression
+                    ? {
+                        expression: normalizedTaskOpeners.expression,
+                      }
+                    : {}),
+                },
+              }
+            : {}),
+          ...(normalizedTaskClosers?.taskSet.size
+            ? {
+                closers: {
+                  tasks: Array.from(normalizedTaskClosers.taskSet),
+                  ...(normalizedTaskClosers.expression
+                    ? {
+                        expression: normalizedTaskClosers.expression,
+                      }
+                    : {}),
+                },
               }
             : {}),
           ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
@@ -297,13 +380,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         continue;
       }
 
-      const dependencyExpression =
-        taskDependenciesMap.get(taskId) ??
-        ({ taskSet: new Set<string>() } as DependencyExpression);
-      const taskDependencies =
-        dependencyExpression.taskSet ?? new Set<string>();
+      const taskDependencies = taskDependenciesMap.get(taskId);
       const taskTags = taskTagsMap.get(taskId) ?? new Set<string>();
-      const taskDependencyExpression = dependencyExpression.expression;
+      const taskOpeners = taskDependencies?.openers;
+      const taskClosers = taskDependencies?.closers;
 
       categoryTasks.push({
         id: taskId,
@@ -313,11 +393,25 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
           ? { description: task.description }
           : {}),
         ...(reminderTasksMap.has(taskId) ? { type: "reminder" as const } : {}),
-        ...(Array.from(taskDependencies).length > 0
-          ? { dependencies: Array.from(taskDependencies) }
+        ...(taskOpeners?.taskSet.size
+          ? {
+              openers: {
+                tasks: Array.from(taskOpeners.taskSet),
+                ...(taskOpeners.expression
+                  ? { expression: taskOpeners.expression }
+                  : {}),
+              },
+            }
           : {}),
-        ...(taskDependencyExpression !== undefined
-          ? { dependencyExpression: taskDependencyExpression }
+        ...(taskClosers?.taskSet.size
+          ? {
+              closers: {
+                tasks: Array.from(taskClosers.taskSet),
+                ...(taskClosers.expression
+                  ? { expression: taskClosers.expression }
+                  : {}),
+              },
+            }
           : {}),
         ...(Array.from(taskTags).length > 0
           ? { tags: Array.from(taskTags) }
@@ -480,6 +574,11 @@ export async function importChecklistDefinition(
   }
 
   const tasksByCategoryMap = recordToMap(normalizedDefinition.tasksByCategory);
+  const allTaskIds = new Set<TaskId>(
+    Array.from(tasksByCategoryMap.values()).flatMap((categoryTasks) =>
+      categoryTasks.map((categoryTask) => categoryTask.id),
+    ),
+  );
   const categoryDependenciesMap = recordToMap(
     normalizedDefinition.categoryDependencies ?? {},
   );
@@ -512,16 +611,37 @@ export async function importChecklistDefinition(
         await taskRemindersStore.put(true, task.id);
       }
 
-      if (task.dependencies && task.dependencies.length > 0) {
-        await taskDependenciesStore.put(
-          {
-            taskSet: new Set(task.dependencies),
-            ...(task.dependencyExpression
-              ? { expression: task.dependencyExpression }
-              : {}),
-          },
+      const normalizedLegacyOpeners = normalizeExportedDependencyExpression(
+        task.dependencies
+          ? {
+              tasks: task.dependencies,
+              ...(task.dependencyExpression
+                ? { expression: task.dependencyExpression }
+                : {}),
+            }
+          : undefined,
+        allTaskIds,
+        task.id,
+      );
+      const normalizedOpeners =
+        normalizeExportedDependencyExpression(
+          task.openers,
+          allTaskIds,
           task.id,
-        );
+        ) ?? normalizedLegacyOpeners;
+      const normalizedClosers = normalizeExportedDependencyExpression(
+        task.closers,
+        allTaskIds,
+        task.id,
+      );
+
+      const normalizedTaskDependencies = normalizeTaskDependencies(
+        normalizedOpeners,
+        normalizedClosers,
+      );
+
+      if (normalizedTaskDependencies) {
+        await taskDependenciesStore.put(normalizedTaskDependencies, task.id);
       }
 
       if (task.tags && task.tags.length > 0) {

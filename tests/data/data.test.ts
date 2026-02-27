@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { BooleanOp, type DependencyExpression } from "../../app/lib/data/types";
+import { BooleanOp, type TaskDependencies } from "../../app/lib/data/types";
 
 import {
   exportChecklistState,
@@ -67,7 +67,7 @@ function wrapper({ children }: { children: ReactNode }) {
 function assertMissingPerItemQuerySentinels(result: {
   detail: unknown;
   tags: Set<string> | undefined;
-  dependencies: DependencyExpression | null | undefined;
+  dependencies: TaskDependencies | null | undefined;
   categoryDependencies: Set<string> | undefined;
   completion: boolean | undefined;
   reminder: boolean | undefined;
@@ -183,8 +183,10 @@ describe("data layer", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.dependencyData?.taskSet).toEqual(new Set(["a"]));
-      expect(result.current.dependencyData?.expression).toEqual([
+      expect(result.current.dependencyData?.openers?.taskSet).toEqual(
+        new Set(["a"]),
+      );
+      expect(result.current.dependencyData?.openers?.expression).toEqual([
         BooleanOp.Not,
         "a",
       ]);
@@ -244,8 +246,10 @@ describe("data layer", () => {
 
     await waitFor(() => {
       expect(result.current.dependencyData).toEqual({
-        taskSet: new Set(["a"]),
-        expression: [BooleanOp.Not, "a"],
+        openers: {
+          taskSet: new Set(["a"]),
+          expression: [BooleanOp.Not, "a"],
+        },
       });
       expect(result.current.taskSet.has("t")).toBe(true);
     });
@@ -287,56 +291,63 @@ describe("data layer", () => {
         setDependencies: useTaskDependenciesMutation(),
         perTaskDependencies: useTaskDependenciesQuery("t").data,
         dependencies:
-          useDependenciesQuery().data ??
-          new Map<string, DependencyExpression>(),
+          useDependenciesQuery().data ?? new Map<string, TaskDependencies>(),
       }),
       { wrapper },
     );
 
     await waitFor(() => {
       expect(result.current.perTaskDependencies).toEqual({
-        taskSet: new Set(["a", "b"]),
+        openers: { taskSet: new Set(["a", "b"]) },
       });
-      expect(result.current.dependencies.get("t")?.expression).toBeUndefined();
+      expect(result.current.dependencies.get("t")?.openers?.expression).toBe(
+        undefined,
+      );
     });
 
     await act(async () => {
       await result.current.setDependencies.mutateAsync({
         taskId: "t",
-        dependencyExpression: {
+        taskDependencies: {
+          openers: {
+            taskSet: new Set(["a", "b"]),
+            expression: [BooleanOp.Or, "a", "b"],
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.perTaskDependencies).toEqual({
+        openers: {
           taskSet: new Set(["a", "b"]),
           expression: [BooleanOp.Or, "a", "b"],
         },
       });
-    });
-
-    await waitFor(() => {
-      expect(result.current.perTaskDependencies).toEqual({
-        taskSet: new Set(["a", "b"]),
-        expression: [BooleanOp.Or, "a", "b"],
-      });
-      expect(result.current.dependencies.get("t")?.expression).toEqual([
-        BooleanOp.Or,
-        "a",
-        "b",
-      ]);
+      expect(result.current.dependencies.get("t")?.openers?.expression).toEqual(
+        [BooleanOp.Or, "a", "b"],
+      );
     });
 
     await act(async () => {
       await result.current.setDependencies.mutateAsync({
         taskId: "t",
-        dependencyExpression: {
-          taskSet: new Set(["a", "b"]),
-          expression: [BooleanOp.And, "a", "b"],
+        taskDependencies: {
+          openers: {
+            taskSet: new Set(["a", "b"]),
+            expression: [BooleanOp.And, "a", "b"],
+          },
         },
       });
     });
 
     await waitFor(() => {
       expect(result.current.perTaskDependencies).toEqual({
-        taskSet: new Set(["a", "b"]),
+        openers: { taskSet: new Set(["a", "b"]) },
       });
-      expect(result.current.dependencies.get("t")?.expression).toBeUndefined();
+      expect(result.current.dependencies.get("t")?.openers?.expression).toBe(
+        undefined,
+      );
     });
   });
 
@@ -367,18 +378,16 @@ describe("data layer", () => {
         deleteTasks: useDeleteTasksMutation(),
         taskSet: useTaskSetQuery().data ?? new Set<string>(),
         dependencies:
-          useDependenciesQuery().data ??
-          new Map<string, DependencyExpression>(),
+          useDependenciesQuery().data ?? new Map<string, TaskDependencies>(),
       }),
       { wrapper },
     );
 
     await waitFor(() => {
       expect(result.current.taskSet.has("t")).toBe(true);
-      expect(result.current.dependencies.get("t")?.expression).toEqual([
-        BooleanOp.Not,
-        "a",
-      ]);
+      expect(result.current.dependencies.get("t")?.openers?.expression).toEqual(
+        [BooleanOp.Not, "a"],
+      );
     });
 
     await act(async () => {
@@ -397,8 +406,7 @@ describe("data layer", () => {
         const categoriesTasks =
           useCategoriesTasksQuery().data ?? new Map<string, string[]>();
         const dependencies =
-          useDependenciesQuery().data ??
-          new Map<string, DependencyExpression>();
+          useDependenciesQuery().data ?? new Map<string, TaskDependencies>();
         const completions = useCompletionsQuery().data ?? new Set<string>();
         const reminders = useRemindersQuery().data ?? new Set<string>();
         const taskStructure = useTaskStructure();
@@ -446,8 +454,10 @@ describe("data layer", () => {
     await act(async () => {
       await result.current.setDependencies.mutateAsync({
         taskId: dependentTaskId,
-        dependencyExpression: {
-          taskSet: new Set([dependencyId]),
+        taskDependencies: {
+          openers: {
+            taskSet: new Set([dependencyId]),
+          },
         },
       });
     });
@@ -456,7 +466,7 @@ describe("data layer", () => {
       expect(
         result.current.dependencies
           .get(dependentTaskId)
-          ?.taskSet.has(dependencyId),
+          ?.openers?.taskSet.has(dependencyId),
       ).toBe(true);
     });
 
@@ -484,10 +494,12 @@ describe("data layer", () => {
 
       const dependencyExpressionData =
         result.current.dependencies.get(dependentTaskId);
-      expect(dependencyExpressionData?.taskSet.has(dependencyId)).toBe(true);
+      expect(dependencyExpressionData?.openers?.taskSet.has(dependencyId)).toBe(
+        true,
+      );
       expect(
         result.current.tasksWithCompleteDependencies.has(dependentTaskId),
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 
@@ -516,17 +528,16 @@ describe("data layer", () => {
         categoryTasks:
           useCategoriesTasksQuery().data ?? new Map<string, string[]>(),
         dependencies:
-          useDependenciesQuery().data ??
-          new Map<string, DependencyExpression>(),
+          useDependenciesQuery().data ?? new Map<string, TaskDependencies>(),
       }),
       { wrapper },
     );
 
     await waitFor(() => {
       expect(result.current.taskSet.has("a2")).toBe(true);
-      expect(result.current.dependencies.get("b1")?.taskSet.has("a2")).toBe(
-        true,
-      );
+      expect(
+        result.current.dependencies.get("b1")?.openers?.taskSet.has("a2"),
+      ).toBe(true);
     });
 
     await act(async () => {
@@ -668,32 +679,38 @@ describe("data layer", () => {
       () => ({
         setDependencies: useTaskDependenciesMutation(),
         dependencies:
-          useDependenciesQuery().data ??
-          new Map<string, DependencyExpression>(),
+          useDependenciesQuery().data ?? new Map<string, TaskDependencies>(),
       }),
       { wrapper },
     );
 
     await waitFor(() => {
-      expect(result.current.dependencies.get("a")?.taskSet.has("b")).toBe(true);
+      expect(
+        result.current.dependencies.get("a")?.openers?.taskSet.has("b"),
+      ).toBe(true);
     });
 
     await expect(
       act(async () => {
         await result.current.setDependencies.mutateAsync({
           taskId: "b",
-          dependencyExpression: {
-            taskSet: new Set(["a"]),
-            expression: undefined,
+          taskDependencies: {
+            openers: {
+              taskSet: new Set(["a"]),
+              expression: undefined,
+            },
           },
         });
       }),
     ).rejects.toThrow("Dependency cycle detected");
 
     await waitFor(() => {
-      expect(result.current.dependencies.get("a")?.taskSet.has("b")).toBe(true);
       expect(
-        result.current.dependencies.get("b")?.taskSet.has("a") ?? false,
+        result.current.dependencies.get("a")?.openers?.taskSet.has("b"),
+      ).toBe(true);
+      expect(
+        result.current.dependencies.get("b")?.openers?.taskSet.has("a") ??
+          false,
       ).toBe(false);
     });
   });

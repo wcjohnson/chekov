@@ -372,11 +372,13 @@ function collectNestedNodes(
 function ExpressionEditorDraft({
   taskId,
   dependencyIds,
+  existingClosers,
   persistedDraft,
   dependencyTitleById,
 }: {
   taskId: TaskId | null;
   dependencyIds: TaskId[];
+  existingClosers: DependencyExpression | null | undefined;
   persistedDraft: NodeDraft;
   dependencyTitleById: Map<TaskId, string>;
 }) {
@@ -450,9 +452,12 @@ function ExpressionEditorDraft({
             onClick={() => {
               taskDependenciesMutation.mutate({
                 taskId: taskId ?? "",
-                dependencyExpression: {
-                  taskSet: new Set(dependencyIds),
-                  expression: draftExpression ?? undefined,
+                taskDependencies: {
+                  openers: {
+                    taskSet: new Set(dependencyIds),
+                    expression: draftExpression ?? undefined,
+                  },
+                  closers: existingClosers,
                 },
               });
             }}
@@ -467,9 +472,12 @@ function ExpressionEditorDraft({
               setDraft({ kind: "empty" });
               taskDependenciesMutation.mutate({
                 taskId: taskId ?? "",
-                dependencyExpression: {
-                  taskSet: new Set(dependencyIds),
-                  expression: undefined,
+                taskDependencies: {
+                  openers: {
+                    taskSet: new Set(dependencyIds),
+                    expression: undefined,
+                  },
+                  closers: existingClosers,
                 },
               });
             }}
@@ -512,16 +520,19 @@ export function ExpressionEditor({
 
   const selectedTaskDependencyExpression = useTaskDependenciesQuery(
     taskId ?? "",
-  ).data?.expression;
+  ).data;
+  const selectedTaskOpenersExpression =
+    selectedTaskDependencyExpression?.openers?.expression;
+  const selectedTaskClosers = selectedTaskDependencyExpression?.closers;
 
   const persistedDraft = useMemo(() => {
-    if (!selectedTaskDependencyExpression) {
+    if (!selectedTaskOpenersExpression) {
       return { kind: "empty" } as NodeDraft;
     }
 
     const normalizedExpression = normalizeDependencyExpression({
       taskSet: dependencyIdSet,
-      expression: selectedTaskDependencyExpression,
+      expression: selectedTaskOpenersExpression,
     } satisfies DependencyExpression).expression;
 
     if (!normalizedExpression) {
@@ -529,7 +540,7 @@ export function ExpressionEditor({
     }
 
     return expressionToNodeDraft(normalizedExpression, dependencyIdSet);
-  }, [selectedTaskDependencyExpression, dependencyIdSet]);
+  }, [selectedTaskOpenersExpression, dependencyIdSet]);
 
   const draftKey = `${taskId ?? ""}:${JSON.stringify(persistedDraft)}`;
 
@@ -542,6 +553,7 @@ export function ExpressionEditor({
       key={draftKey}
       taskId={taskId}
       dependencyIds={dependencyIdList}
+      existingClosers={selectedTaskClosers}
       persistedDraft={persistedDraft}
       dependencyTitleById={dependencyTitleById}
     />

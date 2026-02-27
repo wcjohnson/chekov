@@ -21,11 +21,49 @@ import {
   type CategoryName,
   type DependencyExpression,
   type TaskDetail,
+  type TaskDependencies,
   type TaskId,
 } from "@/app/lib/data/types";
 import { normalizeDependencyExpression } from "@/app/lib/booleanExpression";
 import { detectCycle, fromKvPairsToMap } from "@/app/lib/utils";
 import type { TagColorKey } from "@/app/lib/tagColors";
+
+const EMPTY_DEPENDENCY_SET = new Set<TaskId>();
+
+function normalizeOptionalDependencyExpression(
+  dependencyExpression: DependencyExpression | null | undefined,
+): DependencyExpression | undefined {
+  if (!dependencyExpression) {
+    return undefined;
+  }
+
+  const normalized = normalizeDependencyExpression(dependencyExpression);
+  if (normalized.taskSet.size === 0) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeTaskDependencies(
+  taskDependencies: TaskDependencies,
+): TaskDependencies | null {
+  const openers = normalizeOptionalDependencyExpression(
+    taskDependencies.openers,
+  );
+  const closers = normalizeOptionalDependencyExpression(
+    taskDependencies.closers,
+  );
+
+  if (!openers && !closers) {
+    return null;
+  }
+
+  return {
+    ...(openers ? { openers } : null),
+    ...(closers ? { closers } : null),
+  };
+}
 
 export function useCreateTaskMutation() {
   return useMutation({
@@ -86,9 +124,8 @@ export function useDeleteTasksMutation() {
   return useMutation({
     mutationFn: async (taskIds: TaskId[]) => {
       const db = await getDb();
-      const updatedDependencyEntries: Array<
-        [TaskId, DependencyExpression | null]
-      > = [];
+      const updatedDependencyEntries: Array<[TaskId, TaskDependencies | null]> =
+        [];
 
       // In a transaction:
       // - Remove tasks from tasks store
@@ -192,10 +229,13 @@ export function useDeleteTasksMutation() {
 
       for (let index = 0; index < dependencyTaskIds.length; index += 1) {
         const dependencyTaskId = dependencyTaskIds[index];
-        const existingDependencyExpression = dependencyValues[index] ?? {
-          taskSet: new Set<string>(),
-        };
-        const dependencies = new Set(existingDependencyExpression.taskSet);
+        const existingTaskDependencies = dependencyValues[index];
+        const openerDependencies = new Set(
+          existingTaskDependencies?.openers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+        );
+        const closerDependencies = new Set(
+          existingTaskDependencies?.closers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+        );
 
         if (existingTaskIds.has(dependencyTaskId)) {
           continue;
@@ -203,7 +243,11 @@ export function useDeleteTasksMutation() {
 
         let changed = false;
         for (const removedTaskId of existingTaskIds) {
-          if (dependencies.delete(removedTaskId)) {
+          if (openerDependencies.delete(removedTaskId)) {
+            changed = true;
+          }
+
+          if (closerDependencies.delete(removedTaskId)) {
             changed = true;
           }
         }
@@ -212,22 +256,34 @@ export function useDeleteTasksMutation() {
           continue;
         }
 
-        if (dependencies.size === 0) {
+        const normalizedTaskDependencies = normalizeTaskDependencies({
+          openers:
+            openerDependencies.size > 0
+              ? {
+                  ...(existingTaskDependencies?.openers ?? {}),
+                  taskSet: openerDependencies,
+                }
+              : undefined,
+          closers:
+            closerDependencies.size > 0
+              ? {
+                  ...(existingTaskDependencies?.closers ?? {}),
+                  taskSet: closerDependencies,
+                }
+              : undefined,
+        });
+
+        if (!normalizedTaskDependencies) {
           await taskDependenciesStore.delete(dependencyTaskId);
           updatedDependencyEntries.push([dependencyTaskId, null]);
         } else {
-          const persistedDependencyExpression = normalizeDependencyExpression({
-            ...existingDependencyExpression,
-            taskSet: dependencies,
-          });
-
           await taskDependenciesStore.put(
-            persistedDependencyExpression,
+            normalizedTaskDependencies,
             dependencyTaskId,
           );
           updatedDependencyEntries.push([
             dependencyTaskId,
-            persistedDependencyExpression,
+            normalizedTaskDependencies,
           ]);
         }
       }
@@ -509,18 +565,17 @@ export function useTaskDependenciesMutation() {
   return useMutation({
     mutationFn: async ({
       taskId,
-      dependencyExpression,
+      taskDependencies,
     }: {
       taskId: TaskId;
-      dependencyExpression: DependencyExpression;
+      taskDependencies: TaskDependencies;
     }) => {
       const db = await getDb();
-      const persistedDependencyExpression =
-        normalizeDependencyExpression(dependencyExpression);
-      const dependencies = persistedDependencyExpression.taskSet;
+      const persistedTaskDependencies =
+        normalizeTaskDependencies(taskDependencies);
 
       // Easy case, no cycle detection needed
-      if (dependencies.size === 0) {
+      if (!persistedTaskDependencies) {
         await db.delete(TASK_DEPENDENCIES_STORE, taskId);
         return [taskId, null, null] as const;
       }
@@ -537,25 +592,52 @@ export function useTaskDependenciesMutation() {
         dependencyValues,
       );
 
-      if (detectCycle(dependencyGraph, taskId, dependencies)) {
+      const openerGraph = new Map<TaskId, Set<TaskId>>();
+      const closerGraph = new Map<TaskId, Set<TaskId>>();
+      for (const [
+        graphTaskId,
+        graphTaskDependencies,
+      ] of dependencyGraph.entries()) {
+        openerGraph.set(
+          graphTaskId,
+          graphTaskDependencies.openers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+        );
+        closerGraph.set(
+          graphTaskId,
+          graphTaskDependencies.closers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+        );
+      }
+
+      if (
+        detectCycle(
+          openerGraph,
+          taskId,
+          persistedTaskDependencies.openers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+        ) ||
+        detectCycle(
+          closerGraph,
+          taskId,
+          persistedTaskDependencies.closers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+        )
+      ) {
         tx.abort();
         await tx.done.catch(() => undefined);
         throw new Error("Dependency cycle detected");
       }
 
-      await dependenciesStore.put(persistedDependencyExpression, taskId);
+      await dependenciesStore.put(persistedTaskDependencies, taskId);
 
       await tx.done;
 
-      return [taskId, persistedDependencyExpression, dependencyGraph] as const;
+      return [taskId, persistedTaskDependencies, dependencyGraph] as const;
     },
-    onSuccess: ([taskId, dependencyExpression, dependencyGraph]) => {
+    onSuccess: ([taskId, taskDependencies, dependencyGraph]) => {
       queryClient.setQueryData(
         ["task", "dependencies", taskId],
-        dependencyExpression,
+        taskDependencies,
       );
-      if (dependencyGraph && dependencyExpression) {
-        dependencyGraph.set(taskId, dependencyExpression);
+      if (dependencyGraph && taskDependencies) {
+        dependencyGraph.set(taskId, taskDependencies);
         queryClient.setQueryData(["dependencies"], dependencyGraph);
       } else {
         queryClient.invalidateQueries({

@@ -286,12 +286,14 @@ export function TaskDetails({
   const selectedTaskDependencyData = useTaskDependenciesQuery(
     selectedTaskId ?? "",
   ).data;
+  const selectedTaskOpeners = selectedTaskDependencyData?.openers;
+  const selectedTaskClosers = selectedTaskDependencyData?.closers;
   const selectedTaskDeps = useMemo(
-    () => selectedTaskDependencyData?.taskSet ?? EMPTY_TASK_ID_SET,
-    [selectedTaskDependencyData],
+    () => selectedTaskOpeners?.taskSet ?? EMPTY_TASK_ID_SET,
+    [selectedTaskOpeners],
   );
   const selectedTaskDependencyExpression =
-    selectedTaskDependencyData?.expression ?? null;
+    selectedTaskOpeners?.expression ?? null;
   const isReminderTask =
     useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
@@ -310,15 +312,14 @@ export function TaskDetails({
     return map;
   }, [details, selectedTaskDeps]);
   const normalizedDependencyExpression = useMemo(() => {
-    if (!selectedTaskDependencyData?.expression) {
+    if (!selectedTaskOpeners?.expression) {
       return null;
     }
 
     return (
-      normalizeDependencyExpression(selectedTaskDependencyData).expression ??
-      null
+      normalizeDependencyExpression(selectedTaskOpeners).expression ?? null
     );
-  }, [selectedTaskDependencyData]);
+  }, [selectedTaskOpeners]);
   const taskModeDependencyExpression = useMemo(() => {
     return (
       normalizedDependencyExpression ??
@@ -401,9 +402,12 @@ export function TaskDetails({
     const handleSetDependencies = (taskIds: Set<TaskId>) => {
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
-        dependencyExpression: {
-          taskSet: taskIds,
-          expression: selectedTaskDependencyExpression ?? undefined,
+        taskDependencies: {
+          openers: {
+            taskSet: taskIds,
+            expression: selectedTaskDependencyExpression ?? undefined,
+          },
+          closers: selectedTaskClosers,
         },
       });
     };
@@ -411,9 +415,12 @@ export function TaskDetails({
     const handleClearDependencies = () => {
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
-        dependencyExpression: {
-          taskSet: new Set(),
-          expression: undefined,
+        taskDependencies: {
+          openers: {
+            taskSet: new Set(),
+            expression: undefined,
+          },
+          closers: selectedTaskClosers,
         },
       });
     };
@@ -425,9 +432,12 @@ export function TaskDetails({
 
       taskDependenciesMutation.mutate({
         taskId: selectedTaskId ?? "",
-        dependencyExpression: {
-          taskSet: new Set(multiSelectContext.getSelection()),
-          expression: selectedTaskDependencyExpression ?? undefined,
+        taskDependencies: {
+          openers: {
+            taskSet: new Set(multiSelectContext.getSelection()),
+            expression: selectedTaskDependencyExpression ?? undefined,
+          },
+          closers: selectedTaskClosers,
         },
       });
     };

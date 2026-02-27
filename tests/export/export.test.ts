@@ -67,7 +67,7 @@ const roundTripFixtures: Array<{
             category: "Core",
             title: "Check status",
             type: "reminder",
-            dependencies: ["a"],
+            openers: { tasks: ["a"] },
             tags: ["critical"],
           },
         ],
@@ -76,7 +76,7 @@ const roundTripFixtures: Array<{
             id: "c",
             category: "Later",
             title: "Deploy",
-            dependencies: ["a"],
+            openers: { tasks: ["a"] },
             tags: ["release"],
           },
         ],
@@ -118,7 +118,7 @@ const roundTripFixtures: Array<{
             id: "y",
             category: "Beta",
             title: "Review",
-            dependencies: ["x"],
+            openers: { tasks: ["x"] },
           },
         ],
         Gamma: [
@@ -127,7 +127,7 @@ const roundTripFixtures: Array<{
             category: "Gamma",
             title: "Notify",
             type: "reminder",
-            dependencies: ["y"],
+            openers: { tasks: ["y"] },
             description: "Ping when done",
           },
         ],
@@ -159,8 +159,10 @@ const roundTripFixtures: Array<{
             id: "expr",
             category: "Expr",
             title: "Expr Task",
-            dependencies: ["a", "b"],
-            dependencyExpression: [BooleanOp.Or, "a", "b"],
+            openers: {
+              tasks: ["a", "b"],
+              expression: [BooleanOp.Or, "a", "b"],
+            },
           },
         ],
       },
@@ -337,8 +339,10 @@ describe("import/export", () => {
             id: "t",
             category: "Main",
             title: "Target",
-            dependencies: ["a", "b"],
-            dependencyExpression: [BooleanOp.And, "a", "b"],
+            openers: {
+              tasks: ["a", "b"],
+              expression: [BooleanOp.And, "a", "b"],
+            },
           },
         ],
       },
@@ -353,8 +357,8 @@ describe("import/export", () => {
       (task) => task.id === "t",
     );
 
-    expect(targetTask?.dependencies).toEqual(["a", "b"]);
-    expect(targetTask?.dependencyExpression).toBeUndefined();
+    expect(targetTask?.openers?.tasks).toEqual(["a", "b"]);
+    expect(targetTask?.openers?.expression).toBeUndefined();
   });
 
   it("drops dependencyExpression terms that reference IDs outside dependencies", async () => {
@@ -368,8 +372,10 @@ describe("import/export", () => {
             id: "t",
             category: "Main",
             title: "Target",
-            dependencies: ["a"],
-            dependencyExpression: [BooleanOp.Or, "a", "b"],
+            openers: {
+              tasks: ["a"],
+              expression: [BooleanOp.Or, "a", "b"],
+            },
           },
         ],
       },
@@ -384,7 +390,7 @@ describe("import/export", () => {
       (task) => task.id === "t",
     );
 
-    expect(targetTask?.dependencies).toEqual(["a"]);
-    expect(targetTask?.dependencyExpression).toEqual("a");
+    expect(targetTask?.openers?.tasks).toEqual(["a"]);
+    expect(targetTask?.openers?.expression).toEqual("a");
   });
 });

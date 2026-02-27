@@ -201,9 +201,16 @@ export function buildImplicitAndExpression(
 
 /** Evaluates a boolean expression against the set of truthy task ids. */
 export function evaluateBooleanExpression(
-  expression: BooleanExpression,
+  expression: BooleanExpression | null | undefined,
   truthyTaskIds: Set<TaskId>,
+  implicitAndTaskIds: Iterable<TaskId> = [],
 ): boolean {
+  if (!expression) {
+    return Array.from(implicitAndTaskIds).every((taskId) =>
+      truthyTaskIds.has(taskId),
+    );
+  }
+
   if (typeof expression === "string") {
     return truthyTaskIds.has(expression);
   }

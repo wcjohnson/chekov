@@ -5,13 +5,13 @@ import type {
   TaskId,
   TaskDetail,
   CategoryName,
-  DependencyExpression,
+  TaskDependencies,
 } from "./types";
 import type { TagColorKey } from "../tagColors";
 import { QueryClient } from "@tanstack/react-query";
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 export const TASKS_STORE = "tasks";
 export const TASK_TAGS_STORE = "taskTags";
@@ -36,7 +36,7 @@ export interface ChekovDB extends DBSchema {
   };
   [TASK_DEPENDENCIES_STORE]: {
     key: TaskId;
-    value: DependencyExpression;
+    value: TaskDependencies;
   };
   [TASK_COMPLETION_STORE]: {
     key: TaskId;

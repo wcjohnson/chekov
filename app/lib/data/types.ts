@@ -33,3 +33,8 @@ export type DependencyExpression = {
   taskSet: Set<TaskId>;
   expression?: BooleanExpression;
 };
+
+export type TaskDependencies = {
+  openers?: DependencyExpression | null | undefined;
+  closers?: DependencyExpression | null | undefined;
+};

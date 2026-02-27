@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
-import type { DependencyExpression, TaskId } from "@/app/lib/data/types";
+import type { TaskId } from "@/app/lib/data/types";
 
 export function fromKvPairsToRecord<K extends string, V>(
   keys: K[],
@@ -33,7 +33,7 @@ export function recordToMap<K extends string, V>(
 }
 
 export const detectCycle = (
-  graph: Map<TaskId, DependencyExpression>,
+  graph: Map<TaskId, Set<TaskId>>,
   changedNode?: TaskId,
   changedNodeEdges?: Set<TaskId>,
 ): boolean => {
@@ -45,7 +45,7 @@ export const detectCycle = (
       return changedNodeEdges;
     }
 
-    return graph.get(node)?.taskSet;
+    return graph.get(node);
   };
 
   const visit = (node: TaskId): boolean => {

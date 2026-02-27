@@ -94,7 +94,7 @@ describe("import/export normalization", () => {
             id: "t1",
             category: "A",
             title: "Task 1",
-            dependencies: ["t2", "t3"],
+            openers: { tasks: ["t2", "t3"] },
             tags: ["keep", "dup"],
           },
           {
@@ -116,8 +116,10 @@ describe("import/export normalization", () => {
             id: "t4",
             category: "B",
             title: "Task 4",
-            dependencies: ["t1", "t2"],
-            dependencyExpression: [BooleanOp.Or, "t1", "t2"],
+            openers: {
+              tasks: ["t1", "t2"],
+              expression: [BooleanOp.Or, "t1", "t2"],
+            },
           },
         ],
       },
@@ -156,7 +158,12 @@ describe("import/export normalization", () => {
 
     expect(exportedDefinition.tasksByCategory.Main).toEqual([
       { id: "a", category: "Main", title: "A" },
-      { id: "t", category: "Main", title: "Target", dependencies: ["a"] },
+      {
+        id: "t",
+        category: "Main",
+        title: "Target",
+        openers: { tasks: ["a"] },
+      },
     ]);
   });
 
@@ -190,8 +197,10 @@ describe("import/export normalization", () => {
         id: "t",
         category: "Main",
         title: "Target",
-        dependencies: ["a"],
-        dependencyExpression: "a",
+        openers: {
+          tasks: ["a"],
+          expression: "a",
+        },
       },
     ]);
   });
