@@ -6,6 +6,7 @@ import {
   CATEGORY_COLLAPSED_STORE,
   CATEGORY_DEPENDENCIES_STORE,
   CATEGORY_TASKS_STORE,
+  clearDb,
   getDb,
   queryClient,
   TAG_COLORS_STORE,
@@ -830,39 +831,7 @@ export function useUncompleteAllTasksMutation() {
 export function useClearDatabaseMutation() {
   return useMutation({
     mutationFn: async () => {
-      const db = await getDb();
-      const tx = db.transaction(
-        [
-          TASKS_STORE,
-          TASK_TAGS_STORE,
-          TASK_DEPENDENCIES_STORE,
-          TASK_COMPLETION_STORE,
-          TASK_REMINDERS_STORE,
-          TASK_HIDDEN_STORE,
-          CATEGORIES_STORE,
-          CATEGORY_TASKS_STORE,
-          CATEGORY_DEPENDENCIES_STORE,
-          TAG_COLORS_STORE,
-          CATEGORY_COLLAPSED_STORE,
-        ],
-        "readwrite",
-      );
-
-      await Promise.all([
-        tx.objectStore(TASKS_STORE).clear(),
-        tx.objectStore(TASK_TAGS_STORE).clear(),
-        tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
-        tx.objectStore(TASK_COMPLETION_STORE).clear(),
-        tx.objectStore(TASK_REMINDERS_STORE).clear(),
-        tx.objectStore(TASK_HIDDEN_STORE).clear(),
-        tx.objectStore(CATEGORIES_STORE).clear(),
-        tx.objectStore(CATEGORY_TASKS_STORE).clear(),
-        tx.objectStore(CATEGORY_DEPENDENCIES_STORE).clear(),
-        tx.objectStore(TAG_COLORS_STORE).clear(),
-        tx.objectStore(CATEGORY_COLLAPSED_STORE).clear(),
-      ]);
-
-      await tx.done;
+      await clearDb();
     },
     onSuccess: () => {
       queryClient.invalidateQueries();
