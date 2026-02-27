@@ -5,6 +5,7 @@ import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
 import { DragDropReorderableGroup } from "../DragDrop";
+import { Button } from "@/app/components/catalyst/button";
 import { useTaskBreakout } from "@/app/lib/data/derivedData";
 import {
   useCreateTaskMutation,
@@ -114,13 +115,14 @@ export function LeftColumn({
         </DragDropReorderableGroup>
 
         {mode === "edit" && !isAddingCategory && (
-          <button
+          <Button
             type="button"
             onClick={() => setIsAddingCategory(true)}
-            className="mt-2 w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="mt-2 w-full justify-start border-dashed text-sm"
           >
             Add Category
-          </button>
+          </Button>
         )}
 
         {mode === "edit" && isAddingCategory && (
@@ -139,14 +141,15 @@ export function LeftColumn({
               className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-1.5 text-sm dark:border-zinc-700"
               autoFocus
             />
-            <button
+            <Button
               type="button"
               onClick={submitNewCategory}
               disabled={newCategoryName.trim().length === 0}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              outline
+              className="text-sm"
             >
               Confirm
-            </button>
+            </Button>
           </div>
         )}
 

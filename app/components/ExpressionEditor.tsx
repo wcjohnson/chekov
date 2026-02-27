@@ -13,6 +13,7 @@ import {
   DragDropTarget,
   type DragDropStateType,
 } from "./DragDrop";
+import { Button } from "@/app/components/catalyst/button";
 
 type NodeDraft =
   | { kind: "empty" }
@@ -290,14 +291,15 @@ function renderNodeBadge(
     >
       {label}
       {onRemove && (
-        <button
+        <Button
           type="button"
           onClick={onRemove}
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          plain
+          className="h-5 w-5 min-w-0 rounded-full p-0 text-sm leading-none text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           aria-label={`Remove ${label}`}
         >
           ×
-        </button>
+        </Button>
       )}
     </span>
   );
@@ -446,7 +448,7 @@ function ExpressionEditorDraft({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => {
               onSetDependencyExpression({
@@ -455,11 +457,12 @@ function ExpressionEditorDraft({
               });
             }}
             disabled={!dirty || !draftExpression}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Save Expression
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => {
               setDraft({ kind: "empty" });
@@ -469,10 +472,11 @@ function ExpressionEditorDraft({
               });
             }}
             disabled={!draftExpression}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Clear Expression
-          </button>
+          </Button>
         </div>
       </div>
     </div>

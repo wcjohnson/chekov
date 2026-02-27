@@ -1,6 +1,7 @@
 "use client";
 
 import type { TaskDetail, ChecklistMode } from "@/app/lib/data/types";
+import { Button } from "@/app/components/catalyst/button";
 
 type RightHeaderProps = {
   mode: ChecklistMode;
@@ -23,13 +24,15 @@ export function RightHeader({
           : "Task Details"}
       </h2>
       {mode === "edit" && selectedTaskId && (
-        <button
+        <Button
           type="button"
+          small
           onClick={onDeleteTask}
-          className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          outline
+          className="text-xs"
         >
           Delete Task
-        </button>
+        </Button>
       )}
     </div>
   );

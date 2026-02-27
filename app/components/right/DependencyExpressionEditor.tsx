@@ -17,6 +17,7 @@ import {
   getInfixExpressionPrecedence,
 } from "@/app/lib/booleanExpression";
 import { ExpressionEditor } from "@/app/components/ExpressionEditor";
+import { Button } from "@/app/components/catalyst/button";
 
 function ExpressionOperator({ operator }: { operator: BooleanOp }) {
   const label =
@@ -177,43 +178,47 @@ export function DependencyExpressionEditor({
             {headerText}
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => {
                 multiSelectContext.selectAll();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Select All
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 multiSelectContext.clearSelection();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Clear Selection
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 onConfirmSelection(multiSelectState.selectedTaskSet);
                 multiSelectContext.close();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Confirm
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 multiSelectContext.close();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       ),
@@ -244,38 +249,42 @@ export function DependencyExpressionEditor({
           )}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="button"
             onClick={openTaskSelectionEditor}
             disabled={isMultiSelectActive}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Set {label}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onClearSelection}
             disabled={!hasDependencies}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Clear {label}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setIsExpressionEditorOpen(true)}
             disabled={!hasDependencies || isExpressionEditorOpen}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Edit Expression
-          </button>
+          </Button>
           {isGenericMultiSelectActive && (
-            <button
+            <Button
               type="button"
               onClick={onApplySelection}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              outline
+              className="text-sm"
             >
               Apply {label}
-            </button>
+            </Button>
           )}
           {isSettingSelection && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400">

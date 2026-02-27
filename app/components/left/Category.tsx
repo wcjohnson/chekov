@@ -19,6 +19,7 @@ import {
   useCreateTaskMutation,
   useMoveTaskMutation,
 } from "@/app/lib/data/mutations";
+import { Button } from "@/app/components/catalyst/button";
 
 type CategoryProps = {
   category: string;
@@ -70,25 +71,27 @@ export function Category({
             {headerText}
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => {
                 multiSelectContext.selectAll();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Select All
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 multiSelectContext.clearSelection();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Clear Selection
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 categoryDependenciesMutation.mutate({
@@ -97,19 +100,21 @@ export function Category({
                 });
                 multiSelectContext.close();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Confirm
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => {
                 multiSelectContext.close();
               }}
-              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              outline
+              className="text-xs"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       ),
@@ -167,18 +172,20 @@ export function Category({
           </span>
           {mode === "edit" && (
             <span className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-3">
-              <button
+              <Button
                 type="button"
+                small
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   onEditDependencies();
                 }}
                 disabled={isMultiSelecting}
-                className="rounded border border-zinc-300 px-2 py-0.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                outline
+                className="text-xs"
               >
                 Deps
-              </button>
+              </Button>
               <button
                 ref={categoryHandleRef}
                 type="button"
@@ -210,7 +217,7 @@ export function Category({
             );
           })}
           {mode === "edit" && (
-            <button
+            <Button
               type="button"
               onClick={() =>
                 createTaskMutation.mutate(category, {
@@ -221,10 +228,11 @@ export function Category({
                   },
                 })
               }
-              className="mt-2 w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              outline
+              className="mt-2 w-full justify-start border-dashed text-sm"
             >
               Add Task
-            </button>
+            </Button>
           )}
         </div>
       </DragDropReorderableGroup>

@@ -2,6 +2,7 @@
 
 import type { RefObject } from "react";
 import type { ChecklistMode } from "@/app/lib/data/types";
+import { Button } from "@/app/components/catalyst/button";
 
 type TopBarProps = {
   mode: ChecklistMode;
@@ -47,43 +48,48 @@ export function TopBar({
       <div className="flex w-full items-center justify-between gap-4">
         <h1 className="text-xl font-semibold tracking-tight">Chekov</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="button"
             onClick={onToggleMode}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             {mode === "task" ? "Switch to Edit Mode" : "Switch to Task Mode"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onUnhideAll}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Unhide All
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onResetCompleted}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Reset Completed
-          </button>
+          </Button>
           {mode === "task" && (
-            <button
+            <Button
               type="button"
               onClick={onToggleShowCompletedTasks}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              outline
+              className="text-sm"
             >
               {showCompletedTasks ? "Hide Completed" : "Show Completed"}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
             onClick={onClearDatabase}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            outline
+            className="text-sm"
           >
             Clear DB
-          </button>
+          </Button>
           <input
             type="search"
             value={searchText}
@@ -96,34 +102,38 @@ export function TopBar({
               Data
             </summary>
             <div className="absolute right-0 z-10 mt-2 w-52 rounded-md border border-zinc-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-              <button
+              <Button
                 type="button"
                 onClick={onExportDefinition}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                plain
+                className="w-full justify-start text-sm"
               >
                 Export Definition
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={onImportDefinitionClick}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                plain
+                className="w-full justify-start text-sm"
               >
                 Import Definition
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={onExportState}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                plain
+                className="w-full justify-start text-sm"
               >
                 Export State
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={onImportStateClick}
-                className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                plain
+                className="w-full justify-start text-sm"
               >
                 Import State
-              </button>
+              </Button>
             </div>
           </details>
           <input

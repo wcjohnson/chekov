@@ -22,6 +22,7 @@ import {
   DependencyExpressionEditor,
   DependencyExpressionView,
 } from "./DependencyExpressionEditor";
+import { Button } from "@/app/components/catalyst/button";
 import {
   useAllKnownTagsQuery,
   useDetailsQuery,
@@ -618,7 +619,7 @@ export function TaskDetails({
         )}
       </div>
       <div>
-        <button
+        <Button
           type="button"
           onClick={() =>
             taskHiddenMutation.mutate({
@@ -627,11 +628,12 @@ export function TaskDetails({
             })
           }
           disabled={isTaskHidden}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          outline
+          className="text-sm"
         >
           Hide Task
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={() =>
             taskHiddenMutation.mutate({
@@ -640,10 +642,11 @@ export function TaskDetails({
             })
           }
           disabled={!isTaskHidden}
-          className="ml-2 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          outline
+          className="ml-2 text-sm"
         >
           Unhide Task
-        </button>
+        </Button>
       </div>
       <div>
         <p className="mb-1 text-sm font-medium">Openers</p>
