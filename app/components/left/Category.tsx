@@ -208,7 +208,7 @@ export function Category({
               index={index}
               mode={mode}
               isSelected={selectedTaskId === taskId}
-              dependenciesComplete={openTasks.has(taskId)}
+              openersComplete={openTasks.has(taskId)}
               isEffectivelyComplete={effectiveCompletions.has(taskId)}
               onRequestTaskSelectionChange={onRequestTaskSelectionChange}
               onToggleComplete={onToggleComplete}

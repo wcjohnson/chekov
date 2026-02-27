@@ -19,7 +19,7 @@ type TaskProps = {
   index: number;
   mode: ChecklistMode;
   isSelected: boolean;
-  dependenciesComplete: boolean;
+  openersComplete: boolean;
   isEffectivelyComplete: boolean;
   onRequestTaskSelectionChange: (taskId: TaskId) => void;
   onToggleComplete: (taskId: TaskId) => void;
@@ -30,7 +30,7 @@ export function Task({
   index,
   mode,
   isSelected,
-  dependenciesComplete,
+  openersComplete,
   isEffectivelyComplete,
   onRequestTaskSelectionChange,
   onToggleComplete,
@@ -59,7 +59,7 @@ export function Task({
 
   const canDrag = mode === "edit" && !isMultiSelecting;
   const showTaskModeCheckbox =
-    mode === "task" && dependenciesComplete && !isReminder;
+    mode === "task" && openersComplete && !isReminder;
   const isImplicitlyComplete = isEffectivelyComplete && !isComplete;
   const showEditSelectionCheckbox =
     mode === "edit" && isMultiSelecting && isVisibleInMultiSelect;

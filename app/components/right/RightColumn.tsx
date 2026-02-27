@@ -19,7 +19,7 @@ export function RightColumn({
   mode,
   selectedTaskId,
   completionsWithReminders,
-  openTasks: tasksWithCompleteDependencies,
+  openTasks,
   errorMessage,
   titleFocusTaskId,
   onTitleFocused,
@@ -47,7 +47,7 @@ export function RightColumn({
             selectedTaskId={selectedTaskId}
             selectedTaskDetail={detail}
             completionsWithReminders={completionsWithReminders}
-            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            openTasks={openTasks}
             shouldFocusTitle={titleFocusTaskId === selectedTaskId}
             onTitleFocused={onTitleFocused}
           />

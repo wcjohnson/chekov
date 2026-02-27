@@ -430,7 +430,7 @@ describe("data layer", () => {
           dependencies,
           completions,
           reminders,
-          tasksWithCompleteDependencies: tasksWithCompleteOpeners,
+          openTasks: tasksWithCompleteOpeners,
         };
       },
       { wrapper },
@@ -496,9 +496,7 @@ describe("data layer", () => {
       expect(dependencyExpressionData?.openers?.taskSet.has(dependencyId)).toBe(
         true,
       );
-      expect(
-        result.current.tasksWithCompleteDependencies.has(dependentTaskId),
-      ).toBe(false);
+      expect(result.current.openTasks.has(dependentTaskId)).toBe(false);
     });
   });
 

@@ -47,7 +47,7 @@ type TaskDetailsProps = {
   selectedTaskId: TaskId | null;
   selectedTaskDetail: TaskDetail | null | undefined;
   completionsWithReminders: Set<TaskId>;
-  tasksWithCompleteDependencies: Set<TaskId>;
+  openTasks: Set<TaskId>;
   shouldFocusTitle: boolean;
   onTitleFocused: () => void;
 };
@@ -57,7 +57,7 @@ export function TaskDetails({
   selectedTaskId,
   selectedTaskDetail,
   completionsWithReminders,
-  tasksWithCompleteDependencies,
+  openTasks,
   shouldFocusTitle,
   onTitleFocused,
 }: TaskDetailsProps) {
@@ -71,12 +71,12 @@ export function TaskDetails({
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
-  // For dependencies display
-  const selectedTaskDependencyData = useTaskDependenciesQuery(
+  // For openers/closers display
+  const selectedTaskDependencies = useTaskDependenciesQuery(
     selectedTaskId ?? "",
   ).data;
-  const selectedTaskOpeners = selectedTaskDependencyData?.openers;
-  const selectedTaskClosers = selectedTaskDependencyData?.closers;
+  const selectedTaskOpeners = selectedTaskDependencies?.openers;
+  const selectedTaskClosers = selectedTaskDependencies?.closers;
   const selectedTaskOpenersTaskSet = useMemo(
     () => selectedTaskOpeners?.taskSet ?? EMPTY_TASK_ID_SET,
     [selectedTaskOpeners],
@@ -91,7 +91,7 @@ export function TaskDetails({
     useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
   const isEffectivelyCompleted = isReminderTask
-    ? tasksWithCompleteDependencies.has(selectedTaskId ?? "")
+    ? openTasks.has(selectedTaskId ?? "")
     : completionsWithReminders.has(selectedTaskId ?? "");
 
   const knownTagSet = useAllKnownTagsQuery().data;
@@ -112,7 +112,7 @@ export function TaskDetails({
     }
     return map;
   }, [details, selectedTaskClosersTaskSet]);
-  const taskModeDependencyExpression = useMemo(() => {
+  const taskModeOpenersExpression = useMemo(() => {
     return (
       selectedTaskOpenersExpression ??
       buildImplicitAndExpression(Array.from(selectedTaskOpenersTaskSet))
@@ -666,12 +666,12 @@ export function TaskDetails({
       </div>
       <div>
         <p className="mb-1 text-sm font-medium">Openers</p>
-        {!taskModeDependencyExpression ? (
+        {!taskModeOpenersExpression ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
         ) : (
           <DependencyExpressionView
             mode={mode}
-            expression={taskModeDependencyExpression}
+            expression={taskModeOpenersExpression}
             dependencyTitleById={openerTitleById}
             completionsWithReminders={completionsWithReminders}
           />
