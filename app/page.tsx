@@ -27,17 +27,16 @@ import {
   type ExportedChecklistDefinition,
 } from "@/app/lib/data/jsonSchema";
 import {
-  useCompletionsWithReminders,
+  useEffectiveCompletions,
   useTaskCategoryById,
   useTasksMatchingSearch,
   useTaskStructure,
-  useTasksWithCompleteDependencies,
+  useTasksWithCompleteOpeners,
 } from "./lib/data/derivedData";
 import {
   useCollapsedCategoriesQuery,
   useCompletionsQuery,
   useDependenciesQuery,
-  useRemindersQuery,
 } from "./lib/data/queries";
 import {
   useClearDatabaseMutation,
@@ -91,18 +90,16 @@ export function AppMain() {
   const taskStructure = useTaskStructure();
   const allDependencies = useDependenciesQuery().data ?? new Map();
   const allCompletionsRaw = useCompletionsQuery().data;
-  const allReminders = useRemindersQuery().data;
-  const allCompletions = useCompletionsWithReminders(
+  const allEffectiveCompletions = useEffectiveCompletions(
     taskStructure.taskSet,
     allCompletionsRaw,
-    allReminders,
     allDependencies,
   );
 
-  const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
+  const tasksWithCompleteOpeners = useTasksWithCompleteOpeners(
     taskStructure.taskSet,
     allDependencies,
-    allCompletions,
+    allEffectiveCompletions,
   );
   const tasksMatchingSearch = useTasksMatchingSearch(searchText);
   const collapsedCategories = useCollapsedCategoriesQuery().data;
@@ -287,10 +284,10 @@ export function AppMain() {
 
   const toggleTaskCompletion = useCallback(
     (taskId: TaskId) => {
-      const isCompleted = allCompletions.has(taskId);
+      const isCompleted = allEffectiveCompletions.has(taskId);
       taskCompletionMutation.mutate({ taskId, isCompleted: !isCompleted });
     },
-    [allCompletions, taskCompletionMutation],
+    [allEffectiveCompletions, taskCompletionMutation],
   );
 
   const unhideAllTasksMutation = useUnhideAllTasksMutation();
@@ -397,8 +394,8 @@ export function AppMain() {
           <LeftColumn
             mode={mode}
             showCompletedTasks={showCompletedTasks}
-            completionsWithReminders={allCompletions}
-            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            completionsWithReminders={allEffectiveCompletions}
+            tasksWithCompleteDependencies={tasksWithCompleteOpeners}
             tasksMatchingSearch={tasksMatchingSearch}
             selectedTaskId={selectedTaskId}
             onSelectTask={setSelectedTaskId}
@@ -409,8 +406,8 @@ export function AppMain() {
           <RightColumn
             mode={mode}
             selectedTaskId={selectedTaskId}
-            completionsWithReminders={allCompletions}
-            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            completionsWithReminders={allEffectiveCompletions}
+            tasksWithCompleteDependencies={tasksWithCompleteOpeners}
             errorMessage={errorMessage}
           />
         }

@@ -43,7 +43,7 @@ export function useTaskCategoryById(categoryTasks: Map<string, string[]>) {
   }, [categoryTasks]);
 }
 
-export function useTasksWithCompleteDependencies(
+export function useTasksWithCompleteOpeners(
   taskSet: Set<string> | undefined,
   dependencies: Map<string, TaskDependencies> | undefined,
   completions: Set<string> | undefined,
@@ -53,23 +53,23 @@ export function useTasksWithCompleteDependencies(
       return new Set<string>();
     }
 
-    const tasksWithCompleteDependencies = new Set<string>();
+    const tasksWithCompleteOpeners = new Set<string>();
 
     for (const taskId of taskSet) {
       const openerDependencies = dependencies.get(taskId)?.openers;
 
-      const dependenciesSatisfied = evaluateBooleanExpression(
+      const openersSatisfied = evaluateBooleanExpression(
         openerDependencies?.expression,
         completions,
         openerDependencies?.taskSet,
       );
 
-      if (dependenciesSatisfied) {
-        tasksWithCompleteDependencies.add(taskId);
+      if (openersSatisfied) {
+        tasksWithCompleteOpeners.add(taskId);
       }
     }
 
-    return tasksWithCompleteDependencies;
+    return tasksWithCompleteOpeners;
   }, [taskSet, dependencies, completions]);
 }
 
@@ -136,11 +136,11 @@ export function useTasksMatchingSearch(searchQuery: string) {
   }, [trimmedQuery, searchEnabled, taskSet, detailsQuery.data, tagsQuery.data]);
 }
 
-function computeCompletionsWithReminders(
+function computeEffectiveCompletions(
   taskSet: Set<string>,
   completions: Set<string>,
   dependencies: Map<string, TaskDependencies>,
-  evaluatedReminderCompletions: Map<TaskId, true | false>,
+  evaluatedClosersCompletions: Map<TaskId, true | false>,
 ) {
   const effectiveCompletions = new Set<string>(completions);
   const activeTasks = new Set<TaskId>();
@@ -151,12 +151,12 @@ function computeCompletionsWithReminders(
     }
 
     if (completions.has(taskId)) {
-      return completions.has(taskId);
+      return true;
     }
 
-    const existingReminderCompletion = evaluatedReminderCompletions.get(taskId);
-    if (existingReminderCompletion !== undefined) {
-      return existingReminderCompletion;
+    const existingClosersCompletion = evaluatedClosersCompletions.get(taskId);
+    if (existingClosersCompletion !== undefined) {
+      return existingClosersCompletion;
     }
 
     if (activeTasks.has(taskId)) {
@@ -168,7 +168,7 @@ function computeCompletionsWithReminders(
     const taskCloserDependencies = dependencies.get(taskId)?.closers;
 
     if (!taskCloserDependencies) {
-      evaluatedReminderCompletions.set(taskId, false);
+      evaluatedClosersCompletions.set(taskId, false);
       activeTasks.delete(taskId);
       return false;
     }
@@ -203,19 +203,19 @@ function computeCompletionsWithReminders(
       return false;
     };
 
-    const reminderCompletion = taskCloserDependencies.expression
+    const closersCompletion = taskCloserDependencies.expression
       ? evaluateExpression(taskCloserDependencies.expression)
       : Array.from(taskCloserDependencies.taskSet).every((taskDependencyId) =>
           evaluateTaskCompletion(taskDependencyId),
         );
-    evaluatedReminderCompletions.set(taskId, reminderCompletion);
+    evaluatedClosersCompletions.set(taskId, closersCompletion);
     activeTasks.delete(taskId);
 
-    if (reminderCompletion) {
+    if (closersCompletion) {
       effectiveCompletions.add(taskId);
     }
 
-    return reminderCompletion;
+    return closersCompletion;
   };
 
   for (const taskId of taskSet) {
@@ -225,10 +225,9 @@ function computeCompletionsWithReminders(
   return effectiveCompletions;
 }
 
-export function useCompletionsWithReminders(
+export function useEffectiveCompletions(
   taskSet: Set<string> | undefined,
   completions: Set<string> | undefined,
-  _reminders: Set<string> | undefined,
   dependencies: Map<string, TaskDependencies> | undefined,
 ) {
   return useMemo(() => {
@@ -236,13 +235,13 @@ export function useCompletionsWithReminders(
       return new Set<string>();
     }
 
-    const evaluatedReminderCompletions = new Map<TaskId, true | false>();
+    const evaluatedClosersCompletions = new Map<TaskId, true | false>();
 
-    return computeCompletionsWithReminders(
+    return computeEffectiveCompletions(
       taskSet,
       completions,
       dependencies,
-      evaluatedReminderCompletions,
+      evaluatedClosersCompletions,
     );
   }, [taskSet, completions, dependencies]);
 }

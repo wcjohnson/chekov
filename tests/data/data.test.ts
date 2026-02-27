@@ -38,9 +38,9 @@ import {
   useTaskTagsQuery,
 } from "../../app/lib/data/queries";
 import {
-  useCompletionsWithReminders,
+  useEffectiveCompletions,
   useTaskStructure,
-  useTasksWithCompleteDependencies,
+  useTasksWithCompleteOpeners,
 } from "../../app/lib/data/derivedData";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
@@ -410,16 +410,15 @@ describe("data layer", () => {
         const completions = useCompletionsQuery().data ?? new Set<string>();
         const reminders = useRemindersQuery().data ?? new Set<string>();
         const taskStructure = useTaskStructure();
-        const completionsWithReminders = useCompletionsWithReminders(
+        const effectiveCompletions = useEffectiveCompletions(
           taskStructure.taskSet,
           completions,
-          reminders,
           dependencies,
         );
-        const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
+        const tasksWithCompleteOpeners = useTasksWithCompleteOpeners(
           taskStructure.taskSet,
           dependencies,
-          completionsWithReminders,
+          effectiveCompletions,
         );
 
         return {
@@ -431,7 +430,7 @@ describe("data layer", () => {
           dependencies,
           completions,
           reminders,
-          tasksWithCompleteDependencies,
+          tasksWithCompleteDependencies: tasksWithCompleteOpeners,
         };
       },
       { wrapper },
