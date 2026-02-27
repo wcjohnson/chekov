@@ -171,6 +171,7 @@ export function DependencyExpressionEditor({
 
     multiSelectContext.setState({
       selectionContext,
+      disablePrimarySelection: true,
       selectedTaskSet: new Set(selectedTaskSet),
       renderCustomHeader: (multiSelectState) => (
         <div className="rounded-md border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">

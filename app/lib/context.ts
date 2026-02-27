@@ -12,6 +12,7 @@ export type MultiSelectContextId =
 
 export type MultiSelectState = {
   selectionContext: MultiSelectContextId;
+  disablePrimarySelection?: boolean;
   taskFilter?: (
     taskId: TaskId,
     taskDetail: TaskDetail | null | undefined,

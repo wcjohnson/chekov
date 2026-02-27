@@ -136,15 +136,6 @@ export function AppMain() {
       ? stateSelectedTaskId
       : null;
 
-  const handleSelectTask = useCallback((taskId: TaskId, isNew = false) => {
-    setSelectedTaskId(taskId);
-    setTitleFocusTaskId(isNew ? taskId : null);
-  }, []);
-
-  const handleTitleFocused = useCallback(() => {
-    setTitleFocusTaskId(null);
-  }, []);
-
   const effectiveMultiSelectState = useMemo(() => {
     if (!multiSelectState) {
       return null;
@@ -183,6 +174,22 @@ export function AppMain() {
     () => effectiveMultiSelectState?.selectedTaskSet ?? new Set<TaskId>(),
     [effectiveMultiSelectState],
   );
+
+  const handleSelectTask = useCallback(
+    (taskId: TaskId, isNew = false) => {
+      if (effectiveMultiSelectState?.disablePrimarySelection) {
+        return;
+      }
+
+      setSelectedTaskId(taskId);
+      setTitleFocusTaskId(isNew ? taskId : null);
+    },
+    [effectiveMultiSelectState],
+  );
+
+  const handleTitleFocused = useCallback(() => {
+    setTitleFocusTaskId(null);
+  }, []);
 
   // Determine if on desktop
   useEffect(() => {
