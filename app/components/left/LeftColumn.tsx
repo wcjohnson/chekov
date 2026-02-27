@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
+import { DragDropReorderableGroup } from "../DragDrop";
 import { useTaskBreakout } from "@/app/lib/data/derivedData";
 import {
   useCreateTaskMutation,
@@ -74,38 +75,56 @@ export function LeftColumn({
 
       <div
         data-left-pane-scroll="true"
-        className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto"
       >
-        {taskBreakout.visibleCategories.map((category, index) => (
-          <Category
-            key={category}
-            category={category}
-            taskBreakout={taskBreakout}
-            openTasks={openTasks}
-            effectiveCompletions={completionsWithReminders}
-            mode={mode}
-            selectedTaskId={selectedTaskId}
-            onRequestTaskSelectionChange={onRequestTaskSelectionChange}
-            onToggleComplete={onToggleComplete}
-            canMoveUp={index > 0}
-            canMoveDown={index < taskBreakout.visibleCategories.length - 1}
-            onMoveUp={() => moveCategory(index, index - 1)}
-            onMoveDown={() => moveCategory(index, index + 1)}
-          />
-        ))}
+        <DragDropReorderableGroup
+          group="categories"
+          onMoveItem={(fromGroup, fromIndex, toGroup, toIndex) => {
+            if (mode !== "edit") {
+              return;
+            }
+
+            if (fromGroup !== "categories" || toGroup !== "categories") {
+              return;
+            }
+
+            const adjustedToIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+
+            if (fromIndex === adjustedToIndex) {
+              return;
+            }
+
+            moveCategory(fromIndex, adjustedToIndex);
+          }}
+        >
+          {taskBreakout.visibleCategories.map((category, index) => (
+            <Category
+              key={category}
+              category={category}
+              categoryIndex={index}
+              taskBreakout={taskBreakout}
+              openTasks={openTasks}
+              effectiveCompletions={completionsWithReminders}
+              mode={mode}
+              selectedTaskId={selectedTaskId}
+              onRequestTaskSelectionChange={onRequestTaskSelectionChange}
+              onToggleComplete={onToggleComplete}
+            />
+          ))}
+        </DragDropReorderableGroup>
 
         {mode === "edit" && !isAddingCategory && (
           <button
             type="button"
             onClick={() => setIsAddingCategory(true)}
-            className="w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="mt-2 w-full rounded-md border border-dashed border-zinc-300 px-3 py-2 text-left text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Add Category
           </button>
         )}
 
         {mode === "edit" && isAddingCategory && (
-          <div className="flex items-center gap-2 rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
+          <div className="mt-2 flex items-center gap-2 rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
             <input
               type="text"
               value={newCategoryName}
@@ -132,7 +151,7 @@ export function LeftColumn({
         )}
 
         {taskBreakout.visibleTasks.size === 0 && (
-          <p className="rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+          <p className="mt-2 rounded-md border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             {"No tasks here. Add some or change your filters."}
           </p>
         )}

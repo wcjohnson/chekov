@@ -4,6 +4,7 @@ import { RightHeader } from "./RightHeader";
 import { TaskDetails } from "./TaskDetails";
 import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { useTaskDetailQuery } from "@/app/lib/data/queries";
+import { useDeleteTasksMutation } from "@/app/lib/data/mutations";
 
 type RightColumnProps = {
   mode: ChecklistMode;
@@ -25,6 +26,15 @@ export function RightColumn({
   onTitleFocused,
 }: RightColumnProps) {
   const detail = useTaskDetailQuery(selectedTaskId ?? "").data;
+  const deleteTasksMutation = useDeleteTasksMutation();
+
+  const handleDeleteTask = () => {
+    if (!selectedTaskId) {
+      return;
+    }
+
+    deleteTasksMutation.mutate([selectedTaskId]);
+  };
 
   return (
     <>
@@ -32,6 +42,7 @@ export function RightColumn({
         mode={mode}
         selectedTaskId={selectedTaskId}
         selectedTaskDetail={detail}
+        onDeleteTask={handleDeleteTask}
       />
 
       {!selectedTaskId && (
