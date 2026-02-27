@@ -19,9 +19,11 @@
         "category": "Nautiloid",
         "title": "Don't rescue Us until after killing Int Dev upstairs",
         "type": "reminder",
-        "dependencies": [
-          "cc953522-b1d5-464c-9452-3550e7e8d3f1"
-        ]
+        "closers": {
+          "tasks": [
+            "cc953522-b1d5-464c-9452-3550e7e8d3f1"
+          ]
+        }
       },
       {
         "id": "10a46062-4770-489d-9f74-e2e1eab5f8cc",
@@ -32,9 +34,11 @@
         "id": "b2d055e9-1b62-4362-9421-65afefdd02d7",
         "category": "Nautiloid",
         "title": "Imps",
-        "dependencies": [
-          "10a46062-4770-489d-9f74-e2e1eab5f8cc"
-        ],
+        "openers": {
+          "tasks": [
+            "10a46062-4770-489d-9f74-e2e1eab5f8cc"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -44,9 +48,11 @@
         "category": "Nautiloid",
         "title": "Prisoners",
         "description": "Click middle button on console to free them.",
-        "dependencies": [
-          "b2d055e9-1b62-4362-9421-65afefdd02d7"
-        ],
+        "openers": {
+          "tasks": [
+            "b2d055e9-1b62-4362-9421-65afefdd02d7"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -55,17 +61,21 @@
         "id": "d819dfc6-68b1-4234-9309-2761d719c3a8",
         "category": "Nautiloid",
         "title": "Recruit Shadowheart",
-        "dependencies": [
-          "b2d055e9-1b62-4362-9421-65afefdd02d7"
-        ]
+        "openers": {
+          "tasks": [
+            "b2d055e9-1b62-4362-9421-65afefdd02d7"
+          ]
+        }
       },
       {
         "id": "cc953522-b1d5-464c-9452-3550e7e8d3f1",
         "category": "Nautiloid",
         "title": "Neutral Intellect Devourer",
-        "dependencies": [
-          "b2d055e9-1b62-4362-9421-65afefdd02d7"
-        ],
+        "openers": {
+          "tasks": [
+            "b2d055e9-1b62-4362-9421-65afefdd02d7"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -74,39 +84,47 @@
         "id": "75c38402-67f1-496e-a536-f8aa25068517",
         "category": "Nautiloid",
         "title": "Go back and rescue \"Us\"",
-        "dependencies": [
-          "cc953522-b1d5-464c-9452-3550e7e8d3f1"
-        ]
+        "openers": {
+          "tasks": [
+            "cc953522-b1d5-464c-9452-3550e7e8d3f1"
+          ]
+        }
       },
       {
         "id": "daabaa04-bf3a-488a-878d-1bd7fd9d083f",
         "category": "Nautiloid",
         "title": "Don't enter the Bridge",
         "type": "reminder",
-        "dependencies": [
-          "75c38402-67f1-496e-a536-f8aa25068517"
-        ]
+        "closers": {
+          "tasks": [
+            "75c38402-67f1-496e-a536-f8aa25068517"
+          ]
+        }
       },
       {
         "id": "e801dfbb-1025-4756-812c-7066c5890fdd",
         "category": "Nautiloid",
         "title": "Enter Nautiloid Bridge",
-        "dependencies": [
-          "75c38402-67f1-496e-a536-f8aa25068517",
-          "cc953522-b1d5-464c-9452-3550e7e8d3f1",
-          "fb87177a-ee1e-4b0d-b15f-106b56084772",
-          "b2d055e9-1b62-4362-9421-65afefdd02d7",
-          "10a46062-4770-489d-9f74-e2e1eab5f8cc",
-          "d819dfc6-68b1-4234-9309-2761d719c3a8"
-        ]
+        "openers": {
+          "tasks": [
+            "75c38402-67f1-496e-a536-f8aa25068517",
+            "cc953522-b1d5-464c-9452-3550e7e8d3f1",
+            "fb87177a-ee1e-4b0d-b15f-106b56084772",
+            "b2d055e9-1b62-4362-9421-65afefdd02d7",
+            "10a46062-4770-489d-9f74-e2e1eab5f8cc",
+            "d819dfc6-68b1-4234-9309-2761d719c3a8"
+          ]
+        }
       },
       {
         "id": "5fb3c0e1-97f4-4458-ab7f-ab916bbe4ed6",
         "category": "Nautiloid",
         "title": "Bridge Trash Wave 1",
-        "dependencies": [
-          "e801dfbb-1025-4756-812c-7066c5890fdd"
-        ],
+        "openers": {
+          "tasks": [
+            "e801dfbb-1025-4756-812c-7066c5890fdd"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -115,9 +133,11 @@
         "id": "34aae9b9-92e8-48de-ab36-a506b7c47c6e",
         "category": "Nautiloid",
         "title": "Bridge Mindflayer",
-        "dependencies": [
-          "e801dfbb-1025-4756-812c-7066c5890fdd"
-        ],
+        "openers": {
+          "tasks": [
+            "e801dfbb-1025-4756-812c-7066c5890fdd"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -126,9 +146,11 @@
         "id": "3262e9fc-4635-49cb-9ecc-29e45f93181a",
         "category": "Nautiloid",
         "title": "Commander Zhailk",
-        "dependencies": [
-          "e801dfbb-1025-4756-812c-7066c5890fdd"
-        ],
+        "openers": {
+          "tasks": [
+            "e801dfbb-1025-4756-812c-7066c5890fdd"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -137,9 +159,11 @@
         "id": "b7532bd7-5603-4b14-90ec-196d3bf1192f",
         "category": "Nautiloid",
         "title": "Bridge Trash Wave 2",
-        "dependencies": [
-          "e801dfbb-1025-4756-812c-7066c5890fdd"
-        ],
+        "openers": {
+          "tasks": [
+            "e801dfbb-1025-4756-812c-7066c5890fdd"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -148,9 +172,11 @@
         "id": "a44e3d3e-03dc-42a9-b4d9-90c9339ab9b2",
         "category": "Nautiloid",
         "title": "Bridge Cambions",
-        "dependencies": [
-          "e801dfbb-1025-4756-812c-7066c5890fdd"
-        ],
+        "openers": {
+          "tasks": [
+            "e801dfbb-1025-4756-812c-7066c5890fdd"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -159,13 +185,15 @@
         "id": "aaa538d2-81a8-4749-bbf6-1d42238ef623",
         "category": "Nautiloid",
         "title": "Leave the Nautiloid",
-        "dependencies": [
-          "a44e3d3e-03dc-42a9-b4d9-90c9339ab9b2",
-          "3262e9fc-4635-49cb-9ecc-29e45f93181a",
-          "34aae9b9-92e8-48de-ab36-a506b7c47c6e",
-          "b7532bd7-5603-4b14-90ec-196d3bf1192f",
-          "5fb3c0e1-97f4-4458-ab7f-ab916bbe4ed6"
-        ]
+        "openers": {
+          "tasks": [
+            "a44e3d3e-03dc-42a9-b4d9-90c9339ab9b2",
+            "3262e9fc-4635-49cb-9ecc-29e45f93181a",
+            "34aae9b9-92e8-48de-ab36-a506b7c47c6e",
+            "b7532bd7-5603-4b14-90ec-196d3bf1192f",
+            "5fb3c0e1-97f4-4458-ab7f-ab916bbe4ed6"
+          ]
+        }
       }
     ],
     "Crash Site": [
@@ -178,9 +206,11 @@
         "id": "c946aabd-9ca1-4895-95a8-8d2453159cfe",
         "category": "Crash Site",
         "title": "Intellect Devourer x3",
-        "dependencies": [
-          "4c3da6ba-047d-4cd3-93f4-e3d5097e3f8e"
-        ],
+        "openers": {
+          "tasks": [
+            "4c3da6ba-047d-4cd3-93f4-e3d5097e3f8e"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -195,9 +225,11 @@
         "category": "Crash Site",
         "title": "Boar",
         "description": "3xp, meat",
-        "dependencies": [
-          "3d3c7fec-18c6-4b90-8432-af3ac0f14254"
-        ],
+        "openers": {
+          "tasks": [
+            "3d3c7fec-18c6-4b90-8432-af3ac0f14254"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -226,9 +258,11 @@
         "category": "Crash Site",
         "title": "Do not trigger XXP zone near chest above crash site",
         "type": "reminder",
-        "dependencies": [
-          "b73fcac0-2da5-49cb-9f99-7f4694a6d1c2"
-        ],
+        "closers": {
+          "tasks": [
+            "b73fcac0-2da5-49cb-9f99-7f4694a6d1c2"
+          ]
+        },
         "tags": [
           "XXP"
         ]
@@ -237,9 +271,11 @@
         "id": "472ca702-3cc8-4e3c-935f-ea40e1c8e609",
         "category": "Crash Site",
         "title": "Lae'zel area: Betray Tieflings in dialogue, then K/O them",
-        "dependencies": [
-          "3d3c7fec-18c6-4b90-8432-af3ac0f14254"
-        ],
+        "openers": {
+          "tasks": [
+            "3d3c7fec-18c6-4b90-8432-af3ac0f14254"
+          ]
+        },
         "tags": [
           "I:Astarion"
         ]
@@ -248,9 +284,11 @@
         "id": "43754d15-98eb-4469-9840-c13b94c7e824",
         "category": "Crash Site",
         "title": "Recruit Lae'zel",
-        "dependencies": [
-          "472ca702-3cc8-4e3c-935f-ea40e1c8e609"
-        ]
+        "openers": {
+          "tasks": [
+            "472ca702-3cc8-4e3c-935f-ea40e1c8e609"
+          ]
+        }
       },
       {
         "id": "9a15e5e5-5711-4399-8576-e5b253a17768",
@@ -258,9 +296,11 @@
         "title": "Do not trigger XXP zone at Ancient Ruins/Withers Tomb",
         "description": "We will enter Withers Tomb through the bottom to avoid triggering Exploration XP.",
         "type": "reminder",
-        "dependencies": [
-          "16f1a0db-c1d8-4cec-bb2f-4d15c10883f3"
-        ],
+        "closers": {
+          "tasks": [
+            "16f1a0db-c1d8-4cec-bb2f-4d15c10883f3"
+          ]
+        },
         "tags": [
           "XXP"
         ]
@@ -269,9 +309,11 @@
         "id": "f8b91324-2633-4ccd-baef-5407438f64b4",
         "category": "Crash Site",
         "title": "Hidden harper stash - release spiders",
-        "dependencies": [
-          "b20a02a1-53b2-4a1f-a60b-165562a8d82e"
-        ],
+        "openers": {
+          "tasks": [
+            "b20a02a1-53b2-4a1f-a60b-165562a8d82e"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -281,36 +323,44 @@
         "category": "Crash Site",
         "title": "Enter Withers Tomb through CR20 door on Beach",
         "description": "AVOID exploration zone!",
-        "dependencies": [
-          "30a8cb7e-6422-4582-be4b-f04338dfad64"
-        ]
+        "openers": {
+          "tasks": [
+            "30a8cb7e-6422-4582-be4b-f04338dfad64"
+          ]
+        }
       },
       {
         "id": "6c10bd1c-6d38-48ac-a0db-fbcfbb9251f4",
         "category": "Crash Site",
         "title": "Enter side room of Withers Tomb (+10xp)",
-        "dependencies": [
-          "16729855-4e5e-4b0d-a5d6-7af61b61b948"
-        ]
+        "openers": {
+          "tasks": [
+            "16729855-4e5e-4b0d-a5d6-7af61b61b948"
+          ]
+        }
       },
       {
         "id": "1b10dcec-3109-46a2-a512-7c32fb1414c6",
         "category": "Crash Site",
         "title": "Interact with locked door in side room (+5xp)",
-        "dependencies": [
-          "6c10bd1c-6d38-48ac-a0db-fbcfbb9251f4"
-        ]
+        "openers": {
+          "tasks": [
+            "6c10bd1c-6d38-48ac-a0db-fbcfbb9251f4"
+          ]
+        }
       },
       {
         "id": "455b97be-0eb3-42f2-821a-8ee53ca1e8e6",
         "category": "Crash Site",
         "title": "Withers Tomb inside: undead scribes",
         "description": "Open withers door to trigger",
-        "dependencies": [
-          "16729855-4e5e-4b0d-a5d6-7af61b61b948",
-          "6c10bd1c-6d38-48ac-a0db-fbcfbb9251f4",
-          "1b10dcec-3109-46a2-a512-7c32fb1414c6"
-        ],
+        "openers": {
+          "tasks": [
+            "16729855-4e5e-4b0d-a5d6-7af61b61b948",
+            "6c10bd1c-6d38-48ac-a0db-fbcfbb9251f4",
+            "1b10dcec-3109-46a2-a512-7c32fb1414c6"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -319,9 +369,11 @@
         "id": "679431d0-0094-48b9-92f4-77a470a3a6e9",
         "category": "Crash Site",
         "title": "Recruit Withers",
-        "dependencies": [
-          "455b97be-0eb3-42f2-821a-8ee53ca1e8e6"
-        ],
+        "openers": {
+          "tasks": [
+            "455b97be-0eb3-42f2-821a-8ee53ca1e8e6"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -331,9 +383,11 @@
         "category": "Crash Site",
         "title": "Withers Tomb topside: Gimblebock",
         "description": "Persuade them to leave, then attack in TB mode.",
-        "dependencies": [
-          "16f1a0db-c1d8-4cec-bb2f-4d15c10883f3"
-        ],
+        "openers": {
+          "tasks": [
+            "16f1a0db-c1d8-4cec-bb2f-4d15c10883f3"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -342,9 +396,11 @@
         "id": "2759604f-963f-41f6-b0cd-2a27dddf6c12",
         "category": "Crash Site",
         "title": "Persuade guy at Withers main entrance to let you in",
-        "dependencies": [
-          "b6d27c29-6eb0-4ce4-ba05-a035a08747b9"
-        ],
+        "openers": {
+          "tasks": [
+            "b6d27c29-6eb0-4ce4-ba05-a035a08747b9"
+          ]
+        },
         "tags": [
           "I:Astarion"
         ]
@@ -353,9 +409,11 @@
         "id": "93b1228a-c366-4953-9959-3f93c93f9c6b",
         "category": "Crash Site",
         "title": "Withers Tomb inside: dumb door guard",
-        "dependencies": [
-          "2759604f-963f-41f6-b0cd-2a27dddf6c12"
-        ],
+        "openers": {
+          "tasks": [
+            "2759604f-963f-41f6-b0cd-2a27dddf6c12"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -364,10 +422,12 @@
         "id": "e1275147-ce0f-4dcd-8f6b-9ba307f42dfc",
         "category": "Crash Site",
         "title": "Withers Tomb inside: library morons",
-        "dependencies": [
-          "2759604f-963f-41f6-b0cd-2a27dddf6c12",
-          "93b1228a-c366-4953-9959-3f93c93f9c6b"
-        ],
+        "openers": {
+          "tasks": [
+            "2759604f-963f-41f6-b0cd-2a27dddf6c12",
+            "93b1228a-c366-4953-9959-3f93c93f9c6b"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -377,12 +437,14 @@
         "category": "Crash Site",
         "title": "First goblin attack at Grove entrance",
         "description": "Don't let any good guys die",
-        "dependencies": [
-          "3d3c7fec-18c6-4b90-8432-af3ac0f14254",
-          "1111af45-e0bf-4730-8126-0d50dde53206",
-          "4c3da6ba-047d-4cd3-93f4-e3d5097e3f8e",
-          "43754d15-98eb-4469-9840-c13b94c7e824"
-        ],
+        "openers": {
+          "tasks": [
+            "3d3c7fec-18c6-4b90-8432-af3ac0f14254",
+            "1111af45-e0bf-4730-8126-0d50dde53206",
+            "4c3da6ba-047d-4cd3-93f4-e3d5097e3f8e",
+            "43754d15-98eb-4469-9840-c13b94c7e824"
+          ]
+        },
         "tags": [
           "Encounter",
           "I:Lae'zel"
@@ -393,9 +455,11 @@
         "category": "Crash Site",
         "title": "Cult Siblings",
         "description": "- Send them after Owlbear\n- Switch to TB mode as they are running, and attack them\n- Loot mindflayer parasite",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ],
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        },
         "tags": [
           "Parasite"
         ]
@@ -406,41 +470,51 @@
         "id": "44ce0eb6-1511-4c8b-9ba2-5ebe79b968f7",
         "category": "Druid Grove",
         "title": "Persuade Aradin to stay",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "34ca7952-8004-47cf-a903-f9d29994db7a",
         "category": "Druid Grove",
         "title": "Save Nadira from bugbear",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "30a8cb7e-6422-4582-be4b-f04338dfad64",
         "category": "Druid Grove",
         "title": "Read book about Withers Tomb near Aron (+15xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "438329db-45fd-4b5c-a6a5-fe8894ab8ffa",
         "category": "Druid Grove",
         "title": "Recruit Wyll",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "33818d91-c6ba-4982-bbdc-8bd2669e675b",
         "category": "Druid Grove",
         "title": "Guex sword practice",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ],
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        },
         "tags": [
           "I:Lae'zel"
         ]
@@ -449,67 +523,83 @@
         "id": "7b55263d-2c2a-4f6c-96be-69a6683d7522",
         "category": "Druid Grove",
         "title": "Interrogate Zorru",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "a8966e96-ee92-4dba-bb32-a8697e3c1cbe",
         "category": "Druid Grove",
         "title": "Tell Ethel about your parasite (+10xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "1a01ce8f-e8bd-4139-bcf4-2d0de23f1ce0",
         "category": "Druid Grove",
         "title": "Speak with Animals + bored ox + haypile (+15xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "bc773562-bda3-4c92-b1ed-56e03d80240a",
         "category": "Druid Grove",
         "title": "Spot entrance behind Doni (+15xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "53453cc6-8ded-4079-9d95-9eb3e13e2da1",
         "category": "Druid Grove",
         "title": "Recognize Mattis scam with Warlock or Wizard (+45xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "5f46d986-3435-483b-9bf1-e904dcd731b1",
         "category": "Druid Grove",
         "title": "Mattis: Catch Silfy stealing (high PER) (+25xp)",
         "description": "You can't use the same character you used to recognize the scam.",
-        "dependencies": [
-          "53453cc6-8ded-4079-9d95-9eb3e13e2da1"
-        ]
+        "openers": {
+          "tasks": [
+            "53453cc6-8ded-4079-9d95-9eb3e13e2da1"
+          ]
+        }
       },
       {
         "id": "c7d198bf-2844-413c-8c57-3577dc23142e",
         "category": "Druid Grove",
         "title": "Talk to Arabella's parents",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "5c30ea65-cc95-42fa-8941-e446ab75606b",
         "category": "Druid Grove",
         "title": "Meet Volo, buy ring",
         "description": "Very important for builds.",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ],
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        },
         "tags": [
           "Item"
         ]
@@ -518,26 +608,32 @@
         "id": "e27d8109-5525-4502-b73a-c47010e4ff14",
         "category": "Druid Grove",
         "title": "Alfira song event (various Perform checks)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "d2b9e914-96ee-4530-b09f-47c68fc8effc",
         "category": "Druid Grove",
         "title": "K/O Alfira",
-        "dependencies": [
-          "e27d8109-5525-4502-b73a-c47010e4ff14"
-        ]
+        "openers": {
+          "tasks": [
+            "e27d8109-5525-4502-b73a-c47010e4ff14"
+          ]
+        }
       },
       {
         "id": "dc7c5c9e-7a59-46e8-8c6a-b371f742dcb5",
         "category": "Druid Grove",
         "title": "Alfira DUrge event (read description!)",
         "description": "- Cross bridge towards abandoned village\n- Long rest ONLY after you have crossed the bridge.\n\nYou will kill Quil and get your DUrge cloak. Alfira will live.",
-        "dependencies": [
-          "d2b9e914-96ee-4530-b09f-47c68fc8effc"
-        ],
+        "openers": {
+          "tasks": [
+            "d2b9e914-96ee-4530-b09f-47c68fc8effc"
+          ]
+        },
         "tags": [
           "Item"
         ]
@@ -547,35 +643,43 @@
         "category": "Druid Grove",
         "title": "Meli steals Barth's locket",
         "description": "Be sure to tell Barth not to hit Meli.",
-        "dependencies": [
-          "44ce0eb6-1511-4c8b-9ba2-5ebe79b968f7"
-        ]
+        "openers": {
+          "tasks": [
+            "44ce0eb6-1511-4c8b-9ba2-5ebe79b968f7"
+          ]
+        }
       },
       {
         "id": "5b1ed1b9-0bd3-4291-84e2-a1916a12bf61",
         "category": "Druid Grove",
         "title": "Return Barth's locket (+15xp)",
         "description": "Steal it back from Mol's stash underground, then give it to him.",
-        "dependencies": [
-          "1e89e79c-ea10-42f5-a98a-23311aa7b62a"
-        ]
+        "openers": {
+          "tasks": [
+            "1e89e79c-ea10-42f5-a98a-23311aa7b62a"
+          ]
+        }
       },
       {
         "id": "de0ba98a-c08b-442f-ad1c-6d2dab342d6d",
         "category": "Druid Grove",
         "title": "Get Nightsong quest from Aradin",
-        "dependencies": [
-          "44ce0eb6-1511-4c8b-9ba2-5ebe79b968f7"
-        ]
+        "openers": {
+          "tasks": [
+            "44ce0eb6-1511-4c8b-9ba2-5ebe79b968f7"
+          ]
+        }
       },
       {
         "id": "17315fe0-94a7-43cc-8570-5b8057b032cb",
         "category": "Druid Grove",
         "title": "K/O Aradin's group",
-        "dependencies": [
-          "de0ba98a-c08b-442f-ad1c-6d2dab342d6d",
-          "5b1ed1b9-0bd3-4291-84e2-a1916a12bf61"
-        ],
+        "openers": {
+          "tasks": [
+            "de0ba98a-c08b-442f-ad1c-6d2dab342d6d",
+            "5b1ed1b9-0bd3-4291-84e2-a1916a12bf61"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -584,18 +688,22 @@
         "id": "483795fc-9f62-46cb-a3dd-2d130280d8cf",
         "category": "Druid Grove",
         "title": "Get Tuffet to move (+15xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "e2400381-c579-4312-b8de-1875c103651f",
         "category": "Druid Grove",
         "title": "Get Amulet of Sylvanus",
         "description": "Move Flat rock near Ormn bear",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ],
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        },
         "tags": [
           "Item"
         ]
@@ -604,9 +712,11 @@
         "id": "46711042-f318-4a1c-a3f9-ba12b174ee3d",
         "category": "Druid Grove",
         "title": "Report Arabella's rescue to her parents",
-        "dependencies": [
-          "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
-        ]
+        "openers": {
+          "tasks": [
+            "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
+          ]
+        }
       },
       {
         "id": "01dc1201-91a4-4abc-b1b2-77b03a114513",
@@ -614,26 +724,32 @@
         "title": "DO NOT free Sazza yet",
         "description": "We need to save Smythen in the Goblin Camp first.",
         "type": "reminder",
-        "dependencies": [
-          "d4e65dcf-73e9-4f20-b6a8-cf3235b7ea77"
-        ]
+        "closers": {
+          "tasks": [
+            "d4e65dcf-73e9-4f20-b6a8-cf3235b7ea77"
+          ]
+        }
       },
       {
         "id": "c76e0749-25f3-4e2e-85b9-e2c73d1356dd",
         "category": "Druid Grove",
         "title": "Deliver Kagha's message to Zevlor",
-        "dependencies": [
-          "acada8b9-6394-4a1d-9b5c-15c5acdf47ad"
-        ]
+        "openers": {
+          "tasks": [
+            "acada8b9-6394-4a1d-9b5c-15c5acdf47ad"
+          ]
+        }
       },
       {
         "id": "2f6e888f-b9de-4066-9091-48f994b99a59",
         "category": "Druid Grove",
         "title": "Save Myrkon from Harpies",
-        "dependencies": [
-          "e27d8109-5525-4502-b73a-c47010e4ff14",
-          "dc7c5c9e-7a59-46e8-8c6a-b371f742dcb5"
-        ],
+        "openers": {
+          "tasks": [
+            "e27d8109-5525-4502-b73a-c47010e4ff14",
+            "dc7c5c9e-7a59-46e8-8c6a-b371f742dcb5"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -643,9 +759,11 @@
         "category": "Druid Grove",
         "title": "XXP: Area behind Harpy nest",
         "type": "reminder",
-        "dependencies": [
-          "d937750d-e681-4407-baaa-fc727db83b71"
-        ],
+        "closers": {
+          "tasks": [
+            "d937750d-e681-4407-baaa-fc727db83b71"
+          ]
+        },
         "tags": [
           "XXP"
         ]
@@ -655,18 +773,22 @@
         "category": "Druid Grove",
         "title": "Free Sazza",
         "description": "- Antagonize and K/O the tieflings guarding her\n- Chat her up\n- Unlock her cage",
-        "dependencies": [
-          "d4e65dcf-73e9-4f20-b6a8-cf3235b7ea77"
-        ]
+        "openers": {
+          "tasks": [
+            "d4e65dcf-73e9-4f20-b6a8-cf3235b7ea77"
+          ]
+        }
       },
       {
         "id": "c9deb38d-087e-41bb-b504-bd2f25b9194a",
         "category": "Druid Grove",
         "title": "Escort Sazza through tunnels, save Findal",
         "description": "Save dying Findal with a healing potion/spell for Wyll insp + useful stuff later",
-        "dependencies": [
-          "6cb93667-7b58-4905-91dd-4754f0772616"
-        ],
+        "openers": {
+          "tasks": [
+            "6cb93667-7b58-4905-91dd-4754f0772616"
+          ]
+        },
         "tags": [
           "Encounter",
           "I:Wyll"
@@ -676,9 +798,11 @@
         "id": "a92c2168-4229-426e-a8cd-63e87167afa5",
         "category": "Druid Grove",
         "title": "Report to Zevlor for Hellrider gloves",
-        "dependencies": [
-          "b800c14a-d109-4f8d-ab10-b94964222d22"
-        ],
+        "openers": {
+          "tasks": [
+            "b800c14a-d109-4f8d-ab10-b94964222d22"
+          ]
+        },
         "tags": [
           "Item"
         ]
@@ -687,26 +811,32 @@
         "id": "2eae1453-1199-4b92-ba34-0fe8e224aceb",
         "category": "Druid Grove",
         "title": "Fix Karlach with Dammon",
-        "dependencies": [
-          "e48d317d-cf25-4729-90a8-e8a58f397c4c"
-        ]
+        "openers": {
+          "tasks": [
+            "e48d317d-cf25-4729-90a8-e8a58f397c4c"
+          ]
+        }
       },
       {
         "id": "bbab8cf4-b4bb-489a-aaea-87c5a7fcd1da",
         "category": "Druid Grove",
         "title": "Finish business with Ethel in Grove",
         "description": "Buy potions, etc. She will leave soon.",
-        "dependencies": [
-          "a8966e96-ee92-4dba-bb32-a8697e3c1cbe"
-        ]
+        "openers": {
+          "tasks": [
+            "a8966e96-ee92-4dba-bb32-a8697e3c1cbe"
+          ]
+        }
       },
       {
         "id": "ae903ad2-f5d4-420c-bf5e-72b7801e209e",
         "category": "Druid Grove",
         "title": "Save Arabella",
-        "dependencies": [
-          "c7d198bf-2844-413c-8c57-3577dc23142e"
-        ],
+        "openers": {
+          "tasks": [
+            "c7d198bf-2844-413c-8c57-3577dc23142e"
+          ]
+        },
         "tags": [
           "I:Wyll"
         ]
@@ -715,9 +845,11 @@
         "id": "f4fdc37f-1a62-4538-85c1-c54ff6427e08",
         "category": "Druid Grove",
         "title": "Read wall carvings in Sanctum, pass INT checks",
-        "dependencies": [
-          "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
-        ],
+        "openers": {
+          "tasks": [
+            "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
+          ]
+        },
         "tags": [
           "I:Gale"
         ]
@@ -726,25 +858,31 @@
         "id": "17f473b0-3356-4024-a8ce-4538942c01a3",
         "category": "Druid Grove",
         "title": "Read Rite of Thorns (+15xp)",
-        "dependencies": [
-          "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
-        ]
+        "openers": {
+          "tasks": [
+            "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
+          ]
+        }
       },
       {
         "id": "a4c8fdfa-fe6a-4383-91fd-d6397ed1233b",
         "category": "Druid Grove",
         "title": "Investigate Kagha's hidden chest",
-        "dependencies": [
-          "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
-        ]
+        "openers": {
+          "tasks": [
+            "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
+          ]
+        }
       },
       {
         "id": "1dbf84aa-ca7d-4927-b87f-dae0b871a696",
         "category": "Druid Grove",
         "title": "Read Shadow Druid book",
-        "dependencies": [
-          "a4c8fdfa-fe6a-4383-91fd-d6397ed1233b"
-        ],
+        "openers": {
+          "tasks": [
+            "a4c8fdfa-fe6a-4383-91fd-d6397ed1233b"
+          ]
+        },
         "tags": [
           "I:Gale"
         ]
@@ -753,18 +891,22 @@
         "id": "acada8b9-6394-4a1d-9b5c-15c5acdf47ad",
         "category": "Druid Grove",
         "title": "Deliver Zevlor's message to Kagha",
-        "dependencies": [
-          "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
-        ]
+        "openers": {
+          "tasks": [
+            "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
+          ]
+        }
       },
       {
         "id": "22f3678c-eb0c-4c12-918e-8fe9b63ad7e5",
         "category": "Druid Grove",
         "title": "Nettie poisoning encounter",
         "description": "- Get poisoned by Nettie\n- Attack and knock her out\n- After encounter, drink an Antidote to get rid of the poison",
-        "dependencies": [
-          "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
-        ],
+        "openers": {
+          "tasks": [
+            "ae903ad2-f5d4-420c-bf5e-72b7801e209e"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -774,9 +916,11 @@
         "category": "Druid Grove",
         "title": "Kagha + Shadow Druids",
         "description": "- Persuade Kagha to join your side (we will KO her later)\n- KO Findal and Bossk during the fight if possible",
-        "dependencies": [
-          "c9deb38d-087e-41bb-b504-bd2f25b9194a"
-        ],
+        "openers": {
+          "tasks": [
+            "c9deb38d-087e-41bb-b504-bd2f25b9194a"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -786,17 +930,21 @@
         "category": "Druid Grove",
         "title": "Steal Idol of Sylvanus",
         "description": "- Move it out of Druid LOS using Mage Hand and steal it while stealthed",
-        "dependencies": [
-          "b800c14a-d109-4f8d-ab10-b94964222d22"
-        ]
+        "openers": {
+          "tasks": [
+            "b800c14a-d109-4f8d-ab10-b94964222d22"
+          ]
+        }
       },
       {
         "id": "040c8919-5b9a-4dd5-af7b-38fdaa2ce696",
         "category": "Druid Grove",
         "title": "Give Idol to Mol for Ring of Protection",
-        "dependencies": [
-          "48e58e73-daca-47e7-ac6e-c7569d274d4a"
-        ],
+        "openers": {
+          "tasks": [
+            "48e58e73-daca-47e7-ac6e-c7569d274d4a"
+          ]
+        },
         "tags": [
           "Item"
         ]
@@ -805,9 +953,11 @@
         "id": "2c1cb5b7-2dfe-4ca6-b8f6-3131c8b84edf",
         "category": "Druid Grove",
         "title": "Steal Idol of Sylvanus back from Mol",
-        "dependencies": [
-          "040c8919-5b9a-4dd5-af7b-38fdaa2ce696"
-        ],
+        "openers": {
+          "tasks": [
+            "040c8919-5b9a-4dd5-af7b-38fdaa2ce696"
+          ]
+        },
         "tags": [
           "Item"
         ]
@@ -820,33 +970,41 @@
         "title": "Do not cross bridge into Woodlands",
         "description": "Triggers DUrge event; don't do this until Alfira is K/O'd",
         "type": "reminder",
-        "dependencies": [
-          "d2b9e914-96ee-4530-b09f-47c68fc8effc"
-        ]
+        "closers": {
+          "tasks": [
+            "d2b9e914-96ee-4530-b09f-47c68fc8effc"
+          ]
+        }
       },
       {
         "id": "0f3efff5-053d-4310-8556-954017e2ef30",
         "category": "Woodlands",
         "title": "Scratch",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "5efb1af6-a4d5-4f17-98f4-f5563e52d2f1",
         "category": "Woodlands",
         "title": "Recruit Karlach",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "f8446f96-f933-4d8f-8601-4b521fe7eaac",
         "category": "Woodlands",
         "title": "Perceive stash near Hag swamp (+15xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ]
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        }
       },
       {
         "id": "1fff0cf7-8fda-498d-8627-eabf7d70b7a1",
@@ -854,27 +1012,33 @@
         "title": "Do not go to Swamp yet",
         "description": "Wait until you have done everything you need with her in the Grove and are ready to fight the Redcaps.",
         "type": "reminder",
-        "dependencies": [
-          "a8966e96-ee92-4dba-bb32-a8697e3c1cbe",
-          "bbab8cf4-b4bb-489a-aaea-87c5a7fcd1da",
-          "5efb1af6-a4d5-4f17-98f4-f5563e52d2f1"
-        ]
+        "closers": {
+          "tasks": [
+            "a8966e96-ee92-4dba-bb32-a8697e3c1cbe",
+            "bbab8cf4-b4bb-489a-aaea-87c5a7fcd1da",
+            "5efb1af6-a4d5-4f17-98f4-f5563e52d2f1"
+          ]
+        }
       },
       {
         "id": "fc255dfb-f821-4a07-8021-4ed9010a0c5c",
         "category": "Woodlands",
         "title": "Get fooled by Ethel on way to house, KO brothers",
-        "dependencies": [
-          "a8966e96-ee92-4dba-bb32-a8697e3c1cbe"
-        ]
+        "openers": {
+          "tasks": [
+            "a8966e96-ee92-4dba-bb32-a8697e3c1cbe"
+          ]
+        }
       },
       {
         "id": "11a0b2c0-cfd5-4ea6-b39d-99a38cc3b60a",
         "category": "Woodlands",
         "title": "See through Hag swamp illusion",
-        "dependencies": [
-          "fc255dfb-f821-4a07-8021-4ed9010a0c5c"
-        ],
+        "openers": {
+          "tasks": [
+            "fc255dfb-f821-4a07-8021-4ed9010a0c5c"
+          ]
+        },
         "tags": [
           "I:Karlach"
         ]
@@ -883,10 +1047,12 @@
         "id": "f94d5d42-7f1c-4b65-8686-af3f1967cff9",
         "category": "Woodlands",
         "title": "Redcaps",
-        "dependencies": [
-          "fc255dfb-f821-4a07-8021-4ed9010a0c5c",
-          "11a0b2c0-cfd5-4ea6-b39d-99a38cc3b60a"
-        ],
+        "openers": {
+          "tasks": [
+            "fc255dfb-f821-4a07-8021-4ed9010a0c5c",
+            "11a0b2c0-cfd5-4ea6-b39d-99a38cc3b60a"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -895,9 +1061,11 @@
         "id": "82b0fe53-d7ee-4333-8206-f8106675ee55",
         "category": "Woodlands",
         "title": "Mephits and Wood Woads",
-        "dependencies": [
-          "fc255dfb-f821-4a07-8021-4ed9010a0c5c"
-        ],
+        "openers": {
+          "tasks": [
+            "fc255dfb-f821-4a07-8021-4ed9010a0c5c"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -906,18 +1074,22 @@
         "id": "2e45d287-7056-498e-b16c-3eab7def46df",
         "category": "Woodlands",
         "title": "Get Kagha evidence",
-        "dependencies": [
-          "82b0fe53-d7ee-4333-8206-f8106675ee55"
-        ]
+        "openers": {
+          "tasks": [
+            "82b0fe53-d7ee-4333-8206-f8106675ee55"
+          ]
+        }
       },
       {
         "id": "d216a125-6bc1-489d-b177-b2e5ef84cdfa",
         "category": "Woodlands",
         "title": "Owlbear encounter",
         "description": "- Try to kill mate first, then mother\n- If cub is stuck aggro, run away from combat",
-        "dependencies": [
-          "2fe02dd3-cbbf-44fc-9eb2-3a416ea2d1ef"
-        ],
+        "openers": {
+          "tasks": [
+            "2fe02dd3-cbbf-44fc-9eb2-3a416ea2d1ef"
+          ]
+        },
         "tags": [
           "Encounter",
           "I:Karlach"
@@ -929,9 +1101,11 @@
         "id": "7814ec04-d1c7-435c-b434-2a920343118b",
         "category": "Blighted Village",
         "title": "Disguise as Drow, resolve ambush peacefully (+??? xp)",
-        "dependencies": [
-          "2b0affe2-21a3-414f-9d17-defd1c7af02d"
-        ],
+        "openers": {
+          "tasks": [
+            "2b0affe2-21a3-414f-9d17-defd1c7af02d"
+          ]
+        },
         "tags": [
           "I:Astarion"
         ]
@@ -941,9 +1115,11 @@
         "category": "Blighted Village",
         "title": "Village goblins",
         "description": "- Avoid ogres\n- Avoid barcus wroot area",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ],
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -953,9 +1129,11 @@
         "category": "Blighted Village",
         "title": "Ogres",
         "description": "- Offer them blood (DC20 persuasion) for dUrge XP\n- Enter TB mode QUICKLY after persuading them\n- Kill them for loot (headband of intellect in particular)",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ],
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        },
         "tags": [
           "I:Durge",
           "Encounter",
@@ -967,9 +1145,11 @@
         "category": "Blighted Village",
         "title": "Windmill/Barcus",
         "description": "- Disguise as Drow and the goblins will flee\n- While they are fleeing, enter TB mode and attack\n- Kill Fezzerk LAST, otherwise the others vanish for some reason\n- Then free Barcus for Wyll insp",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ],
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        },
         "tags": [
           "I:Wyll",
           "Encounter"
@@ -979,17 +1159,21 @@
         "id": "1c543ec2-414c-4700-a4de-f878953cd796",
         "category": "Blighted Village",
         "title": "Read Highcliff's Journal (+15xp)",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ]
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        }
       },
       {
         "id": "59a214e5-67af-4226-838a-093748e97b09",
         "category": "Blighted Village",
         "title": "Hobgoblin OnlyFans",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ],
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -998,18 +1182,22 @@
         "id": "088114a6-7112-46a6-b82f-41990b920d00",
         "category": "Blighted Village",
         "title": "Pull Knife+1 from meat (+15xp)",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ]
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        }
       },
       {
         "id": "800a5a1f-3b89-41e6-87a9-21e8e4681a5a",
         "category": "Blighted Village",
         "title": "Apothecary basement skeletons",
         "description": "Make sure to let the skeletons free all the others from their coffins.",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ],
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1018,29 +1206,35 @@
         "id": "a5b1ca60-4d41-4154-b12b-9f02b156ca9d",
         "category": "Blighted Village",
         "title": "Read \"Dark Journal\" in apoth basement (+15xp)",
-        "dependencies": [
-          "800a5a1f-3b89-41e6-87a9-21e8e4681a5a"
-        ]
+        "openers": {
+          "tasks": [
+            "800a5a1f-3b89-41e6-87a9-21e8e4681a5a"
+          ]
+        }
       },
       {
         "id": "75891982-7495-4430-ae04-07fdcca3b38b",
         "category": "Blighted Village",
         "title": "Read Shovel scroll",
         "description": "- Warlock, Wizard, or non-Storm Sorc\n- Do not scribe the scroll, read it\n- Give correct answers",
-        "dependencies": [
-          "800a5a1f-3b89-41e6-87a9-21e8e4681a5a",
-          "a5b1ca60-4d41-4154-b12b-9f02b156ca9d"
-        ]
+        "openers": {
+          "tasks": [
+            "800a5a1f-3b89-41e6-87a9-21e8e4681a5a",
+            "a5b1ca60-4d41-4154-b12b-9f02b156ca9d"
+          ]
+        }
       },
       {
         "id": "f86bc29f-6b96-47da-82be-a919e7d6d1ab",
         "category": "Blighted Village",
         "title": "Fool the Mirror",
-        "dependencies": [
-          "800a5a1f-3b89-41e6-87a9-21e8e4681a5a",
-          "a5b1ca60-4d41-4154-b12b-9f02b156ca9d",
-          "75891982-7495-4430-ae04-07fdcca3b38b"
-        ],
+        "openers": {
+          "tasks": [
+            "800a5a1f-3b89-41e6-87a9-21e8e4681a5a",
+            "a5b1ca60-4d41-4154-b12b-9f02b156ca9d",
+            "75891982-7495-4430-ae04-07fdcca3b38b"
+          ]
+        },
         "tags": [
           "I:Astarion"
         ]
@@ -1050,27 +1244,33 @@
         "category": "Blighted Village",
         "title": "Get Shovel permanently",
         "description": "Talk to her with valid character after walking past mirror.",
-        "dependencies": [
-          "75891982-7495-4430-ae04-07fdcca3b38b",
-          "f86bc29f-6b96-47da-82be-a919e7d6d1ab"
-        ]
+        "openers": {
+          "tasks": [
+            "75891982-7495-4430-ae04-07fdcca3b38b",
+            "f86bc29f-6b96-47da-82be-a919e7d6d1ab"
+          ]
+        }
       },
       {
         "id": "8693fb32-4dc9-4dba-bda5-0660e5f5d92c",
         "category": "Blighted Village",
         "title": "Get Necromancy of Thay",
-        "dependencies": [
-          "f86bc29f-6b96-47da-82be-a919e7d6d1ab"
-        ]
+        "openers": {
+          "tasks": [
+            "f86bc29f-6b96-47da-82be-a919e7d6d1ab"
+          ]
+        }
       },
       {
         "id": "b91fbe7c-eee0-481d-b589-c4e8a16bd296",
         "category": "Blighted Village",
         "title": "Use Knock on Thay before getting keygem (+75xp)",
         "description": "Summons 1 shadow",
-        "dependencies": [
-          "8693fb32-4dc9-4dba-bda5-0660e5f5d92c"
-        ],
+        "openers": {
+          "tasks": [
+            "8693fb32-4dc9-4dba-bda5-0660e5f5d92c"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1080,9 +1280,11 @@
         "category": "Blighted Village",
         "title": "Phase Spider Matriarch",
         "description": "Let her hatch ALL of her eggs. Each small spider gives additional XP.",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ],
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1092,26 +1294,32 @@
         "category": "Blighted Village",
         "title": "Don't pick up Thay key gem yet",
         "type": "reminder",
-        "dependencies": [
-          "b91fbe7c-eee0-481d-b589-c4e8a16bd296"
-        ]
+        "closers": {
+          "tasks": [
+            "b91fbe7c-eee0-481d-b589-c4e8a16bd296"
+          ]
+        }
       },
       {
         "id": "5e7f73db-080b-42e4-8fc7-a5310bf92412",
         "category": "Blighted Village",
         "title": "Get key gem for Necromancy of Thay",
-        "dependencies": [
-          "3ce565a7-f8a5-4d73-ba22-84d5f52c2803",
-          "b91fbe7c-eee0-481d-b589-c4e8a16bd296"
-        ]
+        "openers": {
+          "tasks": [
+            "3ce565a7-f8a5-4d73-ba22-84d5f52c2803",
+            "b91fbe7c-eee0-481d-b589-c4e8a16bd296"
+          ]
+        }
       },
       {
         "id": "6b9abe69-31c2-45f0-8489-ef33241fdc5f",
         "category": "Blighted Village",
         "title": "Read all apprentice journals found in spider lair",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ],
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        },
         "tags": [
           "I:Gale"
         ]
@@ -1120,10 +1328,12 @@
         "id": "3026bb45-11cb-4c63-b9b4-8a6308ebd2bf",
         "category": "Blighted Village",
         "title": "Jump into Underdark from bottom of spider lair",
-        "dependencies": [
-          "3ce565a7-f8a5-4d73-ba22-84d5f52c2803",
-          "6b93e461-c668-4d35-a925-95204360d86c"
-        ],
+        "openers": {
+          "tasks": [
+            "3ce565a7-f8a5-4d73-ba22-84d5f52c2803",
+            "6b93e461-c668-4d35-a925-95204360d86c"
+          ]
+        },
         "tags": [
           "I:Karlach"
         ]
@@ -1133,18 +1343,22 @@
         "category": "Blighted Village",
         "title": "Drop Necromancy of Thay on ground and read it",
         "description": "- Difficult saving throws\n- Adds speak with dead passive",
-        "dependencies": [
-          "5e7f73db-080b-42e4-8fc7-a5310bf92412"
-        ]
+        "openers": {
+          "tasks": [
+            "5e7f73db-080b-42e4-8fc7-a5310bf92412"
+          ]
+        }
       },
       {
         "id": "5adcbdbb-1e5e-46d5-81bb-33a5639dd5fb",
         "category": "Blighted Village",
         "title": "Destroy Necromancy of Thay with radiant damage",
         "description": "Spawns 3 Shadows. Holy water doesnt work, use e.g. Guiding Bolt",
-        "dependencies": [
-          "484801ee-a555-4360-994c-33c595a65dcd"
-        ],
+        "openers": {
+          "tasks": [
+            "484801ee-a555-4360-994c-33c595a65dcd"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1153,9 +1367,11 @@
         "id": "e48d317d-cf25-4729-90a8-e8a58f397c4c",
         "category": "Blighted Village",
         "title": "Get Infernal Iron from forge basement",
-        "dependencies": [
-          "7814ec04-d1c7-435c-b434-2a920343118b"
-        ]
+        "openers": {
+          "tasks": [
+            "7814ec04-d1c7-435c-b434-2a920343118b"
+          ]
+        }
       }
     ],
     "Goblin Camp": [
@@ -1163,9 +1379,11 @@
         "id": "85b1edf8-09a9-4476-9e03-1ba2017e7b54",
         "category": "Goblin Camp",
         "title": "Talk your way into Goblin Camp",
-        "dependencies": [
-          "5c30ea65-cc95-42fa-8941-e446ab75606b"
-        ],
+        "openers": {
+          "tasks": [
+            "5c30ea65-cc95-42fa-8941-e446ab75606b"
+          ]
+        },
         "tags": [
           "I:Astarion"
         ]
@@ -1174,34 +1392,42 @@
         "id": "412887c6-7b83-46e3-b4d0-27f69d69569b",
         "category": "Goblin Camp",
         "title": "Absolute cutscene",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ]
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        }
       },
       {
         "id": "858c94e6-73c4-4644-b7e8-dc31bad9ff85",
         "category": "Goblin Camp",
         "title": "Rhyme with Volo (+15xp)",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ]
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        }
       },
       {
         "id": "73326dac-e06a-489c-843b-8e1594790ae9",
         "category": "Goblin Camp",
         "title": "Talk your way into the Goblin Fort",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ]
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        }
       },
       {
         "id": "d4e65dcf-73e9-4f20-b6a8-cf3235b7ea77",
         "category": "Goblin Camp",
         "title": "Rescue Smythen (+35xp)",
         "description": "- Quickly run to his location\n- Enter TB mode\n- Apply Invisibility to him\n- He SHOULD run out the door triggering the inspiration and the XP",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ],
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        },
         "tags": [
           "I:Wyll"
         ]
@@ -1210,27 +1436,33 @@
         "id": "8ea2f601-194e-4732-b1fc-5c46c98443e2",
         "category": "Goblin Camp",
         "title": "Play Chicken Chase",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ]
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        }
       },
       {
         "id": "d7edcc8f-0c5d-4e82-a53d-ec3d93e5b863",
         "category": "Goblin Camp",
         "title": "Confirm Sazza is with Minthara",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54",
-          "c9deb38d-087e-41bb-b504-bd2f25b9194a",
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ]
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54",
+            "c9deb38d-087e-41bb-b504-bd2f25b9194a",
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        }
       },
       {
         "id": "0d54095a-d9ca-485d-ae70-21020c116291",
         "category": "Goblin Camp",
         "title": "Kill outer perimeter guards",
-        "dependencies": [
-          "d7edcc8f-0c5d-4e82-a53d-ec3d93e5b863"
-        ],
+        "openers": {
+          "tasks": [
+            "d7edcc8f-0c5d-4e82-a53d-ec3d93e5b863"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1239,17 +1471,21 @@
         "id": "2348f9e8-7b72-4838-9f69-2a2df46f6120",
         "category": "Goblin Camp",
         "title": "Get book from Booyahg Piddle",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ]
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        }
       },
       {
         "id": "284e8d25-c139-4bc0-9e06-a922586663bd",
         "category": "Goblin Camp",
         "title": "Read Booyahg Piddle book",
-        "dependencies": [
-          "2348f9e8-7b72-4838-9f69-2a2df46f6120"
-        ],
+        "openers": {
+          "tasks": [
+            "2348f9e8-7b72-4838-9f69-2a2df46f6120"
+          ]
+        },
         "tags": [
           "I:Gale"
         ]
@@ -1258,9 +1494,11 @@
         "id": "9e3818c4-4a12-492d-8c44-cd7189933e69",
         "category": "Goblin Camp",
         "title": "Kill Booyahg Piddle",
-        "dependencies": [
-          "2348f9e8-7b72-4838-9f69-2a2df46f6120"
-        ],
+        "openers": {
+          "tasks": [
+            "2348f9e8-7b72-4838-9f69-2a2df46f6120"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1269,9 +1507,11 @@
         "id": "cef16024-a089-495f-b698-4d7c8ab75df9",
         "category": "Goblin Camp",
         "title": "Kill sleeping goblins above temple",
-        "dependencies": [
-          "9e3818c4-4a12-492d-8c44-cd7189933e69"
-        ],
+        "openers": {
+          "tasks": [
+            "9e3818c4-4a12-492d-8c44-cd7189933e69"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1280,17 +1520,21 @@
         "id": "634904d1-ff27-4eff-b71a-631ac4eeb3ba",
         "category": "Goblin Camp",
         "title": "Get hidden treasures on temple battlements",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ]
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        }
       },
       {
         "id": "fb6c3046-359d-409c-8f69-1ee725321114",
         "category": "Goblin Camp",
         "title": "Kiss Crusher feet for ring (+15xp)",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ],
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        },
         "tags": [
           "I:Astarion"
         ]
@@ -1299,9 +1543,11 @@
         "id": "6811a93a-34f7-469a-9e7d-5da0ed3b3d28",
         "category": "Goblin Camp",
         "title": "Kill Crusher outside camp on bridge",
-        "dependencies": [
-          "fb6c3046-359d-409c-8f69-1ee725321114"
-        ],
+        "openers": {
+          "tasks": [
+            "fb6c3046-359d-409c-8f69-1ee725321114"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1310,18 +1556,22 @@
         "id": "9171fc56-fb51-4c60-9ab2-435629428acc",
         "category": "Goblin Camp",
         "title": "Free Owlbear Cub via Krolla",
-        "dependencies": [
-          "8ea2f601-194e-4732-b1fc-5c46c98443e2",
-          "d216a125-6bc1-489d-b177-b2e5ef84cdfa"
-        ]
+        "openers": {
+          "tasks": [
+            "8ea2f601-194e-4732-b1fc-5c46c98443e2",
+            "d216a125-6bc1-489d-b177-b2e5ef84cdfa"
+          ]
+        }
       },
       {
         "id": "698a9e0a-70b0-4192-afea-9a03b59326da",
         "category": "Goblin Camp",
         "title": "Clear goblin vendor (he will die soon)",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ],
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        },
         "tags": [
           "Vendor"
         ]
@@ -1331,28 +1581,32 @@
         "category": "Goblin Camp",
         "title": "DO NOT kill any courtyard goblins yet",
         "type": "reminder",
-        "dependencies": [
-          "698a9e0a-70b0-4192-afea-9a03b59326da",
-          "9171fc56-fb51-4c60-9ab2-435629428acc",
-          "fb6c3046-359d-409c-8f69-1ee725321114",
-          "9e3818c4-4a12-492d-8c44-cd7189933e69",
-          "cef16024-a089-495f-b698-4d7c8ab75df9",
-          "d7edcc8f-0c5d-4e82-a53d-ec3d93e5b863"
-        ]
+        "closers": {
+          "tasks": [
+            "698a9e0a-70b0-4192-afea-9a03b59326da",
+            "9171fc56-fb51-4c60-9ab2-435629428acc",
+            "fb6c3046-359d-409c-8f69-1ee725321114",
+            "9e3818c4-4a12-492d-8c44-cd7189933e69",
+            "cef16024-a089-495f-b698-4d7c8ab75df9",
+            "d7edcc8f-0c5d-4e82-a53d-ec3d93e5b863"
+          ]
+        }
       },
       {
         "id": "ed111537-ccc1-4316-b5f8-328d4d79a135",
         "category": "Goblin Camp",
         "title": "Outdoor Goblin Massacre (read description!)",
         "description": "- Start combat with non-Durge character, by shooting a goblin other than Mirg\n- Have DUrge use a Scroll of Fireball to kill 5+ goblins for Insp\n- Avoid killing Mirg\n- When Mirg is the only one remaining, run away from combat",
-        "dependencies": [
-          "698a9e0a-70b0-4192-afea-9a03b59326da",
-          "9171fc56-fb51-4c60-9ab2-435629428acc",
-          "fb6c3046-359d-409c-8f69-1ee725321114",
-          "cef16024-a089-495f-b698-4d7c8ab75df9",
-          "9e3818c4-4a12-492d-8c44-cd7189933e69",
-          "d7edcc8f-0c5d-4e82-a53d-ec3d93e5b863"
-        ],
+        "openers": {
+          "tasks": [
+            "698a9e0a-70b0-4192-afea-9a03b59326da",
+            "9171fc56-fb51-4c60-9ab2-435629428acc",
+            "fb6c3046-359d-409c-8f69-1ee725321114",
+            "cef16024-a089-495f-b698-4d7c8ab75df9",
+            "9e3818c4-4a12-492d-8c44-cd7189933e69",
+            "d7edcc8f-0c5d-4e82-a53d-ec3d93e5b863"
+          ]
+        },
         "tags": [
           "Encounter",
           "I:Durge"
@@ -1363,17 +1617,21 @@
         "category": "Goblin Camp",
         "title": "DO NOT poison booze yet",
         "type": "reminder",
-        "dependencies": [
-          "ed111537-ccc1-4316-b5f8-328d4d79a135"
-        ]
+        "closers": {
+          "tasks": [
+            "ed111537-ccc1-4316-b5f8-328d4d79a135"
+          ]
+        }
       },
       {
         "id": "95527bc7-69ec-477c-8a8a-7c7597981975",
         "category": "Goblin Camp",
         "title": "Bribe Mirg, then poison booze",
-        "dependencies": [
-          "ed111537-ccc1-4316-b5f8-328d4d79a135"
-        ],
+        "openers": {
+          "tasks": [
+            "ed111537-ccc1-4316-b5f8-328d4d79a135"
+          ]
+        },
         "tags": [
           "I:Durge",
           "I:Astarion"
@@ -1383,9 +1641,11 @@
         "id": "9de0ea04-b140-4535-903e-60139ef8c653",
         "category": "Goblin Camp",
         "title": "Eat Dwarf meat",
-        "dependencies": [
-          "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
-        ],
+        "openers": {
+          "tasks": [
+            "85b1edf8-09a9-4476-9e03-1ba2017e7b54"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1395,10 +1655,12 @@
         "category": "Goblin Camp",
         "title": "Outdoor cleanup",
         "description": "Kill stray guards and any mobs still lingering after massacre.",
-        "dependencies": [
-          "ed111537-ccc1-4316-b5f8-328d4d79a135",
-          "95527bc7-69ec-477c-8a8a-7c7597981975"
-        ],
+        "openers": {
+          "tasks": [
+            "ed111537-ccc1-4316-b5f8-328d4d79a135",
+            "95527bc7-69ec-477c-8a8a-7c7597981975"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1408,18 +1670,22 @@
         "category": "Goblin Camp",
         "title": "DO NOT trigger Dror Ragzlin seance",
         "type": "reminder",
-        "dependencies": [
-          "5c295691-8b8e-4657-9a61-20a21f84eac6"
-        ]
+        "closers": {
+          "tasks": [
+            "5c295691-8b8e-4657-9a61-20a21f84eac6"
+          ]
+        }
       },
       {
         "id": "7618efe5-971b-4473-86f9-6dbc246a7533",
         "category": "Goblin Camp",
         "title": "Get tricked by Priestess Gut",
         "description": "- Get tricked by Gut so you are imprisoned in her quarters\n- Bring your party in to rescue you\n- Kill Gut and her ogress\n- Loot parasite",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ],
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        },
         "tags": [
           "Encounter",
           "Parasite"
@@ -1429,18 +1695,22 @@
         "id": "657624a3-99e0-4d18-a6a5-2fe9ba641536",
         "category": "Goblin Camp",
         "title": "Get Absolute's Brand for everyone from Warlock Greez",
-        "dependencies": [
-          "7618efe5-971b-4473-86f9-6dbc246a7533"
-        ]
+        "openers": {
+          "tasks": [
+            "7618efe5-971b-4473-86f9-6dbc246a7533"
+          ]
+        }
       },
       {
         "id": "56b22d20-2242-4b6b-800d-74f1c185e4f5",
         "category": "Goblin Camp",
         "title": "Solve moon puzzle",
         "description": "You may want to delay this for later for abusing Gale insp for lever",
-        "dependencies": [
-          "7618efe5-971b-4473-86f9-6dbc246a7533"
-        ],
+        "openers": {
+          "tasks": [
+            "7618efe5-971b-4473-86f9-6dbc246a7533"
+          ]
+        },
         "tags": [
           "I:Gale"
         ]
@@ -1450,17 +1720,21 @@
         "category": "Goblin Camp",
         "title": "Go to Underdark via Selunite Temple",
         "description": "Either solve the moon puzzle or pull the hidden switch.",
-        "dependencies": [
-          "7618efe5-971b-4473-86f9-6dbc246a7533"
-        ]
+        "openers": {
+          "tasks": [
+            "7618efe5-971b-4473-86f9-6dbc246a7533"
+          ]
+        }
       },
       {
         "id": "28c623cb-5f64-40bb-9699-2df99e55e130",
         "category": "Goblin Camp",
         "title": "Torture Liam, then heal/free him (+45xp)",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ],
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1469,9 +1743,11 @@
         "id": "db64c10f-de69-4c4b-a075-742ac07de389",
         "category": "Goblin Camp",
         "title": "Get Loviatar's Love from Abdirak",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ],
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        },
         "tags": [
           "I:Shadowheart"
         ]
@@ -1480,9 +1756,11 @@
         "id": "26cb7187-9e01-4919-871a-da7995690b45",
         "category": "Goblin Camp",
         "title": "Free Magubliet priest, then kill him",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ],
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1491,27 +1769,33 @@
         "id": "01ccca70-6d2f-4f40-93dd-ac072a7258ef",
         "category": "Goblin Camp",
         "title": "Free Volo",
-        "dependencies": [
-          "858c94e6-73c4-4644-b7e8-dc31bad9ff85",
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ]
+        "openers": {
+          "tasks": [
+            "858c94e6-73c4-4644-b7e8-dc31bad9ff85",
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        }
       },
       {
         "id": "f76b469a-d314-4b56-99b8-588c3196f8b9",
         "category": "Goblin Camp",
         "title": "Get treasures hidden in roof/top entrance of fort",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ]
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        }
       },
       {
         "id": "464ceec9-ea5f-499f-8407-fbd5835a5f15",
         "category": "Goblin Camp",
         "title": "Release Spiders on Goblins (see description!)",
         "description": "- Convince the spiders to attack the goblins\n- Join the combat by assaulting Gribbo nonlethally (may need to shove her into proper position)\n- This should create a situation where there are 5 neutral units\n- Kill them all in one round for DUrge insp\n- Once that is unlocked, kill everyone",
-        "dependencies": [
-          "01ccca70-6d2f-4f40-93dd-ac072a7258ef"
-        ],
+        "openers": {
+          "tasks": [
+            "01ccca70-6d2f-4f40-93dd-ac072a7258ef"
+          ]
+        },
         "tags": [
           "I:Durge",
           "Encounter"
@@ -1522,9 +1806,11 @@
         "category": "Goblin Camp",
         "title": "Go to Worg Pens, massacre goblins, free Halsin",
         "description": "- Begin combat by killing the goblin(s) outside Halsin's cage. Otherwise he kills them during cutscene and you lose the XP.\n- Tell Halsin to wait here in the worg pens.",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ],
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1533,9 +1819,11 @@
         "id": "a111446b-d8c0-41d9-b7e6-f24712bbb171",
         "category": "Goblin Camp",
         "title": "Massacre goblins outside Ragzlin area",
-        "dependencies": [
-          "464ceec9-ea5f-499f-8407-fbd5835a5f15"
-        ],
+        "openers": {
+          "tasks": [
+            "464ceec9-ea5f-499f-8407-fbd5835a5f15"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1545,9 +1833,11 @@
         "category": "Goblin Camp",
         "title": "Finish business with Roah Moonglow",
         "description": "We will KO her before the Goblin siege",
-        "dependencies": [
-          "73326dac-e06a-489c-843b-8e1594790ae9"
-        ],
+        "openers": {
+          "tasks": [
+            "73326dac-e06a-489c-843b-8e1594790ae9"
+          ]
+        },
         "tags": [
           "Vendor"
         ]
@@ -1556,10 +1846,12 @@
         "id": "54c03c8f-056a-4639-86e6-2a2bf685a22f",
         "category": "Goblin Camp",
         "title": "KO Roah Moonglow and friends",
-        "dependencies": [
-          "1668f65f-6d59-486f-9b8a-f40be47df4a2",
-          "a111446b-d8c0-41d9-b7e6-f24712bbb171"
-        ],
+        "openers": {
+          "tasks": [
+            "1668f65f-6d59-486f-9b8a-f40be47df4a2",
+            "a111446b-d8c0-41d9-b7e6-f24712bbb171"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1569,43 +1861,49 @@
         "category": "Goblin Camp",
         "title": "Do not talk to Minthara yet",
         "type": "reminder",
-        "dependencies": [
-          "2eae1453-1199-4b92-ba34-0fe8e224aceb",
-          "6cc0c799-0c57-4c5b-b39c-7923f93f5f97",
-          "a111446b-d8c0-41d9-b7e6-f24712bbb171",
-          "01ccca70-6d2f-4f40-93dd-ac072a7258ef",
-          "26cb7187-9e01-4919-871a-da7995690b45",
-          "db64c10f-de69-4c4b-a075-742ac07de389",
-          "28c623cb-5f64-40bb-9699-2df99e55e130"
-        ]
+        "closers": {
+          "tasks": [
+            "2eae1453-1199-4b92-ba34-0fe8e224aceb",
+            "6cc0c799-0c57-4c5b-b39c-7923f93f5f97",
+            "a111446b-d8c0-41d9-b7e6-f24712bbb171",
+            "01ccca70-6d2f-4f40-93dd-ac072a7258ef",
+            "26cb7187-9e01-4919-871a-da7995690b45",
+            "db64c10f-de69-4c4b-a075-742ac07de389",
+            "28c623cb-5f64-40bb-9699-2df99e55e130"
+          ]
+        }
       },
       {
         "id": "5c295691-8b8e-4657-9a61-20a21f84eac6",
         "category": "Goblin Camp",
         "title": "Set up Grove Raid with Minthara",
         "description": "- Save Sazza in dialogue",
-        "dependencies": [
-          "6cc0c799-0c57-4c5b-b39c-7923f93f5f97",
-          "01ccca70-6d2f-4f40-93dd-ac072a7258ef",
-          "26cb7187-9e01-4919-871a-da7995690b45",
-          "db64c10f-de69-4c4b-a075-742ac07de389",
-          "28c623cb-5f64-40bb-9699-2df99e55e130",
-          "657624a3-99e0-4d18-a6a5-2fe9ba641536",
-          "7618efe5-971b-4473-86f9-6dbc246a7533",
-          "69a142f5-3a66-463d-88eb-2951e4c71705",
-          "95527bc7-69ec-477c-8a8a-7c7597981975",
-          "ed111537-ccc1-4316-b5f8-328d4d79a135",
-          "1668f65f-6d59-486f-9b8a-f40be47df4a2",
-          "a111446b-d8c0-41d9-b7e6-f24712bbb171"
-        ]
+        "openers": {
+          "tasks": [
+            "6cc0c799-0c57-4c5b-b39c-7923f93f5f97",
+            "01ccca70-6d2f-4f40-93dd-ac072a7258ef",
+            "26cb7187-9e01-4919-871a-da7995690b45",
+            "db64c10f-de69-4c4b-a075-742ac07de389",
+            "28c623cb-5f64-40bb-9699-2df99e55e130",
+            "657624a3-99e0-4d18-a6a5-2fe9ba641536",
+            "7618efe5-971b-4473-86f9-6dbc246a7533",
+            "69a142f5-3a66-463d-88eb-2951e4c71705",
+            "95527bc7-69ec-477c-8a8a-7c7597981975",
+            "ed111537-ccc1-4316-b5f8-328d4d79a135",
+            "1668f65f-6d59-486f-9b8a-f40be47df4a2",
+            "a111446b-d8c0-41d9-b7e6-f24712bbb171"
+          ]
+        }
       },
       {
         "id": "71a7ad4c-229a-42e2-9bc5-9bd984437389",
         "category": "Goblin Camp",
         "title": "Do seance, then kill Ragzlin",
-        "dependencies": [
-          "5c295691-8b8e-4657-9a61-20a21f84eac6"
-        ],
+        "openers": {
+          "tasks": [
+            "5c295691-8b8e-4657-9a61-20a21f84eac6"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1614,9 +1912,11 @@
         "id": "898b08aa-4d8f-4231-93c3-a1c48b02d2e5",
         "category": "Goblin Camp",
         "title": "Ragzlin treasure vault",
-        "dependencies": [
-          "71a7ad4c-229a-42e2-9bc5-9bd984437389"
-        ],
+        "openers": {
+          "tasks": [
+            "71a7ad4c-229a-42e2-9bc5-9bd984437389"
+          ]
+        },
         "tags": [
           "Item"
         ]
@@ -1637,9 +1937,11 @@
         "category": "Rizzin Road",
         "title": "Kill paladins",
         "description": "Don't bring Karlach, she destroys the building",
-        "dependencies": [
-          "5efb1af6-a4d5-4f17-98f4-f5563e52d2f1"
-        ],
+        "openers": {
+          "tasks": [
+            "5efb1af6-a4d5-4f17-98f4-f5563e52d2f1"
+          ]
+        },
         "tags": [
           "I:Lae'zel",
           "Encounter"
@@ -1649,9 +1951,11 @@
         "id": "3e90ce43-2b39-44a4-a85b-217b7335aa82",
         "category": "Rizzin Road",
         "title": "Paladin hut basement",
-        "dependencies": [
-          "a35ca7b3-2dfa-4dc6-9081-fe1b2f2def66"
-        ]
+        "openers": {
+          "tasks": [
+            "a35ca7b3-2dfa-4dc6-9081-fe1b2f2def66"
+          ]
+        }
       },
       {
         "id": "1a12e241-3929-4463-a805-dd697eb2c038",
@@ -1675,9 +1979,11 @@
         "category": "Rizzin Road",
         "title": "Flind and Zhents",
         "description": "Kill Zhents after killing Flind and gnoll group",
-        "dependencies": [
-          "1a12e241-3929-4463-a805-dd697eb2c038"
-        ],
+        "openers": {
+          "tasks": [
+            "1a12e241-3929-4463-a805-dd697eb2c038"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1686,9 +1992,11 @@
         "id": "bc81e2e6-1675-4795-a687-743eaf7ad6f4",
         "category": "Rizzin Road",
         "title": "Steal Zhent chest",
-        "dependencies": [
-          "3ba2f790-4e12-4b54-96fb-348ffbdff89f"
-        ]
+        "openers": {
+          "tasks": [
+            "3ba2f790-4e12-4b54-96fb-348ffbdff89f"
+          ]
+        }
       },
       {
         "id": "6c7a01a0-f6e5-4b0d-a447-c03cd49ce83f",
@@ -1716,9 +2024,11 @@
         "id": "e03d6db8-8d70-4c2d-87f9-bd46e847e931",
         "category": "Waukeen's Rest",
         "title": "Kill all Fist",
-        "dependencies": [
-          "385c5314-084d-430e-9994-862277a0c859"
-        ],
+        "openers": {
+          "tasks": [
+            "385c5314-084d-430e-9994-862277a0c859"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1741,19 +2051,23 @@
         "id": "6079ca4c-b737-4021-ad9b-4ce6b7291a08",
         "category": "Waukeen's Rest",
         "title": "Speak with Dead on dead drow, ask about Moonrise (+20xp)",
-        "dependencies": [
-          "6b083df7-d75f-4595-9b0c-fbfac1a7b8c9",
-          "0bef185e-cb0f-4e72-9580-74af95222519"
-        ]
+        "openers": {
+          "tasks": [
+            "6b083df7-d75f-4595-9b0c-fbfac1a7b8c9",
+            "0bef185e-cb0f-4e72-9580-74af95222519"
+          ]
+        }
       },
       {
         "id": "3721c018-a7eb-4de6-9cda-46f019e35f15",
         "category": "Waukeen's Rest",
         "title": "Calm the Ox (+50xp)",
-        "dependencies": [
-          "6b083df7-d75f-4595-9b0c-fbfac1a7b8c9",
-          "0bef185e-cb0f-4e72-9580-74af95222519"
-        ]
+        "openers": {
+          "tasks": [
+            "6b083df7-d75f-4595-9b0c-fbfac1a7b8c9",
+            "0bef185e-cb0f-4e72-9580-74af95222519"
+          ]
+        }
       },
       {
         "id": "dd15a9ef-b2c9-4161-b7d2-eef377b860b9",
@@ -1781,9 +2095,11 @@
         "id": "9a3ea051-4061-4be6-bca1-78a69b78a4f0",
         "category": "Underdark",
         "title": "Kill steal Minotaur being lasered at Selunite Temple entrance",
-        "dependencies": [
-          "6b93e461-c668-4d35-a925-95204360d86c"
-        ],
+        "openers": {
+          "tasks": [
+            "6b93e461-c668-4d35-a925-95204360d86c"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1792,18 +2108,22 @@
         "id": "26f13e0d-06c3-47f5-9246-3dc45b7a8f66",
         "category": "Underdark",
         "title": "Shatter Selunite Temple crystal",
-        "dependencies": [
-          "6b93e461-c668-4d35-a925-95204360d86c"
-        ]
+        "openers": {
+          "tasks": [
+            "6b93e461-c668-4d35-a925-95204360d86c"
+          ]
+        }
       },
       {
         "id": "677ffadf-7c70-4a24-bf56-8772b59c4178",
         "category": "Underdark",
         "title": "Avoid Zhentarim elevator area",
         "type": "reminder",
-        "dependencies": [
-          "73623319-2485-4b8d-8425-27e0bbaaedc9"
-        ],
+        "closers": {
+          "tasks": [
+            "73623319-2485-4b8d-8425-27e0bbaaedc9"
+          ]
+        },
         "tags": [
           "XXP"
         ]
@@ -1812,9 +2132,11 @@
         "id": "4c3b5e4a-092f-4953-b70e-69374c333c40",
         "category": "Underdark",
         "title": "Minotaurs",
-        "dependencies": [
-          "6b93e461-c668-4d35-a925-95204360d86c"
-        ],
+        "openers": {
+          "tasks": [
+            "6b93e461-c668-4d35-a925-95204360d86c"
+          ]
+        },
         "tags": [
           "Encounter"
         ]
@@ -1823,9 +2145,11 @@
         "id": "69df84dc-492b-40a6-9f26-7661a699db45",
         "category": "Underdark",
         "title": "Phalar Aluve (+25xp)",
-        "dependencies": [
-          "6b93e461-c668-4d35-a925-95204360d86c"
-        ],
+        "openers": {
+          "tasks": [
+            "6b93e461-c668-4d35-a925-95204360d86c"
+          ]
+        },
         "tags": [
           "I:Shadowheart",
           "Item"
@@ -1843,9 +2167,11 @@
         "id": "48d88b66-3989-42c4-8baa-06cd2b60a397",
         "category": "Meta",
         "title": "Kill with Blunt damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1854,9 +2180,11 @@
         "id": "50a87a2f-b7f4-4841-90b0-118347e90744",
         "category": "Meta",
         "title": "Kill with Slash damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1865,9 +2193,11 @@
         "id": "c7e9a397-dcb4-43be-8d56-40c52895a280",
         "category": "Meta",
         "title": "Kill with Pierce damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1876,9 +2206,11 @@
         "id": "1b1c1f8b-cb4f-4cc2-a37a-a03433359ba1",
         "category": "Meta",
         "title": "Kill with Acid damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1887,9 +2219,11 @@
         "id": "322a4f28-4fac-47a0-aee5-93f7228bfa7f",
         "category": "Meta",
         "title": "Kill with Cold damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1898,9 +2232,11 @@
         "id": "a006137b-bd16-4fdd-83ff-e791fc15604f",
         "category": "Meta",
         "title": "Kill with Fire damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1909,9 +2245,11 @@
         "id": "f8a38972-1e3e-421f-9eb5-4d50d06d71f3",
         "category": "Meta",
         "title": "Kill with Force damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1920,9 +2258,11 @@
         "id": "37e89283-6440-49b8-9483-7a36ea25496b",
         "category": "Meta",
         "title": "Kill with Lightning damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1931,9 +2271,11 @@
         "id": "fe72d7cc-9dbd-4f1b-8c28-6701acf50fa6",
         "category": "Meta",
         "title": "Kill with Necrotic damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1942,9 +2284,11 @@
         "id": "49adc279-bd04-47e5-b87c-a757677782b6",
         "category": "Meta",
         "title": "Kill with Poison damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1953,9 +2297,11 @@
         "id": "f2678457-8577-4e54-9ed9-d43442ade6c2",
         "category": "Meta",
         "title": "Kill with Psychic damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1964,9 +2310,11 @@
         "id": "011a3a7f-5adb-4ce2-910c-c77468902b9b",
         "category": "Meta",
         "title": "Kill with Radiant damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1975,9 +2323,11 @@
         "id": "f2c58d43-adda-4db9-b1d3-6ac5ce467477",
         "category": "Meta",
         "title": "Kill with Thunder damage",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1987,9 +2337,11 @@
         "category": "Meta",
         "title": "Kill 5 enemies in 1 round",
         "description": "This can be done easily by using a Fireball scroll while massacring the main Goblin Camp area. See that section for details.",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -1999,9 +2351,11 @@
         "category": "Meta",
         "title": "Kill 5 neutrals in 1 round",
         "description": "Best place to do this is in Goblin Camp when freeing spiders.",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "I:Durge"
         ]
@@ -2010,9 +2364,11 @@
         "id": "ed344f1b-b137-43d5-b9aa-beeb91e44072",
         "category": "Meta",
         "title": "Kill Gale and revive him via his ritual",
-        "dependencies": [
-          "1111af45-e0bf-4730-8126-0d50dde53206"
-        ],
+        "openers": {
+          "tasks": [
+            "1111af45-e0bf-4730-8126-0d50dde53206"
+          ]
+        },
         "tags": [
           "I:Shadowheart"
         ]
@@ -2023,9 +2379,11 @@
         "id": "b73fcac0-2da5-49cb-9f99-7f4694a6d1c2",
         "category": "Exploration XP: Come Back Later",
         "title": "Chest above crash site",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "XXP"
         ]
@@ -2034,9 +2392,11 @@
         "id": "16f1a0db-c1d8-4cec-bb2f-4d15c10883f3",
         "category": "Exploration XP: Come Back Later",
         "title": "Withers Tomb",
-        "dependencies": [
-          "aaa538d2-81a8-4749-bbf6-1d42238ef623"
-        ],
+        "openers": {
+          "tasks": [
+            "aaa538d2-81a8-4749-bbf6-1d42238ef623"
+          ]
+        },
         "tags": [
           "XXP"
         ]
@@ -2045,9 +2405,11 @@
         "id": "d937750d-e681-4407-baaa-fc727db83b71",
         "category": "Exploration XP: Come Back Later",
         "title": "Area behind Harpy nest",
-        "dependencies": [
-          "2f6e888f-b9de-4066-9091-48f994b99a59"
-        ],
+        "openers": {
+          "tasks": [
+            "2f6e888f-b9de-4066-9091-48f994b99a59"
+          ]
+        },
         "tags": [
           "XXP"
         ]
@@ -2056,9 +2418,11 @@
         "id": "73623319-2485-4b8d-8425-27e0bbaaedc9",
         "category": "Exploration XP: Come Back Later",
         "title": "Zhentarim elevator to Underdark",
-        "dependencies": [
-          "6b93e461-c668-4d35-a925-95204360d86c"
-        ],
+        "openers": {
+          "tasks": [
+            "6b93e461-c668-4d35-a925-95204360d86c"
+          ]
+        },
         "tags": [
           "XXP"
         ]
