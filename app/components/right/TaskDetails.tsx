@@ -19,13 +19,13 @@ import {
   BooleanOp,
   type BooleanExpression,
   type ChecklistMode,
+  type DependencyExpression,
   type TaskId,
   type TaskDetail,
 } from "@/app/lib/data/types";
 import {
   buildImplicitAndExpression,
   getInfixExpressionPrecedence,
-  normalizeDependencyExpression,
 } from "@/app/lib/booleanExpression";
 import { MultiSelectContext } from "@/app/lib/context";
 import { ExpressionEditor } from "../ExpressionEditor";
@@ -156,9 +156,9 @@ type TaskDetailsProps = {
 
 function DependenciesSection({
   mode,
-  selectedTaskId,
   selectedTaskDeps,
   dependencyExpression,
+  editorDependencyExpression,
   dependencyTitleById,
   completionsWithReminders,
   isMultiSelectActive,
@@ -167,11 +167,12 @@ function DependenciesSection({
   onEditDependencies,
   onClearDependencies,
   onApplyDependencies,
+  onSetDependencyExpression,
 }: {
   mode: ChecklistMode;
-  selectedTaskId: TaskId | null;
   selectedTaskDeps: Set<TaskId>;
   dependencyExpression: BooleanExpression | null;
+  editorDependencyExpression: DependencyExpression | null;
   dependencyTitleById: Map<TaskId, string>;
   completionsWithReminders: Set<TaskId>;
   isMultiSelectActive: boolean;
@@ -180,6 +181,9 @@ function DependenciesSection({
   onEditDependencies: () => void;
   onClearDependencies: () => void;
   onApplyDependencies: () => void;
+  onSetDependencyExpression: (
+    dependencyExpression: DependencyExpression,
+  ) => void;
 }) {
   const [isExpressionEditorOpen, setIsExpressionEditorOpen] = useState(false);
   const hasDependencies = selectedTaskDeps.size > 0;
@@ -253,12 +257,15 @@ function DependenciesSection({
         </div>
       </div>
 
-      {hasDependencies && isExpressionEditorOpen && (
-        <ExpressionEditor
-          taskId={selectedTaskId}
-          dependencyIds={selectedTaskDeps}
-        />
-      )}
+      {hasDependencies &&
+        isExpressionEditorOpen &&
+        editorDependencyExpression && (
+          <ExpressionEditor
+            dependencyExpression={editorDependencyExpression}
+            dependencyTitleById={dependencyTitleById}
+            onSetDependencyExpression={onSetDependencyExpression}
+          />
+        )}
     </>
   );
 }
@@ -311,21 +318,25 @@ export function TaskDetails({
     }
     return map;
   }, [details, selectedTaskDeps]);
-  const normalizedDependencyExpression = useMemo(() => {
-    if (!selectedTaskOpeners?.expression) {
+  const selectedTaskOpenersExpression = selectedTaskOpeners?.expression ?? null;
+  const taskModeDependencyExpression = useMemo(() => {
+    return (
+      selectedTaskOpenersExpression ??
+      buildImplicitAndExpression(Array.from(selectedTaskDeps))
+    );
+  }, [selectedTaskOpenersExpression, selectedTaskDeps]);
+  const editorDependencyExpression = useMemo(() => {
+    if (selectedTaskDeps.size === 0) {
       return null;
     }
 
-    return (
-      normalizeDependencyExpression(selectedTaskOpeners).expression ?? null
-    );
-  }, [selectedTaskOpeners]);
-  const taskModeDependencyExpression = useMemo(() => {
-    return (
-      normalizedDependencyExpression ??
-      buildImplicitAndExpression(Array.from(selectedTaskDeps))
-    );
-  }, [normalizedDependencyExpression, selectedTaskDeps]);
+    return {
+      taskSet: new Set(selectedTaskDeps),
+      ...(selectedTaskOpenersExpression
+        ? { expression: selectedTaskOpenersExpression }
+        : {}),
+    } satisfies DependencyExpression;
+  }, [selectedTaskDeps, selectedTaskOpenersExpression]);
   const allKnownTags = useMemo(() => {
     return Array.from(knownTagSet ?? []).sort((left, right) =>
       left.localeCompare(right),
@@ -437,6 +448,18 @@ export function TaskDetails({
             taskSet: new Set(multiSelectContext.getSelection()),
             expression: selectedTaskDependencyExpression ?? undefined,
           },
+          closers: selectedTaskClosers,
+        },
+      });
+    };
+
+    const handleSetDependencyExpression = (
+      nextDependencyExpression: DependencyExpression,
+    ) => {
+      taskDependenciesMutation.mutate({
+        taskId: selectedTaskId ?? "",
+        taskDependencies: {
+          openers: nextDependencyExpression,
           closers: selectedTaskClosers,
         },
       });
@@ -574,9 +597,9 @@ export function TaskDetails({
         <DependenciesSection
           key={selectedTaskId ?? "none"}
           mode={mode}
-          selectedTaskId={selectedTaskId}
           selectedTaskDeps={selectedTaskDeps}
-          dependencyExpression={normalizedDependencyExpression}
+          dependencyExpression={selectedTaskOpenersExpression}
+          editorDependencyExpression={editorDependencyExpression}
           dependencyTitleById={dependencyTitleById}
           completionsWithReminders={completionsWithReminders}
           isMultiSelectActive={isMultiSelectActive}
@@ -585,6 +608,7 @@ export function TaskDetails({
           onEditDependencies={onEditDependencies}
           onClearDependencies={handleClearDependencies}
           onApplyDependencies={handleApplyDependencies}
+          onSetDependencyExpression={handleSetDependencyExpression}
         />
 
         <label className="block text-sm">

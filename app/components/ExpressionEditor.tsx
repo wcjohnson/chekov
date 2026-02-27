@@ -13,8 +13,6 @@ import {
   DragDropTarget,
   type DragDropStateType,
 } from "./DragDrop";
-import { useTaskDependenciesMutation } from "../lib/data/mutations";
-import { useDetailsQuery, useTaskDependenciesQuery } from "../lib/data/queries";
 
 type NodeDraft =
   | { kind: "empty" }
@@ -370,19 +368,20 @@ function collectNestedNodes(
 }
 
 function ExpressionEditorDraft({
-  taskId,
   dependencyIds,
-  existingClosers,
+  dependencyExpression,
   persistedDraft,
   dependencyTitleById,
+  onSetDependencyExpression,
 }: {
-  taskId: TaskId | null;
   dependencyIds: TaskId[];
-  existingClosers: DependencyExpression | null | undefined;
+  dependencyExpression: DependencyExpression;
   persistedDraft: NodeDraft;
   dependencyTitleById: Map<TaskId, string>;
+  onSetDependencyExpression: (
+    dependencyExpression: DependencyExpression,
+  ) => void;
 }) {
-  const taskDependenciesMutation = useTaskDependenciesMutation();
   const [draft, setDraft] = useState<NodeDraft>(cloneNodeDraft(persistedDraft));
 
   const persistedExpression = nodeDraftToExpression(persistedDraft);
@@ -450,18 +449,12 @@ function ExpressionEditorDraft({
           <button
             type="button"
             onClick={() => {
-              taskDependenciesMutation.mutate({
-                taskId: taskId ?? "",
-                taskDependencies: {
-                  openers: {
-                    taskSet: new Set(dependencyIds),
-                    expression: draftExpression ?? undefined,
-                  },
-                  closers: existingClosers,
-                },
+              onSetDependencyExpression({
+                ...dependencyExpression,
+                expression: draftExpression ?? undefined,
               });
             }}
-            disabled={!dirty || !taskId || !draftExpression}
+            disabled={!dirty || !draftExpression}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Save Expression
@@ -470,18 +463,12 @@ function ExpressionEditorDraft({
             type="button"
             onClick={() => {
               setDraft({ kind: "empty" });
-              taskDependenciesMutation.mutate({
-                taskId: taskId ?? "",
-                taskDependencies: {
-                  openers: {
-                    taskSet: new Set(dependencyIds),
-                    expression: undefined,
-                  },
-                  closers: existingClosers,
-                },
+              onSetDependencyExpression({
+                ...dependencyExpression,
+                expression: undefined,
               });
             }}
-            disabled={!taskId || !draftExpression}
+            disabled={!draftExpression}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
             Clear Expression
@@ -493,56 +480,41 @@ function ExpressionEditorDraft({
 }
 
 export function ExpressionEditor({
-  taskId,
-  dependencyIds,
+  dependencyExpression,
+  dependencyTitleById,
+  onSetDependencyExpression,
 }: {
-  taskId: TaskId | null;
-  dependencyIds: Set<TaskId>;
+  dependencyExpression: DependencyExpression;
+  dependencyTitleById: Map<TaskId, string>;
+  onSetDependencyExpression: (
+    dependencyExpression: DependencyExpression,
+  ) => void;
 }) {
   const dependencyIdList = useMemo(
-    () => Array.from(dependencyIds),
-    [dependencyIds],
+    () => Array.from(dependencyExpression.taskSet),
+    [dependencyExpression],
   );
   const dependencyIdSet = useMemo(
     () => new Set(dependencyIdList),
     [dependencyIdList],
   );
 
-  const details = useDetailsQuery().data;
-  const dependencyTitleById = useMemo(() => {
-    const map = new Map<TaskId, string>();
-    for (const dependencyId of dependencyIdList) {
-      const dependencyDetail = details?.get(dependencyId);
-      map.set(dependencyId, dependencyDetail?.title ?? dependencyId);
-    }
-    return map;
-  }, [dependencyIdList, details]);
-
-  const selectedTaskDependencyExpression = useTaskDependenciesQuery(
-    taskId ?? "",
-  ).data;
-  const selectedTaskOpenersExpression =
-    selectedTaskDependencyExpression?.openers?.expression;
-  const selectedTaskClosers = selectedTaskDependencyExpression?.closers;
-
   const persistedDraft = useMemo(() => {
-    if (!selectedTaskOpenersExpression) {
+    if (!dependencyExpression.expression) {
       return { kind: "empty" } as NodeDraft;
     }
 
-    const normalizedExpression = normalizeDependencyExpression({
-      taskSet: dependencyIdSet,
-      expression: selectedTaskOpenersExpression,
-    } satisfies DependencyExpression).expression;
+    const normalizedExpression =
+      normalizeDependencyExpression(dependencyExpression).expression;
 
     if (!normalizedExpression) {
       return { kind: "empty" } as NodeDraft;
     }
 
     return expressionToNodeDraft(normalizedExpression, dependencyIdSet);
-  }, [selectedTaskOpenersExpression, dependencyIdSet]);
+  }, [dependencyExpression, dependencyIdSet]);
 
-  const draftKey = `${taskId ?? ""}:${JSON.stringify(persistedDraft)}`;
+  const draftKey = JSON.stringify(persistedDraft);
 
   if (dependencyIdList.length === 0) {
     return null;
@@ -551,11 +523,11 @@ export function ExpressionEditor({
   return (
     <ExpressionEditorDraft
       key={draftKey}
-      taskId={taskId}
       dependencyIds={dependencyIdList}
-      existingClosers={selectedTaskClosers}
+      dependencyExpression={dependencyExpression}
       persistedDraft={persistedDraft}
       dependencyTitleById={dependencyTitleById}
+      onSetDependencyExpression={onSetDependencyExpression}
     />
   );
 }
