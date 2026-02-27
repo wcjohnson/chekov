@@ -57,14 +57,21 @@ export function AppLayout({
           <div className="h-full min-h-0">{leftColumn}</div>
         </section>
 
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          onMouseDown={onResizeStart}
-          className="hidden w-2 cursor-col-resize bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 md:block"
-        />
+        <div className="relative hidden w-4 shrink-0 md:block">
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onMouseDown={onResizeStart}
+            className="group absolute inset-0 cursor-col-resize select-none"
+          >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-300/90 transition-colors group-hover:bg-zinc-400 dark:bg-zinc-700/90 dark:group-hover:bg-zinc-600"
+            />
+          </div>
+        </div>
 
-        <section className="min-h-0 flex-1 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 md:ml-4">
+        <section className="min-h-0 flex-1 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
           <div className="h-full min-h-0">{rightColumn}</div>
         </section>
       </main>
