@@ -3,7 +3,6 @@
 import {
   useCategoriesQuery,
   useCategoriesTasksQuery,
-  useDependencyExpressionsQuery,
   useDetailsQuery,
   useTagsQuery,
   useTaskSetQuery,
@@ -13,6 +12,7 @@ import {
   BooleanOp,
   type BooleanExpression,
   type CategoryName,
+  type DependencyExpression,
   type TaskId,
 } from "@/app/lib/data/types";
 import { evaluateBooleanExpression } from "@/app/lib/booleanExpression";
@@ -45,20 +45,21 @@ export function useTaskCategoryById(categoryTasks: Map<string, string[]>) {
 
 export function useTasksWithCompleteDependencies(
   taskSet: Set<string> | undefined,
-  dependencies: Map<string, Set<string>> | undefined,
+  dependencies: Map<string, DependencyExpression> | undefined,
   completions: Set<string> | undefined,
-  dependencyExpressions: Map<string, BooleanExpression> | undefined,
 ) {
   return useMemo(() => {
-    if (!taskSet || !dependencies || !completions || !dependencyExpressions) {
+    if (!taskSet || !dependencies || !completions) {
       return new Set<string>();
     }
 
     const tasksWithCompleteDependencies = new Set<string>();
 
     for (const taskId of taskSet) {
-      const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
-      const taskDependencyExpression = dependencyExpressions.get(taskId) ?? [
+      const dependencyExpressionData = dependencies.get(taskId);
+      const taskDependencies =
+        dependencyExpressionData?.taskSet ?? new Set<string>();
+      const taskDependencyExpression = dependencyExpressionData?.expression ?? [
         BooleanOp.And,
         ...taskDependencies,
       ];
@@ -74,7 +75,7 @@ export function useTasksWithCompleteDependencies(
     }
 
     return tasksWithCompleteDependencies;
-  }, [taskSet, dependencies, completions, dependencyExpressions]);
+  }, [taskSet, dependencies, completions]);
 }
 
 export function useTasksMatchingSearch(searchQuery: string) {
@@ -144,8 +145,7 @@ function computeCompletionsWithReminders(
   taskSet: Set<string>,
   completions: Set<string>,
   reminders: Set<string>,
-  dependencies: Map<string, Set<string>>,
-  dependencyExpressions: Map<string, BooleanExpression>,
+  dependencies: Map<string, DependencyExpression>,
   evaluatedReminderCompletions: Map<TaskId, true | false>,
 ) {
   const effectiveCompletions = new Set<string>(completions);
@@ -164,8 +164,10 @@ function computeCompletionsWithReminders(
       return existingReminderCompletion;
     }
 
-    const taskDependencies = dependencies.get(taskId) ?? new Set<string>();
-    const taskDependencyExpression = dependencyExpressions.get(taskId) ?? [
+    const dependencyExpressionData = dependencies.get(taskId);
+    const taskDependencies =
+      dependencyExpressionData?.taskSet ?? new Set<string>();
+    const taskDependencyExpression = dependencyExpressionData?.expression ?? [
       BooleanOp.And,
       ...taskDependencies,
     ];
@@ -221,27 +223,14 @@ function computeCompletionsWithReminders(
   return effectiveCompletions;
 }
 
-const EMPTY_DEPENDENCY_EXPRESSIONS = new Map<string, BooleanExpression>();
-
-export function useTaskDependencyExpressions() {
-  return useDependencyExpressionsQuery().data ?? EMPTY_DEPENDENCY_EXPRESSIONS;
-}
-
 export function useCompletionsWithReminders(
   taskSet: Set<string> | undefined,
   completions: Set<string> | undefined,
   reminders: Set<string> | undefined,
-  dependencies: Map<string, Set<string>> | undefined,
-  dependencyExpressions: Map<string, BooleanExpression> | undefined,
+  dependencies: Map<string, DependencyExpression> | undefined,
 ) {
   return useMemo(() => {
-    if (
-      !taskSet ||
-      !completions ||
-      !reminders ||
-      !dependencies ||
-      !dependencyExpressions
-    ) {
+    if (!taskSet || !completions || !reminders || !dependencies) {
       return new Set<string>();
     }
 
@@ -252,8 +241,7 @@ export function useCompletionsWithReminders(
       completions,
       reminders,
       dependencies,
-      dependencyExpressions,
       evaluatedReminderCompletions,
     );
-  }, [taskSet, completions, reminders, dependencies, dependencyExpressions]);
+  }, [taskSet, completions, reminders, dependencies]);
 }

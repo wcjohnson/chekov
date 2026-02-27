@@ -27,7 +27,6 @@ import {
 import {
   useCompletionsWithReminders,
   useTaskCategoryById,
-  useTaskDependencyExpressions,
   useTasksMatchingSearch,
   useTaskStructure,
   useTasksWithCompleteDependencies,
@@ -89,7 +88,6 @@ export function AppMain() {
 
   const taskStructure = useTaskStructure();
   const allDependencies = useDependenciesQuery().data ?? new Map();
-  const dependencyExpressions = useTaskDependencyExpressions();
   const allCompletionsRaw = useCompletionsQuery().data;
   const allReminders = useRemindersQuery().data;
   const allCompletions = useCompletionsWithReminders(
@@ -97,14 +95,12 @@ export function AppMain() {
     allCompletionsRaw,
     allReminders,
     allDependencies,
-    dependencyExpressions,
   );
 
   const tasksWithCompleteDependencies = useTasksWithCompleteDependencies(
     taskStructure.taskSet,
     allDependencies,
     allCompletions,
-    dependencyExpressions,
   );
   const tasksMatchingSearch = useTasksMatchingSearch(searchText);
   const collapsedCategories = useCollapsedCategoriesQuery().data;

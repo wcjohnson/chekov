@@ -25,7 +25,7 @@ import {
 import {
   buildImplicitAndExpression,
   getExpressionPrecedence,
-  normalizeExpressionToDependencies,
+  normalizeDependencyExpression,
 } from "@/app/lib/booleanExpression";
 import { MultiSelectContext } from "@/app/lib/context";
 import { ExpressionEditor } from "../ExpressionEditor";
@@ -34,7 +34,6 @@ import {
   useDetailsQuery,
   useTagColorsQuery,
   useTaskDependenciesQuery,
-  useTaskDependencyExpressionQuery,
   useTaskHiddenQuery,
   useTaskReminderQuery,
   useTaskTagsQuery,
@@ -284,16 +283,15 @@ export function TaskDetails({
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
   // For dependencies display
-  const selectedTaskDepsData = useTaskDependenciesQuery(
+  const selectedTaskDependencyData = useTaskDependenciesQuery(
     selectedTaskId ?? "",
   ).data;
   const selectedTaskDeps = useMemo(
-    () => selectedTaskDepsData ?? EMPTY_TASK_ID_SET,
-    [selectedTaskDepsData],
+    () => selectedTaskDependencyData?.taskSet ?? EMPTY_TASK_ID_SET,
+    [selectedTaskDependencyData],
   );
-  const selectedTaskDependencyExpression = useTaskDependencyExpressionQuery(
-    selectedTaskId ?? "",
-  ).data;
+  const selectedTaskDependencyExpression =
+    selectedTaskDependencyData?.expression ?? null;
   const isReminderTask =
     useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
@@ -312,15 +310,12 @@ export function TaskDetails({
     return map;
   }, [details, selectedTaskDeps]);
   const normalizedDependencyExpression = useMemo(() => {
-    if (!selectedTaskDependencyExpression) {
+    if (!selectedTaskDependencyData?.expression) {
       return null;
     }
 
-    return normalizeExpressionToDependencies(
-      selectedTaskDependencyExpression,
-      selectedTaskDeps,
-    );
-  }, [selectedTaskDependencyExpression, selectedTaskDeps]);
+    return normalizeDependencyExpression(selectedTaskDependencyData).expression ?? null;
+  }, [selectedTaskDependencyData]);
   const taskModeDependencyExpression = useMemo(() => {
     return (
       normalizedDependencyExpression ??

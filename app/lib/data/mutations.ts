@@ -11,19 +11,19 @@ import {
   TAG_COLORS_STORE,
   TASK_COMPLETION_STORE,
   TASK_DEPENDENCIES_STORE,
-  TASK_DEPENDENCY_EXPRESSION_STORE,
   TASK_HIDDEN_STORE,
   TASK_REMINDERS_STORE,
   TASK_TAGS_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
 import {
-  BooleanOp,
   type BooleanExpression,
   type CategoryName,
+  type DependencyExpression,
   type StoredTask,
   type TaskId,
 } from "@/app/lib/data/types";
+import { normalizeDependencyExpression } from "@/app/lib/booleanExpression";
 import { detectCycle, fromKvPairsToMap } from "@/app/lib/utils";
 import type { TagColorKey } from "@/app/lib/tagColors";
 
@@ -86,7 +86,9 @@ export function useDeleteTasksMutation() {
   return useMutation({
     mutationFn: async (taskIds: TaskId[]) => {
       const db = await getDb();
-      const updatedDependencyEntries: Array<[TaskId, Set<string>]> = [];
+      const updatedDependencyEntries: Array<
+        [TaskId, DependencyExpression | null]
+      > = [];
 
       // In a transaction:
       // - Remove tasks from tasks store
@@ -99,7 +101,6 @@ export function useDeleteTasksMutation() {
           TASKS_STORE,
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
-          TASK_DEPENDENCY_EXPRESSION_STORE,
           TASK_COMPLETION_STORE,
           TASK_REMINDERS_STORE,
           TASK_HIDDEN_STORE,
@@ -112,9 +113,6 @@ export function useDeleteTasksMutation() {
       const tasksStore = tx.objectStore(TASKS_STORE);
       const taskTagsStore = tx.objectStore(TASK_TAGS_STORE);
       const taskDependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
-      const taskDependencyExpressionStore = tx.objectStore(
-        TASK_DEPENDENCY_EXPRESSION_STORE,
-      );
       const taskCompletionStore = tx.objectStore(TASK_COMPLETION_STORE);
       const taskRemindersStore = tx.objectStore(TASK_REMINDERS_STORE);
       const taskHiddenStore = tx.objectStore(TASK_HIDDEN_STORE);
@@ -161,7 +159,6 @@ export function useDeleteTasksMutation() {
           tasksStore.delete(taskId),
           taskTagsStore.delete(taskId),
           taskDependenciesStore.delete(taskId),
-          taskDependencyExpressionStore.delete(taskId),
           taskCompletionStore.delete(taskId),
           taskRemindersStore.delete(taskId),
           taskHiddenStore.delete(taskId),
@@ -195,7 +192,10 @@ export function useDeleteTasksMutation() {
 
       for (let index = 0; index < dependencyTaskIds.length; index += 1) {
         const dependencyTaskId = dependencyTaskIds[index];
-        const dependencies = dependencyValues[index] ?? new Set<string>();
+        const existingDependencyExpression = dependencyValues[index] ?? {
+          taskSet: new Set<string>(),
+        };
+        const dependencies = new Set(existingDependencyExpression.taskSet);
 
         if (existingTaskIds.has(dependencyTaskId)) {
           continue;
@@ -214,12 +214,20 @@ export function useDeleteTasksMutation() {
 
         if (dependencies.size === 0) {
           await taskDependenciesStore.delete(dependencyTaskId);
-          updatedDependencyEntries.push([dependencyTaskId, new Set<string>()]);
+          updatedDependencyEntries.push([dependencyTaskId, null]);
         } else {
-          await taskDependenciesStore.put(dependencies, dependencyTaskId);
+          const persistedDependencyExpression = normalizeDependencyExpression({
+            ...existingDependencyExpression,
+            taskSet: dependencies,
+          });
+
+          await taskDependenciesStore.put(
+            persistedDependencyExpression,
+            dependencyTaskId,
+          );
           updatedDependencyEntries.push([
             dependencyTaskId,
-            new Set<string>(dependencies),
+            persistedDependencyExpression,
           ]);
         }
       }
@@ -239,15 +247,14 @@ export function useDeleteTasksMutation() {
       queryClient.invalidateQueries({
         queryKey: ["dependencies"],
       });
-      queryClient.invalidateQueries({ queryKey: ["dependencyExpressions"] });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
       queryClient.invalidateQueries({ queryKey: ["reminders"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
 
-      for (const [taskId, dependencies] of updatedDependencyEntries) {
+      for (const [taskId, dependencyExpression] of updatedDependencyEntries) {
         queryClient.setQueryData(
           ["task", "dependencies", taskId],
-          dependencies,
+          dependencyExpression,
         );
       }
 
@@ -256,9 +263,6 @@ export function useDeleteTasksMutation() {
         queryClient.invalidateQueries({ queryKey: ["task", "tags", taskId] });
         queryClient.invalidateQueries({
           queryKey: ["task", "dependencies", taskId],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["task", "dependencyExpression", taskId],
         });
         queryClient.invalidateQueries({
           queryKey: ["task", "completion", taskId],
@@ -511,11 +515,15 @@ export function useTaskDependenciesMutation() {
       dependencies: Set<string>;
     }) => {
       const db = await getDb();
+      const existingDependencyExpression = await db.get(
+        TASK_DEPENDENCIES_STORE,
+        taskId,
+      );
 
       // Easy case, no cycle detection needed
       if (dependencies.size === 0) {
         await db.delete(TASK_DEPENDENCIES_STORE, taskId);
-        return [taskId, new Set<string>(), null] as const;
+        return [taskId, null, null] as const;
       }
 
       // Run cycle detection here
@@ -530,26 +538,30 @@ export function useTaskDependenciesMutation() {
         dependencyValues,
       );
 
-      if (!dependencyGraph.has(taskId)) {
-        dependencyGraph.set(taskId, new Set<string>());
-      }
-
       if (detectCycle(dependencyGraph, taskId, dependencies)) {
         tx.abort();
         await tx.done.catch(() => undefined);
         throw new Error("Dependency cycle detected");
       }
 
-      await dependenciesStore.put(dependencies, taskId);
+      const persistedDependencyExpression = normalizeDependencyExpression({
+        ...existingDependencyExpression,
+        taskSet: dependencies,
+      });
+
+      await dependenciesStore.put(persistedDependencyExpression, taskId);
 
       await tx.done;
 
-      return [taskId, dependencies, dependencyGraph] as const;
+      return [taskId, persistedDependencyExpression, dependencyGraph] as const;
     },
-    onSuccess: ([taskId, dependencies, dependencyGraph]) => {
-      queryClient.setQueryData(["task", "dependencies", taskId], dependencies);
-      if (dependencyGraph) {
-        dependencyGraph.set(taskId, dependencies);
+    onSuccess: ([taskId, dependencyExpression, dependencyGraph]) => {
+      queryClient.setQueryData(
+        ["task", "dependencies", taskId],
+        dependencyExpression,
+      );
+      if (dependencyGraph && dependencyExpression) {
+        dependencyGraph.set(taskId, dependencyExpression);
         queryClient.setQueryData(["dependencies"], dependencyGraph);
       } else {
         queryClient.invalidateQueries({
@@ -558,43 +570,6 @@ export function useTaskDependenciesMutation() {
       }
     },
   });
-}
-
-function isSimpleAndOfDependencies(
-  expression: BooleanExpression,
-  dependencies: Set<TaskId>,
-): boolean {
-  if (typeof expression === "string") {
-    return false;
-  }
-
-  if (expression[0] !== BooleanOp.And) {
-    return false;
-  }
-
-  const operands = expression.slice(1);
-  if (
-    !operands.every((operand): operand is TaskId => typeof operand === "string")
-  ) {
-    return false;
-  }
-
-  if (operands.length !== dependencies.size) {
-    return false;
-  }
-
-  const operandSet = new Set(operands);
-  if (operandSet.size !== operands.length) {
-    return false;
-  }
-
-  for (const dependencyId of dependencies) {
-    if (!operandSet.has(dependencyId)) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 export function useTaskDependencyExpressionMutation() {
@@ -611,28 +586,36 @@ export function useTaskDependencyExpressionMutation() {
       }
 
       const db = await getDb();
+      const existingDependencyExpression = await db.get(
+        TASK_DEPENDENCIES_STORE,
+        taskId,
+      );
       const taskDependencies =
-        (await db.get(TASK_DEPENDENCIES_STORE, taskId)) ?? new Set<TaskId>();
+        existingDependencyExpression?.taskSet ?? new Set<TaskId>();
 
-      if (
-        dependencyExpression === null ||
-        isSimpleAndOfDependencies(dependencyExpression, taskDependencies)
-      ) {
-        await db.delete(TASK_DEPENDENCY_EXPRESSION_STORE, taskId);
+      if (taskDependencies.size === 0) {
+        await db.delete(TASK_DEPENDENCIES_STORE, taskId);
         return;
       }
 
+      const normalizedDependencyExpression = normalizeDependencyExpression({
+        taskSet: taskDependencies,
+        expression: dependencyExpression,
+      });
+
       await db.put(
-        TASK_DEPENDENCY_EXPRESSION_STORE,
-        dependencyExpression,
+        TASK_DEPENDENCIES_STORE,
+        normalizedDependencyExpression,
         taskId,
       );
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["task", "dependencyExpression", variables.taskId],
+        queryKey: ["task", "dependencies", variables.taskId],
       });
-      queryClient.invalidateQueries({ queryKey: ["dependencyExpressions"] });
+      queryClient.invalidateQueries({
+        queryKey: ["dependencies"],
+      });
     },
   });
 }
@@ -908,7 +891,6 @@ export function useClearDatabaseMutation() {
           TASKS_STORE,
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
-          TASK_DEPENDENCY_EXPRESSION_STORE,
           TASK_COMPLETION_STORE,
           TASK_REMINDERS_STORE,
           TASK_HIDDEN_STORE,
@@ -925,7 +907,6 @@ export function useClearDatabaseMutation() {
         tx.objectStore(TASKS_STORE).clear(),
         tx.objectStore(TASK_TAGS_STORE).clear(),
         tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
-        tx.objectStore(TASK_DEPENDENCY_EXPRESSION_STORE).clear(),
         tx.objectStore(TASK_COMPLETION_STORE).clear(),
         tx.objectStore(TASK_REMINDERS_STORE).clear(),
         tx.objectStore(TASK_HIDDEN_STORE).clear(),

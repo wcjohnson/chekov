@@ -8,7 +8,6 @@ import {
   queryClient,
   TAG_COLORS_STORE,
   TASK_COMPLETION_STORE,
-  TASK_DEPENDENCY_EXPRESSION_STORE,
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
   TASK_TAGS_STORE,
@@ -20,6 +19,7 @@ import {
   BooleanOp,
   type BooleanExpression,
   type CategoryName,
+  type DependencyExpression,
   type TaskId,
 } from "@/app/lib/data/types";
 
@@ -344,8 +344,6 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskTagKeys,
     taskTagValues,
     taskDependencyKeys,
-    taskDependencyValues,
-    taskDependencyExpressionKeys,
     taskDependencyExpressionValues,
     reminderTaskKeys,
     reminderTaskValues,
@@ -363,8 +361,6 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.getAll(TASK_TAGS_STORE),
     db.getAllKeys(TASK_DEPENDENCIES_STORE),
     db.getAll(TASK_DEPENDENCIES_STORE),
-    db.getAllKeys(TASK_DEPENDENCY_EXPRESSION_STORE),
-    db.getAll(TASK_DEPENDENCY_EXPRESSION_STORE),
     db.getAllKeys(TASK_REMINDERS_STORE),
     db.getAll(TASK_REMINDERS_STORE),
     db.get(CATEGORIES_STORE, "categories"),
@@ -381,10 +377,6 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
   const taskTagsMap = fromKvPairsToMap(taskTagKeys, taskTagValues);
   const taskDependenciesMap = fromKvPairsToMap(
     taskDependencyKeys,
-    taskDependencyValues,
-  );
-  const taskDependencyExpressionsMap = fromKvPairsToMap(
-    taskDependencyExpressionKeys,
     taskDependencyExpressionValues,
   );
   const reminderTasksMap = fromKvPairsToMap(
@@ -412,10 +404,13 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         continue;
       }
 
+      const dependencyExpression =
+        taskDependenciesMap.get(taskId) ??
+        ({ taskSet: new Set<string>() } as DependencyExpression);
       const taskDependencies =
-        taskDependenciesMap.get(taskId) ?? new Set<string>();
+        dependencyExpression.taskSet ?? new Set<string>();
       const taskTags = taskTagsMap.get(taskId) ?? new Set<string>();
-      const taskDependencyExpression = taskDependencyExpressionsMap.get(taskId);
+      const taskDependencyExpression = dependencyExpression.expression;
 
       categoryTasks.push({
         id: taskId,
@@ -533,7 +528,7 @@ export async function importChecklistDefinition(
 
   const normalizedDefinition = normalizeChecklistDefinition(definition);
 
-  // Clear existing IndexedDB tables relating to checklist definition (TASKS_STORE, TASK_TAGS_STORE, TASK_DEPENDENCIES_STORE, TASK_DEPENDENCY_EXPRESSION_STORE, CATEGORIES_STORE, CATEGORY_TASKS_STORE, TAG_COLORS_STORE)
+  // Clear existing IndexedDB tables relating to checklist definition (TASKS_STORE, TASK_TAGS_STORE, TASK_DEPENDENCIES_STORE, CATEGORIES_STORE, CATEGORY_TASKS_STORE, TAG_COLORS_STORE)
   // Replace the content of those tables with content appropriate to the new normalized definition.
   // Use a transaction.
   const transaction = db.transaction(
@@ -541,7 +536,6 @@ export async function importChecklistDefinition(
       TASKS_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
-      TASK_DEPENDENCY_EXPRESSION_STORE,
       TASK_REMINDERS_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
@@ -559,9 +553,6 @@ export async function importChecklistDefinition(
   const taskDependenciesStore = transaction.objectStore(
     TASK_DEPENDENCIES_STORE,
   );
-  const taskDependencyExpressionsStore = transaction.objectStore(
-    TASK_DEPENDENCY_EXPRESSION_STORE,
-  );
   const taskRemindersStore = transaction.objectStore(TASK_REMINDERS_STORE);
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
@@ -577,7 +568,6 @@ export async function importChecklistDefinition(
     tasksStore.clear(),
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
-    taskDependencyExpressionsStore.clear(),
     taskRemindersStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
@@ -625,19 +615,20 @@ export async function importChecklistDefinition(
         task.id,
       );
 
-      if (task.dependencyExpression) {
-        await taskDependencyExpressionsStore.put(
-          task.dependencyExpression,
-          task.id,
-        );
-      }
-
       if (isReminderType(task.type)) {
         await taskRemindersStore.put(true, task.id);
       }
 
       if (task.dependencies && task.dependencies.length > 0) {
-        await taskDependenciesStore.put(new Set(task.dependencies), task.id);
+        await taskDependenciesStore.put(
+          {
+            taskSet: new Set(task.dependencies),
+            ...(task.dependencyExpression
+              ? { expression: task.dependencyExpression }
+              : {}),
+          },
+          task.id,
+        );
       }
 
       if (task.tags && task.tags.length > 0) {

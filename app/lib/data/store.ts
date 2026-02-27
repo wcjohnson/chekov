@@ -4,8 +4,8 @@ import { openDB, type DBSchema } from "idb";
 import type {
   TaskId,
   StoredTask,
-  BooleanExpression,
   CategoryName,
+  DependencyExpression,
 } from "./types";
 import type { TagColorKey } from "../tagColors";
 import { QueryClient } from "@tanstack/react-query";
@@ -21,11 +21,7 @@ export interface ChekovDB extends DBSchema {
   };
   [TASK_DEPENDENCIES_STORE]: {
     key: TaskId;
-    value: Set<TaskId>;
-  };
-  [TASK_DEPENDENCY_EXPRESSION_STORE]: {
-    key: TaskId;
-    value: BooleanExpression;
+    value: DependencyExpression;
   };
   [TASK_COMPLETION_STORE]: {
     key: TaskId;
@@ -62,11 +58,10 @@ export interface ChekovDB extends DBSchema {
 }
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 export const TASKS_STORE = "tasks";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
-export const TASK_DEPENDENCY_EXPRESSION_STORE = "taskDependencyExpressions";
 export const TASK_COMPLETION_STORE = "taskCompletion";
 export const TASK_REMINDERS_STORE = "taskWarnings";
 export const TASK_HIDDEN_STORE = "taskHidden";
@@ -93,7 +88,6 @@ export const getDb = async () => {
         db.createObjectStore(TASKS_STORE);
         db.createObjectStore(TASK_TAGS_STORE);
         db.createObjectStore(TASK_DEPENDENCIES_STORE);
-        db.createObjectStore(TASK_DEPENDENCY_EXPRESSION_STORE);
         db.createObjectStore(TASK_COMPLETION_STORE);
         db.createObjectStore(TASK_REMINDERS_STORE);
         db.createObjectStore(TASK_HIDDEN_STORE);

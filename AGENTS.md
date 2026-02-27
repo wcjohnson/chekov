@@ -85,12 +85,11 @@
 
 ## Data Model & Storage
 
-- IndexedDB schema is defined in `app/lib/data/store.ts` (`ChekovDB`, `DB_VERSION = 6`).
+- IndexedDB schema is defined in `app/lib/data/store.ts` (`ChekovDB`, `DB_VERSION = 7`).
 - Canonical persisted model is normalized across object stores:
   - `tasks`: `{ id, title, description, category }`
   - `taskTags`: `Set<string>` by task id
-  - `taskDependencies`: `Set<string>` by task id
-  - `taskDependencyExpressions`: `BooleanExpression` by task id (only persisted when custom; `null`/implicit AND is represented by absence)
+  - `taskDependencies`: `DependencyExpression` by task id (`{ taskSet, expression? }`; store entry absent = no dependencies, missing `expression` = implicit AND)
   - `taskCompletion`: `true` by task id (presence = completed)
   - `taskWarnings`: `true` by task id (presence = reminder; legacy store key name retained)
   - `taskHidden`: `true` by task id (presence = hidden)
@@ -105,12 +104,11 @@
 - Query return types are `Map`/`Set` based where appropriate:
 - `useTagsQuery` → `Map<TaskId, Set<string>>`
 - `useDetailsQuery` → `Map<TaskId, StoredTask>`
-- `useDependenciesQuery` → `Map<TaskId, Set<string>>`
+- `useDependenciesQuery` → `Map<TaskId, DependencyExpression>`
 - `useCategoriesTasksQuery` → `Map<string, string[]>`
 - `useCategoryDependenciesQuery` → `Map<string, Set<TaskId>>`
 - `useTagColorsQuery` → `Map<string, TagColorKey>`
 - `useRemindersQuery` → `Set<TaskId>`
-- `useDependencyExpressionsQuery` → `Map<TaskId, BooleanExpression>`
 - `useTaskDependencyExpressionQuery` → `BooleanExpression | null` (`null` sentinel for missing)
 - Shared boolean-expression logic is centralized in `app/lib/booleanExpression.ts`:
   - `evaluateBooleanExpression(...)`
@@ -204,7 +202,7 @@
 - `useDeleteTasksMutation` accepts `TaskId[]` and performs batch deletion in one transaction, including referential cleanup (dependencies, category cleanup, empty-category removal).
 - `useMoveTaskMutation` resolves moved task from `fromCategory + fromIndex`; if source task is missing, it aborts transaction and returns without throwing.
 - `useTaskDependenciesMutation` performs cycle detection using `detectCycle` and throws when a cycle would be created.
-- `useTaskDependencyExpressionMutation` stores custom expressions in `taskDependencyExpressions`; it deletes the persisted expression when receiving `null` or an expression equivalent to implicit AND over current dependencies.
+- `useTaskDependencyExpressionMutation` stores custom expressions inside `taskDependencies` values (`DependencyExpression.expression`); it omits `expression` for `null` or implicit-AND-equivalent expressions.
 - `useCategoryDependenciesMutation` writes/deletes per-category dependency sets and updates both per-category and aggregate category-dependency caches.
 - `useTaskDetailMutation` updates title/description only.
 - `useTaskReminderMutation` sets/clears reminder status in `taskWarnings`; setting reminder removes completion in one transaction.

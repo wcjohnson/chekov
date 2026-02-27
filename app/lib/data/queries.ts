@@ -13,13 +13,16 @@ import {
   TAG_COLORS_STORE,
   TASK_COMPLETION_STORE,
   TASK_DEPENDENCIES_STORE,
-  TASK_DEPENDENCY_EXPRESSION_STORE,
   TASK_HIDDEN_STORE,
   TASK_REMINDERS_STORE,
   TASK_TAGS_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
-import type { CategoryName, TaskId } from "@/app/lib/data/types";
+import type {
+  CategoryName,
+  DependencyExpression,
+  TaskId,
+} from "@/app/lib/data/types";
 import { fromKvPairsToMap } from "@/app/lib/utils";
 
 function getQueryArgs_categories() {
@@ -91,12 +94,12 @@ function getQueryArgs_dependencies() {
       console.log("Fetching ALL task dependencies");
       const db = await getDb();
       const taskIds = await db.getAllKeys(TASK_DEPENDENCIES_STORE);
-      const dependencies = await db.getAll(TASK_DEPENDENCIES_STORE);
-      const map = fromKvPairsToMap(taskIds, dependencies);
-      for (const [taskId, dependencies] of map.entries()) {
+      const dependencyExpressions = await db.getAll(TASK_DEPENDENCIES_STORE);
+      const map = fromKvPairsToMap(taskIds, dependencyExpressions);
+      for (const [taskId, dependencyExpression] of map.entries()) {
         queryClient.setQueryData(
           ["task", "dependencies", taskId],
-          dependencies,
+          dependencyExpression,
         );
       }
 
@@ -107,31 +110,6 @@ function getQueryArgs_dependencies() {
 
 export function useDependenciesQuery() {
   return useQuery(getQueryArgs_dependencies());
-}
-
-function getQueryArgs_dependencyExpressions() {
-  return {
-    queryKey: ["dependencyExpressions"],
-    queryFn: async () => {
-      console.log("Fetching ALL task dependency expressions");
-      const db = await getDb();
-      const taskIds = await db.getAllKeys(TASK_DEPENDENCY_EXPRESSION_STORE);
-      const expressions = await db.getAll(TASK_DEPENDENCY_EXPRESSION_STORE);
-      const map = fromKvPairsToMap(taskIds, expressions);
-      for (const [taskId, expression] of map.entries()) {
-        queryClient.setQueryData(
-          ["task", "dependencyExpression", taskId],
-          expression,
-        );
-      }
-
-      return map;
-    },
-  };
-}
-
-export function useDependencyExpressionsQuery() {
-  return useQuery(getQueryArgs_dependencyExpressions());
 }
 
 function getQueryArgs_completions() {
@@ -269,22 +247,14 @@ export function useTaskDependenciesQuery(taskId: TaskId) {
     queryKey: ["task", "dependencies", taskId],
     queryFn: async () => {
       const db = await getDb();
-      const dependencies = await db.get(TASK_DEPENDENCIES_STORE, taskId);
-      if (dependencies === undefined) {
-        return new Set<string>();
+      const dependencyExpression = await db.get(
+        TASK_DEPENDENCIES_STORE,
+        taskId,
+      );
+      if (dependencyExpression === undefined) {
+        return null;
       }
-      return dependencies;
-    },
-  });
-}
-
-export function useTaskDependencyExpressionQuery(taskId: TaskId) {
-  return useQuery({
-    queryKey: ["task", "dependencyExpression", taskId],
-    queryFn: async () => {
-      const db = await getDb();
-      const expression = await db.get(TASK_DEPENDENCY_EXPRESSION_STORE, taskId);
-      return expression === undefined ? null : expression;
+      return dependencyExpression;
     },
   });
 }

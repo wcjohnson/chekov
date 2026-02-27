@@ -4,19 +4,17 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   BooleanOp,
   type BooleanExpression,
+  type DependencyExpression,
   type TaskId,
 } from "../lib/data/types";
-import { normalizeExpressionToDependencies } from "../lib/booleanExpression";
+import { normalizeDependencyExpression } from "../lib/booleanExpression";
 import {
   DragDropSource,
   DragDropTarget,
   type DragDropStateType,
 } from "./DragDrop";
 import { useTaskDependencyExpressionMutation } from "../lib/data/mutations";
-import {
-  useDetailsQuery,
-  useTaskDependencyExpressionQuery,
-} from "../lib/data/queries";
+import { useDetailsQuery, useTaskDependenciesQuery } from "../lib/data/queries";
 
 type NodeDraft =
   | { kind: "empty" }
@@ -507,17 +505,19 @@ export function ExpressionEditor({
     return map;
   }, [dependencyIdList, details]);
 
-  const selectedTaskDependencyExpression = useTaskDependencyExpressionQuery(
+  const selectedTaskDependencyExpression = useTaskDependenciesQuery(
     taskId ?? "",
-  ).data;
+  ).data?.expression;
 
   const persistedDraft = useMemo(() => {
-    const normalizedExpression = selectedTaskDependencyExpression
-      ? normalizeExpressionToDependencies(
-          selectedTaskDependencyExpression,
-          dependencyIdSet,
-        )
-      : null;
+    if (!selectedTaskDependencyExpression) {
+      return { kind: "empty" } as NodeDraft;
+    }
+
+    const normalizedExpression = normalizeDependencyExpression({
+      taskSet: dependencyIdSet,
+      expression: selectedTaskDependencyExpression,
+    } satisfies DependencyExpression).expression;
 
     if (!normalizedExpression) {
       return { kind: "empty" } as NodeDraft;
