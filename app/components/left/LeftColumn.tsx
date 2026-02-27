@@ -68,7 +68,7 @@ export function LeftColumn({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col p-4">
       <LeftHeader
         mode={mode}
         visibleTasksCount={taskBreakout.visibleTasks.size}
@@ -76,7 +76,7 @@ export function LeftColumn({
 
       <div
         data-left-pane-scroll="true"
-        className="mt-2 min-h-0 flex-1 overflow-y-auto"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto -mx-4 px-4"
       >
         <DragDropReorderableGroup
           group="categories"

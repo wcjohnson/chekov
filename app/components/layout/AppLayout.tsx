@@ -3,6 +3,7 @@
 import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
 import { useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
+import { StackedLayout } from "@/app/components/catalyst/stacked-layout";
 
 type AppLayoutProps = {
   mainPaneRef: RefObject<HTMLElement | null>;
@@ -43,19 +44,17 @@ export function AppLayout({
   }, []);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      {topBar}
-
+    <StackedLayout navbar={topBar}>
       <main
         ref={mainPaneRef}
-        className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:flex-row md:gap-0"
+        className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden md:flex-row md:gap-0"
       >
         <section
           ref={leftPaneRef}
-          className="min-h-0 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:shrink-0"
+          className="min-h-0 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 md:shrink-0"
           style={isDesktop ? { width: `${leftPaneWidth}%` } : undefined}
         >
-          {leftColumn}
+          <div className="h-full min-h-0">{leftColumn}</div>
         </section>
 
         <div
@@ -65,10 +64,10 @@ export function AppLayout({
           className="hidden w-2 cursor-col-resize bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 md:block"
         />
 
-        <section className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 md:ml-4">
-          {rightColumn}
+        <section className="min-h-0 flex-1 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 md:ml-4">
+          <div className="h-full min-h-0">{rightColumn}</div>
         </section>
       </main>
-    </div>
+    </StackedLayout>
   );
 }
