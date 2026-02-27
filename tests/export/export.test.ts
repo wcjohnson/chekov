@@ -5,7 +5,7 @@ import {
   exportChecklistState,
   importChecklistDefinition,
   importChecklistState,
-} from "../../app/lib/export";
+} from "../../app/lib/data/export";
 import { type ExportedChecklistState } from "@/app/lib/data/jsonSchema";
 import { type ExportedChecklistDefinition } from "@/app/lib/data/jsonSchema";
 

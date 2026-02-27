@@ -23,13 +23,13 @@ import {
 import {
   normalizeBooleanExpression,
   normalizeDependencyExpression as normalizeStoredDependencyExpression,
-} from "./booleanExpression";
+} from "../booleanExpression";
 import type {
   ExportedChecklistDefinition,
   ExportedChecklistState,
   ExportedChecklistTaskState,
   ExportedTaskDefinition,
-} from "./data/jsonSchema";
+} from "./jsonSchema";
 
 const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
   type === "warning" || type === "reminder";
