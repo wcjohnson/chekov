@@ -12,7 +12,10 @@ type NonNormalizedDependencyExpression = Omit<
   expression?: BooleanExpression | null;
 };
 
-export function getExpressionPrecedence(expression: BooleanExpression): number {
+/** Returns precedence used for infix rendering: leaf > NOT > AND > OR. */
+export function getInfixExpressionPrecedence(
+  expression: BooleanExpression,
+): number {
   if (typeof expression === "string") {
     return 4;
   }
@@ -25,34 +28,51 @@ export function getExpressionPrecedence(expression: BooleanExpression): number {
   return operator === BooleanOp.And ? 2 : 1;
 }
 
-function normalizeExpressionToDependencies(
-  expression: BooleanExpression,
+/**
+ * Normalizes an unknown boolean expression against an allowed dependency set.
+ * Returns `null` when the expression cannot be represented after filtering.
+ */
+export function normalizeBooleanExpression(
+  expression: unknown,
   dependencyIdSet: Set<TaskId>,
 ): BooleanExpression | null {
   if (typeof expression === "string") {
     return dependencyIdSet.has(expression) ? expression : null;
   }
 
+  if (!Array.isArray(expression) || expression.length === 0) {
+    return null;
+  }
+
   const [operator, ...operands] = expression;
   if (operator === BooleanOp.Not) {
-    const normalizedOperand = normalizeExpressionToDependencies(
+    if (operands.length !== 1) {
+      return null;
+    }
+    const normalizedOperand = normalizeBooleanExpression(
       operands[0],
       dependencyIdSet,
     );
     return normalizedOperand ? [BooleanOp.Not, normalizedOperand] : null;
   }
 
-  const normalizedOperands = operands
-    .map((operand) =>
-      normalizeExpressionToDependencies(operand, dependencyIdSet),
-    )
-    .filter((operand): operand is BooleanExpression => operand !== null);
+  if (operator === BooleanOp.And || operator === BooleanOp.Or) {
+    const normalizedOperands = operands
+      .map((operand) => normalizeBooleanExpression(operand, dependencyIdSet))
+      .filter((operand): operand is BooleanExpression => operand !== null);
 
-  if (normalizedOperands.length === 0) {
-    return null;
+    if (normalizedOperands.length === 0) {
+      return null;
+    }
+
+    if (normalizedOperands.length === 1) {
+      return normalizedOperands[0];
+    }
+
+    return [operator, ...normalizedOperands];
   }
 
-  return [operator, ...normalizedOperands];
+  return null;
 }
 
 function areExpressionsEqual(
@@ -116,6 +136,10 @@ function isSimpleAndOfDependencies(
   return true;
 }
 
+/**
+ * Normalizes and compacts a dependency-expression payload for persistence.
+ * Removes empty/implicit expressions and drops simple implicit-AND equivalents.
+ */
 export function normalizeDependencyExpression(
   dependencyExpression: NonNormalizedDependencyExpression,
 ): DependencyExpression {
@@ -129,7 +153,7 @@ export function normalizeDependencyExpression(
     return { taskSet: dependencyExpression.taskSet };
   }
 
-  const normalizedExpression = normalizeExpressionToDependencies(
+  const normalizedExpression = normalizeBooleanExpression(
     expression,
     dependencyExpression.taskSet,
   );
@@ -157,6 +181,10 @@ export function normalizeDependencyExpression(
   };
 }
 
+/**
+ * Builds the implicit dependency expression used for plain dependency sets.
+ * Returns `null` for no dependencies and a task id for a single dependency.
+ */
 export function buildImplicitAndExpression(
   dependencyIds: TaskId[],
 ): BooleanExpression | null {
@@ -171,6 +199,7 @@ export function buildImplicitAndExpression(
   return [BooleanOp.And, ...dependencyIds];
 }
 
+/** Evaluates a boolean expression against the set of truthy task ids. */
 export function evaluateBooleanExpression(
   expression: BooleanExpression,
   truthyTaskIds: Set<TaskId>,

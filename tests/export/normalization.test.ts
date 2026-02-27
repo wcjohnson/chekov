@@ -160,7 +160,7 @@ describe("import/export normalization", () => {
     ]);
   });
 
-  it("omits dependencyExpression when it references task IDs outside dependencies", async () => {
+  it("drops dependencyExpression terms that reference task IDs outside dependencies", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["Main"],
       tasksByCategory: {
@@ -186,7 +186,13 @@ describe("import/export normalization", () => {
     expect(exportedDefinition.tasksByCategory.Main).toEqual([
       { id: "a", category: "Main", title: "A" },
       { id: "b", category: "Main", title: "B" },
-      { id: "t", category: "Main", title: "Target", dependencies: ["a"] },
+      {
+        id: "t",
+        category: "Main",
+        title: "Target",
+        dependencies: ["a"],
+        dependencyExpression: "a",
+      },
     ]);
   });
 

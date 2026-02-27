@@ -16,71 +16,18 @@ import {
 } from "@/app/lib/data/store";
 import type { TagColorKey } from "./tagColors";
 import {
-  BooleanOp,
-  type BooleanExpression,
   type CategoryName,
   type DependencyExpression,
   type TaskId,
 } from "@/app/lib/data/types";
-import { normalizeDependencyExpression as normalizeStoredDependencyExpression } from "./booleanExpression";
+import {
+  normalizeBooleanExpression,
+  normalizeDependencyExpression as normalizeStoredDependencyExpression,
+} from "./booleanExpression";
 import type { ExportedTaskDefinition } from "./data/jsonSchema";
 
 const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
   type === "warning" || type === "reminder";
-
-function normalizeDependencyExpression(
-  expression: unknown,
-  validDependencyIds: Set<TaskId>,
-): BooleanExpression | undefined {
-  if (typeof expression === "string") {
-    if (!validDependencyIds.has(expression)) {
-      return undefined;
-    }
-
-    return expression;
-  }
-
-  if (!Array.isArray(expression) || expression.length === 0) {
-    return undefined;
-  }
-
-  const [operator, ...operands] = expression;
-
-  if (operator === BooleanOp.Not) {
-    if (operands.length !== 1) {
-      return undefined;
-    }
-
-    const normalizedOperand = normalizeDependencyExpression(
-      operands[0],
-      validDependencyIds,
-    );
-    if (!normalizedOperand) {
-      return undefined;
-    }
-
-    return [BooleanOp.Not, normalizedOperand];
-  }
-
-  if (operator === BooleanOp.And || operator === BooleanOp.Or) {
-    const normalizedOperands: BooleanExpression[] = [];
-    for (const operand of operands) {
-      const normalizedOperand = normalizeDependencyExpression(
-        operand,
-        validDependencyIds,
-      );
-      if (!normalizedOperand) {
-        return undefined;
-      }
-
-      normalizedOperands.push(normalizedOperand);
-    }
-
-    return [operator, ...normalizedOperands];
-  }
-
-  return undefined;
-}
 
 export type ExportedChecklistDefinition = {
   categories: CategoryName[];
@@ -136,12 +83,12 @@ function normalizeChecklistDefinition(
           ),
         );
         const dependencyIdSet = new Set(normalizedDependencies);
-        const normalizedDependencyExpression = normalizeDependencyExpression(
+        const normalizedDependencyExpression = normalizeBooleanExpression(
           task.dependencyExpression,
           dependencyIdSet,
         );
         const normalizedStoredDependencyExpression =
-          normalizedDependencyExpression === undefined
+          normalizedDependencyExpression === null
             ? undefined
             : normalizeStoredDependencyExpression({
                 taskSet: dependencyIdSet,

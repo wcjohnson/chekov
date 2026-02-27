@@ -357,7 +357,7 @@ describe("import/export", () => {
     expect(targetTask?.dependencyExpression).toBeUndefined();
   });
 
-  it("omits dependencyExpression when expression references IDs outside dependencies", async () => {
+  it("drops dependencyExpression terms that reference IDs outside dependencies", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["Main"],
       tasksByCategory: {
@@ -385,6 +385,6 @@ describe("import/export", () => {
     );
 
     expect(targetTask?.dependencies).toEqual(["a"]);
-    expect(targetTask?.dependencyExpression).toBeUndefined();
+    expect(targetTask?.dependencyExpression).toEqual("a");
   });
 });

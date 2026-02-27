@@ -6,19 +6,19 @@ import {
 } from "../../app/lib/data/types";
 import {
   buildImplicitAndExpression,
-  getExpressionPrecedence,
+  getInfixExpressionPrecedence,
   normalizeDependencyExpression,
 } from "../../app/lib/booleanExpression";
 
 describe("getExpressionPrecedence", () => {
   it("returns highest precedence for task-id leaf", () => {
-    expect(getExpressionPrecedence("task-1")).toBe(4);
+    expect(getInfixExpressionPrecedence("task-1")).toBe(4);
   });
 
   it("returns NOT above AND above OR", () => {
-    expect(getExpressionPrecedence([BooleanOp.Not, "task-1"])).toBe(3);
-    expect(getExpressionPrecedence([BooleanOp.And, "a", "b"])).toBe(2);
-    expect(getExpressionPrecedence([BooleanOp.Or, "a", "b"])).toBe(1);
+    expect(getInfixExpressionPrecedence([BooleanOp.Not, "task-1"])).toBe(3);
+    expect(getInfixExpressionPrecedence([BooleanOp.And, "a", "b"])).toBe(2);
+    expect(getInfixExpressionPrecedence([BooleanOp.Or, "a", "b"])).toBe(1);
   });
 });
 
@@ -129,7 +129,7 @@ describe("normalizeDependencyExpression", () => {
 
     expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
       taskSet: new Set(["a"]),
-      expression: [BooleanOp.Or, "a"],
+      expression: "a",
     });
   });
 
@@ -147,7 +147,7 @@ describe("normalizeDependencyExpression", () => {
 
     expect(normalizeDependencyExpression(dependencyExpression)).toEqual({
       taskSet: new Set(["a", "b"]),
-      expression: [BooleanOp.And, [BooleanOp.Or, "a"], [BooleanOp.Not, "b"]],
+      expression: [BooleanOp.And, "a", [BooleanOp.Not, "b"]],
     });
   });
 });

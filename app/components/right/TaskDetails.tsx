@@ -24,7 +24,7 @@ import {
 } from "@/app/lib/data/types";
 import {
   buildImplicitAndExpression,
-  getExpressionPrecedence,
+  getInfixExpressionPrecedence,
   normalizeDependencyExpression,
 } from "@/app/lib/booleanExpression";
 import { MultiSelectContext } from "@/app/lib/context";
@@ -94,7 +94,7 @@ function DependencyExpressionView({
       );
     }
 
-    const currentPrecedence = getExpressionPrecedence(current);
+    const currentPrecedence = getInfixExpressionPrecedence(current);
     const [operator, ...operands] = current;
 
     let content: ReactNode;
