@@ -18,6 +18,7 @@ import {
 } from "@/app/lib/booleanExpression";
 import { ExpressionEditor } from "@/app/components/ExpressionEditor";
 import { Button } from "@/app/components/catalyst/button";
+import { Badge } from "@/app/components/catalyst/badge";
 
 function ExpressionOperator({ operator }: { operator: BooleanOp }) {
   const label =
@@ -26,11 +27,17 @@ function ExpressionOperator({ operator }: { operator: BooleanOp }) {
       : operator === BooleanOp.Or
         ? "OR"
         : "NOT";
+  const color =
+    operator === BooleanOp.And
+      ? "emerald"
+      : operator === BooleanOp.Or
+        ? "sky"
+        : "amber";
 
   return (
-    <span className="font-mono text-[11px] font-semibold tracking-wide text-zinc-600 dark:text-zinc-300">
+    <Badge color={color} className="font-mono tracking-wide">
       {label}
-    </span>
+    </Badge>
   );
 }
 

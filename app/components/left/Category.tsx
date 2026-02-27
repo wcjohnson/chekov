@@ -10,9 +10,11 @@ import {
 import { MultiSelectContext } from "@/app/lib/context";
 import { useContext, useRef, useState } from "react";
 import {
+  useDetailsQuery,
   useCategoryDependencyQuery,
   useCollapsedCategoriesQuery,
 } from "@/app/lib/data/queries";
+import { buildImplicitAndExpression } from "@/app/lib/booleanExpression";
 import {
   useCategoryCollapsedMutation,
   useCategoryDependenciesMutation,
@@ -20,6 +22,9 @@ import {
   useMoveTaskMutation,
 } from "@/app/lib/data/mutations";
 import { Button } from "@/app/components/catalyst/button";
+import { DependencyExpressionView } from "@/app/components/right/DependencyExpressionEditor";
+
+const EMPTY_TASK_ID_SET = new Set<TaskId>();
 
 type CategoryProps = {
   category: string;
@@ -55,9 +60,18 @@ export function Category({
   const categoryDependenciesMutation = useCategoryDependenciesMutation();
   const createTaskMutation = useCreateTaskMutation();
   const moveTaskMutation = useMoveTaskMutation();
+  const details = useDetailsQuery().data;
   const multiSelectContext = useContext(MultiSelectContext);
   const isMultiSelecting = multiSelectContext.isActive();
   const canDragCategory = mode === "edit" && !isMultiSelecting;
+  const dependencyTitleById = details
+    ? new Map(
+        Array.from(details.entries()).map(([taskId, taskDetail]) => [
+          taskId,
+          taskDetail.title,
+        ]),
+      )
+    : new Map<TaskId, string>();
 
   const onEditDependencies = () => {
     const headerText = `Editing dependencies for category ${category}`;
@@ -70,6 +84,33 @@ export function Category({
           <p className="font-medium text-zinc-700 dark:text-zinc-200">
             {headerText}
           </p>
+          <div className="mt-2 rounded-md border border-zinc-200 bg-white px-2 py-1.5 dark:border-zinc-800 dark:bg-zinc-950/60">
+            <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+              Current dependencies
+            </p>
+            {(() => {
+              const expression = buildImplicitAndExpression(
+                Array.from(multiSelectState.selectedTaskSet),
+              );
+
+              if (!expression) {
+                return (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    None
+                  </p>
+                );
+              }
+
+              return (
+                <DependencyExpressionView
+                  mode="edit"
+                  expression={expression}
+                  dependencyTitleById={dependencyTitleById}
+                  completionsWithReminders={EMPTY_TASK_ID_SET}
+                />
+              );
+            })()}
+          </div>
           <div className="mt-2 flex items-center gap-2">
             <Button
               type="button"
