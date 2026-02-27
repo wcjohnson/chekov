@@ -1,4 +1,4 @@
-import { fromKvPairsToMap, mapToRecord, recordToMap } from "./utils";
+import { fromKvPairsToMap, mapToRecord, recordToMap } from "@/app/lib/utils";
 import {
   CATEGORIES_STORE,
   CATEGORY_DEPENDENCIES_STORE,
@@ -14,7 +14,7 @@ import {
   TASK_REMINDERS_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
-import type { TagColorKey } from "./tagColors";
+import type { TagColorKey } from "@/app/lib/tagColors";
 import {
   type CategoryName,
   type DependencyExpression,
