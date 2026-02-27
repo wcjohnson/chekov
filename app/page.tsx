@@ -10,6 +10,14 @@ import { RightColumn } from "./components/right/RightColumn";
 import { TopBar } from "./components/TopBar";
 import type { ChecklistMode, TaskId } from "./lib/data/types";
 import {
+  Alert,
+  AlertActions,
+  AlertBody,
+  AlertDescription,
+  AlertTitle,
+} from "@/app/components/catalyst/alert";
+import { Button } from "@/app/components/catalyst/button";
+import {
   MultiSelectContext,
   type MultiSelectContextId,
   type MultiSelectState,
@@ -35,9 +43,11 @@ import {
   useOpenTasks,
 } from "./lib/data/derivedData";
 import {
+  useCategoriesQuery,
   useCollapsedCategoriesQuery,
   useCompletionsQuery,
   useDependenciesQuery,
+  useTaskSetQuery,
 } from "./lib/data/queries";
 import {
   useClearDatabaseMutation,
@@ -77,6 +87,11 @@ export function AppMain() {
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDefinitionOverwriteAlertOpen, setIsDefinitionOverwriteAlertOpen] =
+    useState(false);
+  const [pendingDefinitionFromQuery, setPendingDefinitionFromQuery] =
+    useState<ExportedChecklistDefinition | null>(null);
+  const hasProcessedDefinitionQueryRef = useRef(false);
   const [multiSelectState, setMultiSelectState] =
     useState<MultiSelectState | null>(null);
   const closeMultiSelect = useCallback(() => {
@@ -92,6 +107,8 @@ export function AppMain() {
   const taskStructure = useTaskStructure();
   const allDependencies = useDependenciesQuery().data ?? new Map();
   const allCompletionsRaw = useCompletionsQuery().data;
+  const taskSetQuery = useTaskSetQuery();
+  const categoriesQuery = useCategoriesQuery();
   const allEffectiveCompletions = useEffectiveCompletions(
     taskStructure.taskSet,
     allCompletionsRaw,
@@ -350,6 +367,53 @@ export function AppMain() {
     downloadJson("chekov-state.json", state);
   };
 
+  useEffect(() => {
+    if (hasProcessedDefinitionQueryRef.current) {
+      return;
+    }
+
+    if (taskSetQuery.data === undefined || categoriesQuery.data === undefined) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const definitionUrl = searchParams.get("def")?.trim();
+
+    hasProcessedDefinitionQueryRef.current = true;
+
+    if (!definitionUrl) {
+      return;
+    }
+
+    const hasExistingDefinition =
+      taskSetQuery.data.size > 0 || categoriesQuery.data.length > 0;
+
+    const importFromQueryString = async () => {
+      try {
+        const response = await fetch(definitionUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch definition file.");
+        }
+
+        const parsed = (await response.json()) as ExportedChecklistDefinition;
+
+        if (hasExistingDefinition) {
+          setPendingDefinitionFromQuery(parsed);
+          setIsDefinitionOverwriteAlertOpen(true);
+          return;
+        }
+
+        await importChecklistDefinition(parsed);
+        setSelectedTaskId(null);
+        setErrorMessage(null);
+      } catch {
+        setErrorMessage("Invalid or unreachable definition URL.");
+      }
+    };
+
+    void importFromQueryString();
+  }, [categoriesQuery.data, taskSetQuery.data]);
+
   return (
     <MultiSelectContext
       value={{
@@ -450,6 +514,61 @@ export function AppMain() {
             </div>
           )}
         </Toaster>
+
+        <Alert
+          open={isDefinitionOverwriteAlertOpen}
+          onClose={setIsDefinitionOverwriteAlertOpen}
+          size="sm"
+        >
+          <AlertTitle>Import definition from URL?</AlertTitle>
+          <AlertDescription>
+            Your current definition is not empty and will be overwritten.
+          </AlertDescription>
+          <AlertBody>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Continuing will permanently replace your current definition.
+              Export your definition first if you may need to restore it.
+            </p>
+          </AlertBody>
+          <AlertActions>
+            <Button
+              type="button"
+              outline
+              onClick={() => {
+                setIsDefinitionOverwriteAlertOpen(false);
+                setPendingDefinitionFromQuery(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              color="red"
+              onClick={() => {
+                const pendingDefinition = pendingDefinitionFromQuery;
+                if (!pendingDefinition) {
+                  setIsDefinitionOverwriteAlertOpen(false);
+                  return;
+                }
+
+                void (async () => {
+                  try {
+                    await importChecklistDefinition(pendingDefinition);
+                    setSelectedTaskId(null);
+                    setErrorMessage(null);
+                  } catch {
+                    setErrorMessage("Invalid or unreachable definition URL.");
+                  } finally {
+                    setIsDefinitionOverwriteAlertOpen(false);
+                    setPendingDefinitionFromQuery(null);
+                  }
+                })();
+              }}
+            >
+              Confirm
+            </Button>
+          </AlertActions>
+        </Alert>
       </>
     </MultiSelectContext>
   );
