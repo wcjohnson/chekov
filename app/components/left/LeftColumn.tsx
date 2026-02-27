@@ -1,19 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ChecklistMode, TaskId, TaskBreakout } from "../../lib/data/types";
+import { useState } from "react";
+import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
+import { useTaskBreakout } from "@/app/lib/data/derivedData";
 import {
   useCreateTaskMutation,
   useMoveCategoryMutation,
 } from "@/app/lib/data/mutations";
-import {
-  useCategoriesQuery,
-  useCategoriesTasksQuery,
-  useCategoryDependenciesQuery,
-  useRemindersQuery,
-} from "@/app/lib/data/queries";
 
 type LeftColumnProps = {
   mode: ChecklistMode;
@@ -30,7 +25,7 @@ export function LeftColumn({
   mode,
   showCompletedTasks,
   completionsWithReminders,
-  openTasks: tasksWithCompleteDependencies,
+  openTasks,
   tasksMatchingSearch,
   selectedTaskId,
   onRequestTaskSelectionChange,
@@ -62,91 +57,13 @@ export function LeftColumn({
     moveCategoryMutation.mutate({ fromIndex, toIndex });
   };
 
-  const categories = useCategoriesQuery().data;
-  const categoriesTasks = useCategoriesTasksQuery().data;
-  const categoryDependencies = useCategoryDependenciesQuery().data;
-  const allReminders = useRemindersQuery().data;
-
-  const taskBreakout: TaskBreakout = useMemo(() => {
-    const visibleCategories: string[] = [];
-    const categoryTasks = new Map<string, TaskId[]>();
-    const orderedCategoryTasks: TaskId[][] = [];
-    const visibleTasks = new Set<TaskId>();
-
-    if (!categories || !categoriesTasks) {
-      return {
-        visibleCategories,
-        categoryTasks,
-        orderedCategoryTasks,
-        visibleTasks,
-      };
-    }
-
-    for (const category of categories) {
-      // In task mode, only show categories whose deps are met.
-      if (mode === "task") {
-        const dependencies = categoryDependencies?.get(category);
-        let dependenciesMet = true;
-        if (dependencies) {
-          for (const dependencyId of dependencies) {
-            if (!completionsWithReminders.has(dependencyId)) {
-              dependenciesMet = false;
-              break;
-            }
-          }
-        }
-
-        if (!dependenciesMet) {
-          continue;
-        }
-      }
-
-      const tasks = categoriesTasks.get(category) ?? [];
-      const filtered = tasks.filter((taskId) => {
-        const matchesSearch = tasksMatchingSearch.has(taskId);
-        const isReminder = allReminders?.has(taskId);
-        if (mode === "task") {
-          const hasCompleteDependencies =
-            tasksWithCompleteDependencies.has(taskId);
-          if (isReminder) {
-            const shouldShow = !hasCompleteDependencies || showCompletedTasks;
-            return shouldShow && matchesSearch;
-          }
-
-          const isCompleted = completionsWithReminders.has(taskId);
-          const shouldShow =
-            hasCompleteDependencies && (showCompletedTasks || !isCompleted);
-          return shouldShow && matchesSearch;
-        } else {
-          return matchesSearch;
-        }
-      });
-      // TODO: possible visibility bug here, when editing
-      // show all the categories.
-      if (filtered.length > 0) {
-        visibleCategories.push(category);
-        categoryTasks.set(category, filtered);
-        orderedCategoryTasks.push(filtered);
-        filtered.forEach((taskId) => visibleTasks.add(taskId));
-      }
-    }
-    return {
-      visibleCategories,
-      categoryTasks,
-      orderedCategoryTasks,
-      visibleTasks,
-    };
-  }, [
-    tasksWithCompleteDependencies,
-    tasksMatchingSearch,
-    categories,
+  const taskBreakout = useTaskBreakout(
     mode,
-    categoriesTasks,
-    categoryDependencies,
-    allReminders,
-    completionsWithReminders,
     showCompletedTasks,
-  ]);
+    completionsWithReminders,
+    openTasks,
+    tasksMatchingSearch,
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -164,7 +81,7 @@ export function LeftColumn({
             key={category}
             category={category}
             taskBreakout={taskBreakout}
-            tasksWithCompleteDependencies={tasksWithCompleteDependencies}
+            openTasks={openTasks}
             effectiveCompletions={completionsWithReminders}
             mode={mode}
             selectedTaskId={selectedTaskId}

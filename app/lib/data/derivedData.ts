@@ -3,6 +3,7 @@
 import {
   useCategoriesQuery,
   useCategoriesTasksQuery,
+  useCategoryDependenciesQuery,
   useDetailsQuery,
   useTagsQuery,
   useTaskSetQuery,
@@ -12,6 +13,8 @@ import {
   BooleanOp,
   type BooleanExpression,
   type CategoryName,
+  type ChecklistMode,
+  type TaskBreakout,
   type TaskDependencies,
   type TaskId,
 } from "@/app/lib/data/types";
@@ -162,6 +165,106 @@ export function useTasksMatchingSearch(searchQuery: string) {
 
     return matchingTasks;
   }, [trimmedQuery, searchEnabled, taskSet, detailsQuery.data, tagsQuery.data]);
+}
+
+/**
+ * Derives task/category visibility for the given mode and filters.
+ *
+ * In task mode:
+ * - Categories with unmet category dependencies are excluded.
+ * - Tasks are shown only when openers are complete and completed-state filters allow them.
+ *
+ * In edit mode:
+ * - Category dependencies and completion filters are ignored; only search matching is applied.
+ *
+ * @returns `TaskBreakout` containing:
+ * - `visibleCategories`: ordered category names that currently contain at least one visible task.
+ * - `categoryTasks`: map of visible category to its filtered ordered task ids.
+ * - `orderedCategoryTasks`: array of visible task-id arrays aligned with `visibleCategories`.
+ * - `visibleTasks`: set of all visible task ids across categories.
+ */
+export function useTaskBreakout(
+  mode: ChecklistMode,
+  showCompletedTasks: boolean,
+  effectiveCompletions: Set<TaskId>,
+  openTasks: Set<TaskId>,
+  tasksMatchingSearch: Set<TaskId>,
+): TaskBreakout {
+  const categories = useCategoriesQuery().data;
+  const categoriesTasks = useCategoriesTasksQuery().data;
+  const categoryDependencies = useCategoryDependenciesQuery().data;
+
+  return useMemo(() => {
+    const visibleCategories: string[] = [];
+    const categoryTasks = new Map<string, TaskId[]>();
+    const orderedCategoryTasks: TaskId[][] = [];
+    const visibleTasks = new Set<TaskId>();
+
+    if (!categories || !categoriesTasks) {
+      return {
+        visibleCategories,
+        categoryTasks,
+        orderedCategoryTasks,
+        visibleTasks,
+      };
+    }
+
+    for (const category of categories) {
+      if (mode === "task") {
+        const dependencies = categoryDependencies?.get(category);
+        let dependenciesMet = true;
+        if (dependencies) {
+          for (const dependencyId of dependencies) {
+            if (!effectiveCompletions.has(dependencyId)) {
+              dependenciesMet = false;
+              break;
+            }
+          }
+        }
+
+        if (!dependenciesMet) {
+          continue;
+        }
+      }
+
+      const tasks = categoriesTasks.get(category) ?? [];
+      const filtered = tasks.filter((taskId) => {
+        const matchesSearch = tasksMatchingSearch.has(taskId);
+        if (mode === "task") {
+          const hasCompleteOpeners = openTasks.has(taskId);
+          const isCompleted = effectiveCompletions.has(taskId);
+          const shouldShow =
+            hasCompleteOpeners && (showCompletedTasks || !isCompleted);
+          return shouldShow && matchesSearch;
+        }
+
+        return matchesSearch;
+      });
+
+      if (filtered.length > 0) {
+        visibleCategories.push(category);
+        categoryTasks.set(category, filtered);
+        orderedCategoryTasks.push(filtered);
+        filtered.forEach((taskId) => visibleTasks.add(taskId));
+      }
+    }
+
+    return {
+      visibleCategories,
+      categoryTasks,
+      orderedCategoryTasks,
+      visibleTasks,
+    };
+  }, [
+    categories,
+    categoriesTasks,
+    categoryDependencies,
+    effectiveCompletions,
+    mode,
+    openTasks,
+    showCompletedTasks,
+    tasksMatchingSearch,
+  ]);
 }
 
 function computeEffectiveCompletions(

@@ -19,7 +19,7 @@ import {
 type CategoryProps = {
   category: string;
   taskBreakout: TaskBreakout;
-  tasksWithCompleteDependencies: Set<TaskId>;
+  openTasks: Set<TaskId>;
   effectiveCompletions: Set<TaskId>;
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
@@ -36,7 +36,7 @@ type CategoryProps = {
 export function Category({
   category,
   taskBreakout,
-  tasksWithCompleteDependencies,
+  openTasks,
   effectiveCompletions,
   mode,
   selectedTaskId,
@@ -208,7 +208,7 @@ export function Category({
               index={index}
               mode={mode}
               isSelected={selectedTaskId === taskId}
-              dependenciesComplete={tasksWithCompleteDependencies.has(taskId)}
+              dependenciesComplete={openTasks.has(taskId)}
               isEffectivelyComplete={effectiveCompletions.has(taskId)}
               onRequestTaskSelectionChange={onRequestTaskSelectionChange}
               onToggleComplete={onToggleComplete}
