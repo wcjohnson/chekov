@@ -1,7 +1,7 @@
 "use client";
 
 import { MultiSelectContext } from "@/app/lib/context";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
@@ -36,6 +36,8 @@ export function LeftColumn({
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const leftPaneScrollRef = useRef<HTMLDivElement | null>(null);
+  const previousModeRef = useRef<ChecklistMode>(mode);
 
   const createTaskMutation = useCreateTaskMutation();
   const submitNewCategory = () => {
@@ -70,6 +72,39 @@ export function LeftColumn({
     tasksMatchingSearch,
   );
 
+  useEffect(() => {
+    const previousMode = previousModeRef.current;
+    previousModeRef.current = mode;
+
+    if (previousMode === mode) {
+      return;
+    }
+
+    if (!selectedTaskId || !taskBreakout.visibleTasks.has(selectedTaskId)) {
+      return;
+    }
+
+    const scrollElement = leftPaneScrollRef.current;
+    if (!scrollElement) {
+      return;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const taskRow = Array.from(
+        scrollElement.querySelectorAll<HTMLElement>("[data-task-id]"),
+      ).find((element) => element.dataset.taskId === selectedTaskId);
+
+      taskRow?.scrollIntoView({
+        block: "center",
+        behavior: "auto",
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, [mode, selectedTaskId, taskBreakout.visibleTasks]);
+
   return (
     <div className="relative flex h-full min-h-0 flex-col p-4">
       <LeftHeader
@@ -88,6 +123,7 @@ export function LeftColumn({
       ) : null}
 
       <div
+        ref={leftPaneScrollRef}
         data-left-pane-scroll="true"
         className="mt-2 min-h-0 flex-1 overflow-y-auto -mx-4 px-4"
       >
