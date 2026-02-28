@@ -49,6 +49,7 @@ import {
   useTaskReminderMutation,
   useTaskRemoveTagMutation,
 } from "@/app/lib/data/mutations";
+import { DependencyCycleError } from "@/app/lib/utils";
 
 const EMPTY_TASK_ID_SET = new Set<TaskId>();
 
@@ -182,6 +183,22 @@ export function TaskDetails({
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
+  const formatCycleTaskChain = (cycle: TaskId[]) => {
+    return cycle
+      .map((taskId) => details?.get(taskId)?.title ?? taskId)
+      .join(" → ");
+  };
+
+  const formatDependencyKindLabel = (
+    dependencyKind?: "openers" | "closers",
+  ) => {
+    if (dependencyKind === "closers") {
+      return "Closer";
+    }
+
+    return "Opener";
+  };
+
   const mutateTaskDependencies = (taskDependencies: TaskDependencies) => {
     taskDependenciesMutation.mutate(
       {
@@ -190,8 +207,15 @@ export function TaskDetails({
       },
       {
         onError: (error) => {
-          if (error instanceof Error && /cycle/i.test(error.message)) {
-            toast.error("Circular dependency is not allowed.");
+          if (error instanceof DependencyCycleError) {
+            const cycleChain = formatCycleTaskChain(error.cycle);
+            const dependencyKindLabel = formatDependencyKindLabel(
+              error.dependencyKind,
+            );
+
+            toast.error(
+              `${dependencyKindLabel} dependency cycle is not allowed: ${cycleChain}`,
+            );
             return;
           }
 

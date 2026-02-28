@@ -25,7 +25,11 @@ import {
   type TaskId,
 } from "@/app/lib/data/types";
 import { normalizeDependencyExpression } from "@/app/lib/booleanExpression";
-import { detectCycle, fromKvPairsToMap } from "@/app/lib/utils";
+import {
+  DependencyCycleError,
+  detectCycle,
+  fromKvPairsToMap,
+} from "@/app/lib/utils";
 import { getStoredTagColorKey, type TagColorKey } from "@/app/lib/tagColors";
 
 const EMPTY_DEPENDENCY_SET = new Set<TaskId>();
@@ -608,21 +612,28 @@ export function useTaskDependenciesMutation() {
         );
       }
 
-      if (
-        detectCycle(
-          openerGraph,
-          taskId,
-          persistedTaskDependencies.openers?.taskSet ?? EMPTY_DEPENDENCY_SET,
-        ) ||
-        detectCycle(
-          closerGraph,
-          taskId,
-          persistedTaskDependencies.closers?.taskSet ?? EMPTY_DEPENDENCY_SET,
-        )
-      ) {
+      const openerCycle = detectCycle(
+        openerGraph,
+        taskId,
+        persistedTaskDependencies.openers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+      );
+
+      if (openerCycle) {
         tx.abort();
         await tx.done.catch(() => undefined);
-        throw new Error("Dependency cycle detected");
+        throw new DependencyCycleError(openerCycle, "openers");
+      }
+
+      const closerCycle = detectCycle(
+        closerGraph,
+        taskId,
+        persistedTaskDependencies.closers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+      );
+
+      if (closerCycle) {
+        tx.abort();
+        await tx.done.catch(() => undefined);
+        throw new DependencyCycleError(closerCycle, "closers");
       }
 
       await dependenciesStore.put(persistedTaskDependencies, taskId);

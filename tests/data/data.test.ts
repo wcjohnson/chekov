@@ -42,6 +42,7 @@ import {
   useTaskStructure,
   useOpenTasks,
 } from "../../app/lib/data/derivedData";
+import { DependencyCycleError } from "../../app/lib/utils";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
   categories: [],
@@ -349,6 +350,65 @@ describe("data layer", () => {
         undefined,
       );
     });
+  });
+
+  it("throws DependencyCycleError with cycle details when dependencies create a cycle", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "Task A" },
+          { id: "b", category: "Main", title: "Task B" },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => ({
+        setDependencies: useTaskDependenciesMutation(),
+      }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.setDependencies.mutateAsync({
+        taskId: "a",
+        taskDependencies: {
+          openers: {
+            taskSet: new Set(["b"]),
+          },
+        },
+      });
+    });
+
+    let thrownError: unknown = null;
+    await act(async () => {
+      try {
+        await result.current.setDependencies.mutateAsync({
+          taskId: "b",
+          taskDependencies: {
+            openers: {
+              taskSet: new Set(["a"]),
+            },
+          },
+        });
+      } catch (error) {
+        thrownError = error;
+      }
+    });
+
+    expect(thrownError).toBeInstanceOf(DependencyCycleError);
+
+    const cycleError = thrownError as DependencyCycleError;
+    expect(cycleError.dependencyKind).toBe("openers");
+    expect(cycleError.cycle.length).toBeGreaterThan(2);
+    expect(cycleError.cycle[0]).toBe(cycleError.cycle.at(-1));
+    expect(new Set(cycleError.cycle)).toEqual(new Set(["a", "b"]));
   });
 
   it("removes deleted task from aggregate dependencies query", async () => {
