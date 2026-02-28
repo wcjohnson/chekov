@@ -8,6 +8,7 @@ import {
   useTagsQuery,
   useTaskHiddensQuery,
   useTaskSetQuery,
+  useValuesQuery,
 } from "@/app/lib/data/queries";
 import { useMemo } from "react";
 import {
@@ -18,6 +19,7 @@ import {
   type TaskBreakout,
   type TaskDependencies,
   type TaskId,
+  type TaskValues,
 } from "@/app/lib/data/types";
 import { evaluateBooleanExpression } from "@/app/lib/booleanExpression";
 
@@ -195,12 +197,14 @@ export function useTaskBreakout(
   const categoriesTasks = useCategoriesTasksQuery().data;
   const categoryDependencies = useCategoryDependenciesQuery().data;
   const hiddenTasksData = useTaskHiddensQuery().data;
+  const valuesByTask = useValuesQuery().data;
 
   return useMemo(() => {
     const visibleCategories: string[] = [];
     const categoryTasks = new Map<string, TaskId[]>();
     const orderedCategoryTasks: TaskId[][] = [];
     const visibleTasks = new Set<TaskId>();
+    const visibleTasksTotalValue: TaskValues = {};
     const hiddenTasks = hiddenTasksData ?? new Set<TaskId>();
 
     if (!categories || !categoriesTasks) {
@@ -209,6 +213,7 @@ export function useTaskBreakout(
         categoryTasks,
         orderedCategoryTasks,
         visibleTasks,
+        visibleTasksTotalValue,
       };
     }
 
@@ -251,7 +256,19 @@ export function useTaskBreakout(
         visibleCategories.push(category);
         categoryTasks.set(category, filtered);
         orderedCategoryTasks.push(filtered);
-        filtered.forEach((taskId) => visibleTasks.add(taskId));
+        for (const taskId of filtered) {
+          visibleTasks.add(taskId);
+          const taskValues = valuesByTask?.get(taskId);
+
+          if (!taskValues) {
+            continue;
+          }
+
+          for (const [valueKey, valueNumber] of Object.entries(taskValues)) {
+            visibleTasksTotalValue[valueKey] =
+              (visibleTasksTotalValue[valueKey] ?? 0) + valueNumber;
+          }
+        }
       }
     }
 
@@ -260,6 +277,7 @@ export function useTaskBreakout(
       categoryTasks,
       orderedCategoryTasks,
       visibleTasks,
+      visibleTasksTotalValue,
     };
   }, [
     categories,
@@ -271,6 +289,7 @@ export function useTaskBreakout(
     openTasks,
     showCompletedTasks,
     tasksMatchingSearch,
+    valuesByTask,
   ]);
 }
 

@@ -2,7 +2,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { BooleanOp, type TaskDependencies } from "../../app/lib/data/types";
+import {
+  BooleanOp,
+  type TaskDependencies,
+  type TaskValues,
+} from "../../app/lib/data/types";
 
 import {
   exportChecklistState,
@@ -16,12 +20,15 @@ import {
   useCreateTaskMutation,
   useDeleteTasksMutation,
   useMoveTaskMutation,
+  useTaskAddTagMutation,
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskReminderMutation,
+  useTaskValuesMutation,
 } from "../../app/lib/data/mutations";
 import {
+  useAllKnownTagsQuery,
   useCategoriesQuery,
   useCategoriesTasksQuery,
   useCategoryDependencyQuery,
@@ -36,12 +43,15 @@ import {
   useTaskReminderQuery,
   useTaskSetQuery,
   useTaskTagsQuery,
+  useTaskValuesQuery,
+  useValuesQuery,
 } from "../../app/lib/data/queries";
 import {
   useEffectiveCompletions,
   useTaskStructure,
   useOpenTasks,
 } from "../../app/lib/data/derivedData";
+import { DependencyCycleError } from "../../app/lib/utils";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
   categories: [],
@@ -66,6 +76,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 function assertMissingPerItemQuerySentinels(result: {
   detail: unknown;
+  values: TaskValues | undefined;
   tags: Set<string> | undefined;
   dependencies: TaskDependencies | null | undefined;
   categoryDependencies: Set<string> | undefined;
@@ -74,6 +85,7 @@ function assertMissingPerItemQuerySentinels(result: {
   hidden: boolean | undefined;
 }) {
   expect(result.detail).toBeNull();
+  expect(result.values).toEqual({});
   expect(result.tags).toEqual(new Set<string>());
   expect(result.dependencies).toBeNull();
   expect(result.categoryDependencies).toEqual(new Set<string>());
@@ -197,6 +209,7 @@ describe("data layer", () => {
     const { result } = renderHook(
       () => ({
         detail: useTaskDetailQuery("missing").data,
+        values: useTaskValuesQuery("missing").data,
         tags: useTaskTagsQuery("missing").data,
         dependencies: useTaskDependenciesQuery("missing").data,
         categoryDependencies:
@@ -210,6 +223,102 @@ describe("data layer", () => {
 
     await waitFor(() => {
       assertMissingPerItemQuerySentinels(result.current);
+    });
+  });
+
+  it("updates all-known-tags query after adding a task tag", async () => {
+    const { result } = renderHook(
+      () => ({
+        createTask: useCreateTaskMutation(),
+        addTag: useTaskAddTagMutation(),
+        taskSet: useTaskSetQuery().data ?? new Set<string>(),
+        allKnownTags: useAllKnownTagsQuery().data ?? new Set<string>(),
+      }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.createTask.mutateAsync("Inbox");
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.size).toBe(1);
+    });
+
+    const [taskId] = Array.from(result.current.taskSet);
+
+    await act(async () => {
+      await result.current.addTag.mutateAsync({
+        taskId,
+        tag: "new-tag",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.allKnownTags).toEqual(new Set(["new-tag"]));
+    });
+  });
+
+  it("updates values queries through values mutation and removes all-zero values", async () => {
+    const { result } = renderHook(
+      () => ({
+        createTask: useCreateTaskMutation(),
+        setTaskValues: useTaskValuesMutation(),
+        taskSet: useTaskSetQuery().data ?? new Set<string>(),
+        valuesByTask: useValuesQuery().data ?? new Map<string, TaskValues>(),
+      }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.createTask.mutateAsync("Inbox");
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.size).toBe(1);
+    });
+
+    const [taskId] = Array.from(result.current.taskSet);
+
+    await act(async () => {
+      await result.current.setTaskValues.mutateAsync({
+        taskId,
+        taskValues: {
+          score: 10,
+          zeroValue: 0,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.valuesByTask.get(taskId)).toEqual({
+        score: 10,
+      });
+    });
+
+    await act(async () => {
+      await result.current.setTaskValues.mutateAsync({
+        taskId,
+        taskValues: {
+          score: 0,
+          bonus: 0,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.valuesByTask.has(taskId)).toBe(false);
+    });
+
+    const { result: perTaskValuesResult } = renderHook(
+      () => ({
+        taskValues: useTaskValuesQuery(taskId).data,
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(perTaskValuesResult.current.taskValues).toEqual({});
     });
   });
 
@@ -349,6 +458,65 @@ describe("data layer", () => {
         undefined,
       );
     });
+  });
+
+  it("throws DependencyCycleError with cycle details when dependencies create a cycle", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "Task A" },
+          { id: "b", category: "Main", title: "Task B" },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => ({
+        setDependencies: useTaskDependenciesMutation(),
+      }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.setDependencies.mutateAsync({
+        taskId: "a",
+        taskDependencies: {
+          openers: {
+            taskSet: new Set(["b"]),
+          },
+        },
+      });
+    });
+
+    let thrownError: unknown = null;
+    await act(async () => {
+      try {
+        await result.current.setDependencies.mutateAsync({
+          taskId: "b",
+          taskDependencies: {
+            openers: {
+              taskSet: new Set(["a"]),
+            },
+          },
+        });
+      } catch (error) {
+        thrownError = error;
+      }
+    });
+
+    expect(thrownError).toBeInstanceOf(DependencyCycleError);
+
+    const cycleError = thrownError as DependencyCycleError;
+    expect(cycleError.dependencyKind).toBe("openers");
+    expect(cycleError.cycle.length).toBeGreaterThan(2);
+    expect(cycleError.cycle[0]).toBe(cycleError.cycle.at(-1));
+    expect(new Set(cycleError.cycle)).toEqual(new Set(["a", "b"]));
   });
 
   it("removes deleted task from aggregate dependencies query", async () => {

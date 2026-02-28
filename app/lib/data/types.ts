@@ -8,6 +8,7 @@ export type TaskBreakout = {
   categoryTasks: Map<string, TaskId[]>;
   orderedCategoryTasks: TaskId[][];
   visibleTasks: Set<TaskId>;
+  visibleTasksTotalValue: TaskValues;
 };
 
 export enum BooleanOp {
@@ -38,3 +39,5 @@ export type TaskDependencies = {
   openers?: DependencyExpression | null | undefined;
   closers?: DependencyExpression | null | undefined;
 };
+
+export type TaskValues = Record<string, number>;

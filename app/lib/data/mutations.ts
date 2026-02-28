@@ -15,6 +15,7 @@ import {
   TASK_HIDDEN_STORE,
   TASK_REMINDERS_STORE,
   TASK_TAGS_STORE,
+  TASK_VALUES_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
 import {
@@ -23,10 +24,16 @@ import {
   type TaskDetail,
   type TaskDependencies,
   type TaskId,
+  type TaskValues,
 } from "@/app/lib/data/types";
 import { normalizeDependencyExpression } from "@/app/lib/booleanExpression";
-import { detectCycle, fromKvPairsToMap } from "@/app/lib/utils";
+import {
+  DependencyCycleError,
+  detectCycle,
+  fromKvPairsToMap,
+} from "@/app/lib/utils";
 import { getStoredTagColorKey, type TagColorKey } from "@/app/lib/tagColors";
+import { normalizeTaskValues } from "../utils";
 
 const EMPTY_DEPENDENCY_SET = new Set<TaskId>();
 
@@ -136,6 +143,7 @@ export function useDeleteTasksMutation() {
       const tx = db.transaction(
         [
           TASKS_STORE,
+          TASK_VALUES_STORE,
           TASK_TAGS_STORE,
           TASK_DEPENDENCIES_STORE,
           TASK_COMPLETION_STORE,
@@ -148,6 +156,7 @@ export function useDeleteTasksMutation() {
       );
 
       const tasksStore = tx.objectStore(TASKS_STORE);
+      const taskValuesStore = tx.objectStore(TASK_VALUES_STORE);
       const taskTagsStore = tx.objectStore(TASK_TAGS_STORE);
       const taskDependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
       const taskCompletionStore = tx.objectStore(TASK_COMPLETION_STORE);
@@ -194,6 +203,7 @@ export function useDeleteTasksMutation() {
       await Promise.all(
         Array.from(existingTaskIds).flatMap((taskId) => [
           tasksStore.delete(taskId),
+          taskValuesStore.delete(taskId),
           taskTagsStore.delete(taskId),
           taskDependenciesStore.delete(taskId),
           taskCompletionStore.delete(taskId),
@@ -299,7 +309,9 @@ export function useDeleteTasksMutation() {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["categoryTasks"] });
       queryClient.invalidateQueries({ queryKey: ["details"] });
+      queryClient.invalidateQueries({ queryKey: ["values"] });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: ["allKnownTags"] });
       queryClient.invalidateQueries({
         queryKey: ["dependencies"],
       });
@@ -316,6 +328,7 @@ export function useDeleteTasksMutation() {
 
       for (const taskId of deletedTaskIds) {
         queryClient.invalidateQueries({ queryKey: ["task", "detail", taskId] });
+        queryClient.invalidateQueries({ queryKey: ["task", "values", taskId] });
         queryClient.invalidateQueries({ queryKey: ["task", "tags", taskId] });
         queryClient.invalidateQueries({
           queryKey: ["task", "dependencies", taskId],
@@ -608,21 +621,28 @@ export function useTaskDependenciesMutation() {
         );
       }
 
-      if (
-        detectCycle(
-          openerGraph,
-          taskId,
-          persistedTaskDependencies.openers?.taskSet ?? EMPTY_DEPENDENCY_SET,
-        ) ||
-        detectCycle(
-          closerGraph,
-          taskId,
-          persistedTaskDependencies.closers?.taskSet ?? EMPTY_DEPENDENCY_SET,
-        )
-      ) {
+      const openerCycle = detectCycle(
+        openerGraph,
+        taskId,
+        persistedTaskDependencies.openers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+      );
+
+      if (openerCycle) {
         tx.abort();
         await tx.done.catch(() => undefined);
-        throw new Error("Dependency cycle detected");
+        throw new DependencyCycleError(openerCycle, "openers");
+      }
+
+      const closerCycle = detectCycle(
+        closerGraph,
+        taskId,
+        persistedTaskDependencies.closers?.taskSet ?? EMPTY_DEPENDENCY_SET,
+      );
+
+      if (closerCycle) {
+        tx.abort();
+        await tx.done.catch(() => undefined);
+        throw new DependencyCycleError(closerCycle, "closers");
       }
 
       await dependenciesStore.put(persistedTaskDependencies, taskId);
@@ -727,6 +747,43 @@ export function useTaskTagsMutation() {
       queryClient.invalidateQueries({
         queryKey: ["tags"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["allKnownTags"],
+      });
+    },
+  });
+}
+
+export function useTaskValuesMutation() {
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      taskValues,
+    }: {
+      taskId: TaskId;
+      taskValues: TaskValues;
+    }) => {
+      if (!taskId) {
+        return;
+      }
+
+      const db = await getDb();
+      const normalizedValues = normalizeTaskValues(taskValues);
+
+      if (!normalizedValues) {
+        await db.delete(TASK_VALUES_STORE, taskId);
+        return;
+      }
+
+      await db.put(TASK_VALUES_STORE, normalizedValues, taskId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["task", "values", variables.taskId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["values"],
+      });
     },
   });
 }
@@ -751,6 +808,9 @@ export function useTaskAddTagMutation() {
       });
       queryClient.invalidateQueries({
         queryKey: ["tags"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allKnownTags"],
       });
     },
   });
@@ -780,6 +840,9 @@ export function useTaskRemoveTagMutation() {
       });
       queryClient.invalidateQueries({
         queryKey: ["tags"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allKnownTags"],
       });
     },
   });

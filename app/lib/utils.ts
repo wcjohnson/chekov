@@ -1,5 +1,17 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
-import type { TaskId } from "@/app/lib/data/types";
+import type { TaskId, TaskValues } from "@/app/lib/data/types";
+
+export class DependencyCycleError extends Error {
+  readonly cycle: TaskId[];
+  readonly dependencyKind?: "openers" | "closers";
+
+  constructor(cycle: TaskId[], dependencyKind?: "openers" | "closers") {
+    super("Dependency cycle detected");
+    this.name = "DependencyCycleError";
+    this.cycle = cycle;
+    this.dependencyKind = dependencyKind;
+  }
+}
 
 export function fromKvPairsToRecord<K extends string, V>(
   keys: K[],
@@ -36,9 +48,10 @@ export const detectCycle = (
   graph: Map<TaskId, Set<TaskId>>,
   changedNode?: TaskId,
   changedNodeEdges?: Set<TaskId>,
-): boolean => {
-  const temp = new Set<TaskId>();
-  const perm = new Set<TaskId>();
+): TaskId[] | null => {
+  const active = new Set<TaskId>();
+  const complete = new Set<TaskId>();
+  const stack: TaskId[] = [];
 
   const getEdges = (node: TaskId): Set<TaskId> | undefined => {
     if (node === changedNode) {
@@ -48,40 +61,52 @@ export const detectCycle = (
     return graph.get(node);
   };
 
-  const visit = (node: TaskId): boolean => {
-    if (perm.has(node)) {
-      return false;
+  const visit = (node: TaskId): TaskId[] | null => {
+    if (active.has(node)) {
+      const cycleStartIndex = stack.lastIndexOf(node);
+      if (cycleStartIndex === -1) {
+        return [node, node];
+      }
+
+      return [...stack.slice(cycleStartIndex), node];
     }
 
-    if (temp.has(node)) {
-      return true;
+    if (complete.has(node)) {
+      return null;
     }
 
-    temp.add(node);
+    active.add(node);
+    stack.push(node);
 
     for (const neighbor of getEdges(node) ?? []) {
-      if (visit(neighbor)) {
-        return true;
+      const cycle = visit(neighbor);
+      if (cycle) {
+        return cycle;
       }
     }
 
-    temp.delete(node);
-    perm.add(node);
+    stack.pop();
+    active.delete(node);
+    complete.add(node);
 
-    return false;
+    return null;
   };
 
-  if (changedNode !== undefined && visit(changedNode)) {
-    return true;
-  }
-
-  for (const taskId of graph.keys()) {
-    if (visit(taskId)) {
-      return true;
+  if (changedNode !== undefined) {
+    const cycle = visit(changedNode);
+    if (cycle) {
+      return cycle;
     }
   }
 
-  return false;
+  for (const taskId of graph.keys()) {
+    const cycle = visit(taskId);
+    if (cycle) {
+      return cycle;
+    }
+  }
+
+  return null;
 };
 
 export function useStableCallback<Args extends unknown[], ReturnValue>(
@@ -108,3 +133,21 @@ export type PolymorphicProps<
     as?: ElementT;
   } & CustomProps
 >;
+export function normalizeTaskValues(
+  taskValues: TaskValues | null | undefined,
+): TaskValues | undefined {
+  // AGENT: Centralize task values normalization so imports/exports and mutations enforce identical persistence rules.
+  const normalizedEntries = Object.entries(taskValues ?? {}).filter(
+    ([key, value]) =>
+      key.length > 0 &&
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value !== 0,
+  );
+
+  if (normalizedEntries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(normalizedEntries);
+}

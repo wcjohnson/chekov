@@ -11,6 +11,7 @@ import {
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
   TASK_TAGS_STORE,
+  TASK_VALUES_STORE,
   TASK_REMINDERS_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
@@ -25,6 +26,7 @@ import {
   normalizeBooleanExpression,
   normalizeDependencyExpression as normalizeStoredDependencyExpression,
 } from "../booleanExpression";
+import { normalizeTaskValues } from "../utils";
 import type {
   ExportedChecklistDefinition,
   ExportedDependencyExpression,
@@ -158,6 +160,7 @@ function normalizeChecklistDefinition(
             ),
           ),
         );
+        const normalizedValues = normalizeTaskValues(task.values);
 
         return {
           id: task.id,
@@ -194,6 +197,7 @@ function normalizeChecklistDefinition(
               }
             : {}),
           ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
+          ...(normalizedValues ? { values: normalizedValues } : {}),
         };
       }),
     );
@@ -323,6 +327,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
   const [
     taskKeys,
     taskValues,
+    taskValueKeys,
+    taskValueValues,
     taskTagKeys,
     taskTagValues,
     taskDependencyKeys,
@@ -339,6 +345,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
   ] = await Promise.all([
     db.getAllKeys(TASKS_STORE),
     db.getAll(TASKS_STORE),
+    db.getAllKeys(TASK_VALUES_STORE),
+    db.getAll(TASK_VALUES_STORE),
     db.getAllKeys(TASK_TAGS_STORE),
     db.getAll(TASK_TAGS_STORE),
     db.getAllKeys(TASK_DEPENDENCIES_STORE),
@@ -356,6 +364,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
 
   const categories = maybeCategories ?? [];
   const taskMap = fromKvPairsToMap(taskKeys, taskValues);
+  const taskValuesMap = fromKvPairsToMap(taskValueKeys, taskValueValues);
   const taskTagsMap = fromKvPairsToMap(taskTagKeys, taskTagValues);
   const taskDependenciesMap = fromKvPairsToMap(
     taskDependencyKeys,
@@ -387,6 +396,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
       }
 
       const taskDependencies = taskDependenciesMap.get(taskId);
+      const taskValues = normalizeTaskValues(taskValuesMap.get(taskId));
       const taskTags = taskTagsMap.get(taskId) ?? new Set<string>();
       const taskOpeners = taskDependencies?.openers;
       const taskClosers = taskDependencies?.closers;
@@ -422,6 +432,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(Array.from(taskTags).length > 0
           ? { tags: Array.from(taskTags) }
           : {}),
+        ...(taskValues ? { values: taskValues } : {}),
       });
     }
 
@@ -527,6 +538,7 @@ export async function importChecklistDefinition(
   const transaction = db.transaction(
     [
       TASKS_STORE,
+      TASK_VALUES_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
       TASK_REMINDERS_STORE,
@@ -543,6 +555,7 @@ export async function importChecklistDefinition(
 
   const tasksStore = transaction.objectStore(TASKS_STORE);
   const taskTagsStore = transaction.objectStore(TASK_TAGS_STORE);
+  const taskValuesStore = transaction.objectStore(TASK_VALUES_STORE);
   const taskDependenciesStore = transaction.objectStore(
     TASK_DEPENDENCIES_STORE,
   );
@@ -559,6 +572,7 @@ export async function importChecklistDefinition(
 
   await Promise.all([
     tasksStore.clear(),
+    taskValuesStore.clear(),
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
     taskRemindersStore.clear(),
@@ -652,6 +666,11 @@ export async function importChecklistDefinition(
 
       if (task.tags && task.tags.length > 0) {
         await taskTagsStore.put(new Set(task.tags), task.id);
+      }
+
+      const normalizedValues = normalizeTaskValues(task.values);
+      if (normalizedValues) {
+        await taskValuesStore.put(normalizedValues, task.id);
       }
     }
   }

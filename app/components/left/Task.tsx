@@ -81,6 +81,7 @@ export function Task({
       className="py-0.5 w-full"
     >
       <div
+        data-task-id={taskId}
         role="button"
         tabIndex={0}
         onClick={() => {

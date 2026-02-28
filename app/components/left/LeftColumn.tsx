@@ -1,11 +1,12 @@
 "use client";
 
 import { MultiSelectContext } from "@/app/lib/context";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
 import { DragDropReorderableGroup } from "../DragDrop";
+import { Badge } from "@/app/components/catalyst/badge";
 import { Button } from "@/app/components/catalyst/button";
 import { useTaskBreakout } from "@/app/lib/data/derivedData";
 import {
@@ -36,6 +37,8 @@ export function LeftColumn({
 }: LeftColumnProps) {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const leftPaneScrollRef = useRef<HTMLDivElement | null>(null);
+  const previousModeRef = useRef<ChecklistMode>(mode);
 
   const createTaskMutation = useCreateTaskMutation();
   const submitNewCategory = () => {
@@ -69,6 +72,44 @@ export function LeftColumn({
     openTasks,
     tasksMatchingSearch,
   );
+  const visibleTasksTotalValueEntries = Object.entries(
+    taskBreakout.visibleTasksTotalValue,
+  )
+    .filter(([, valueNumber]) => valueNumber !== 0)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+
+  useEffect(() => {
+    const previousMode = previousModeRef.current;
+    previousModeRef.current = mode;
+
+    if (previousMode === mode) {
+      return;
+    }
+
+    if (!selectedTaskId || !taskBreakout.visibleTasks.has(selectedTaskId)) {
+      return;
+    }
+
+    const scrollElement = leftPaneScrollRef.current;
+    if (!scrollElement) {
+      return;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const taskRow = Array.from(
+        scrollElement.querySelectorAll<HTMLElement>("[data-task-id]"),
+      ).find((element) => element.dataset.taskId === selectedTaskId);
+
+      taskRow?.scrollIntoView({
+        block: "center",
+        behavior: "auto",
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, [mode, selectedTaskId, taskBreakout.visibleTasks]);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col p-4">
@@ -78,7 +119,7 @@ export function LeftColumn({
       />
 
       {isMultiSelecting && multiSelectContext.state ? (
-        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 px-4">
+        <div className="pointer-events-none absolute inset-x-0 top-1 z-20 px-4">
           <div className="pointer-events-auto">
             {multiSelectContext.state.renderCustomHeader(
               multiSelectContext.state,
@@ -88,6 +129,7 @@ export function LeftColumn({
       ) : null}
 
       <div
+        ref={leftPaneScrollRef}
         data-left-pane-scroll="true"
         className="mt-2 min-h-0 flex-1 overflow-y-auto -mx-4 px-4"
       >
@@ -172,6 +214,30 @@ export function LeftColumn({
           </p>
         )}
       </div>
+
+      {mode === "task" && visibleTasksTotalValueEntries.length > 0 && (
+        <div className="pointer-events-none absolute inset-x-4 bottom-4 z-10">
+          <div className="pointer-events-auto rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 font-medium text-zinc-500 dark:text-zinc-400">
+                Available values:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {visibleTasksTotalValueEntries.map(
+                  ([valueKey, valueNumber]) => (
+                    <Badge
+                      key={`visible-tasks-total-value-${valueKey}`}
+                      color="zinc"
+                    >
+                      {valueKey}: {valueNumber}
+                    </Badge>
+                  ),
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,9 +16,10 @@ import {
   TASK_HIDDEN_STORE,
   TASK_REMINDERS_STORE,
   TASK_TAGS_STORE,
+  TASK_VALUES_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
-import type { CategoryName, TaskId } from "@/app/lib/data/types";
+import type { CategoryName, TaskId, TaskValues } from "@/app/lib/data/types";
 import { fromKvPairsToMap } from "@/app/lib/utils";
 
 function getQueryArgs_categories() {
@@ -211,6 +212,29 @@ export function useTagsQuery(enabled?: boolean) {
   return useQuery(getQueryArgs_tags(enabled));
 }
 
+export function getQueryArgs_values(enabled?: boolean) {
+  return {
+    queryKey: ["values"],
+    enabled: enabled === undefined ? true : enabled,
+    queryFn: async () => {
+      const db = await getDb();
+      const taskIds = await db.getAllKeys(TASK_VALUES_STORE);
+      const values = await db.getAll(TASK_VALUES_STORE);
+      const map = fromKvPairsToMap(taskIds, values);
+
+      for (const [taskId, taskValues] of map.entries()) {
+        queryClient.setQueryData(["task", "values", taskId], taskValues);
+      }
+
+      return map;
+    },
+  };
+}
+
+export function useValuesQuery(enabled?: boolean) {
+  return useQuery(getQueryArgs_values(enabled));
+}
+
 export function useTaskDetailQuery(taskId: TaskId) {
   return useQuery({
     queryKey: ["task", "detail", taskId],
@@ -234,6 +258,22 @@ export function useTaskTagsQuery(taskId: TaskId) {
         return new Set<string>();
       }
       return tags;
+    },
+  });
+}
+
+export function useTaskValuesQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "values", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const taskValues = await db.get(TASK_VALUES_STORE, taskId);
+
+      if (taskValues === undefined) {
+        return {} satisfies TaskValues;
+      }
+
+      return taskValues;
     },
   });
 }

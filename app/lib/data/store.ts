@@ -6,14 +6,16 @@ import type {
   TaskDetail,
   CategoryName,
   TaskDependencies,
+  TaskValues,
 } from "./types";
 import type { TagColorKey } from "../tagColors";
 import { QueryClient } from "@tanstack/react-query";
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 export const TASKS_STORE = "tasks";
+export const TASK_VALUES_STORE = "taskValues";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
 export const TASK_COMPLETION_STORE = "taskCompletion";
@@ -25,10 +27,31 @@ export const CATEGORY_DEPENDENCIES_STORE = "categoryDependencies";
 export const TAG_COLORS_STORE = "tagColors";
 export const CATEGORY_COLLAPSED_STORE = "categoryCollapsed";
 
+const STORE_NAMES = [
+  TASKS_STORE,
+  TASK_VALUES_STORE,
+  TASK_TAGS_STORE,
+  TASK_DEPENDENCIES_STORE,
+  TASK_COMPLETION_STORE,
+  TASK_REMINDERS_STORE,
+  TASK_HIDDEN_STORE,
+  CATEGORIES_STORE,
+  CATEGORY_TASKS_STORE,
+  CATEGORY_DEPENDENCIES_STORE,
+  TAG_COLORS_STORE,
+  CATEGORY_COLLAPSED_STORE,
+] as const;
+
+type StoreName = (typeof STORE_NAMES)[number];
+
 export interface ChekovDB extends DBSchema {
   [TASKS_STORE]: {
     key: TaskId;
     value: TaskDetail;
+  };
+  [TASK_VALUES_STORE]: {
+    key: TaskId;
+    value: TaskValues;
   };
   [TASK_TAGS_STORE]: {
     key: TaskId;
@@ -81,22 +104,37 @@ export const getDb = async () => {
 
   if (!dbPromise) {
     dbPromise = openDB<ChekovDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        for (const storeName of Array.from(db.objectStoreNames)) {
-          db.deleteObjectStore(storeName);
+      upgrade(db, oldVersion) {
+        // AGENT: Add v9 migration without destructive resets; existing tasks implicitly have no values.
+        const createStoresIfMissing = (
+          storeNames: ReadonlyArray<StoreName>,
+        ) => {
+          for (const storeName of storeNames) {
+            if (!db.objectStoreNames.contains(storeName)) {
+              db.createObjectStore(storeName);
+            }
+          }
+        };
+
+        if (oldVersion < 1) {
+          createStoresIfMissing([
+            TASKS_STORE,
+            TASK_TAGS_STORE,
+            TASK_DEPENDENCIES_STORE,
+            TASK_COMPLETION_STORE,
+            TASK_REMINDERS_STORE,
+            TASK_HIDDEN_STORE,
+            CATEGORIES_STORE,
+            CATEGORY_TASKS_STORE,
+            CATEGORY_DEPENDENCIES_STORE,
+            TAG_COLORS_STORE,
+            CATEGORY_COLLAPSED_STORE,
+          ]);
         }
 
-        db.createObjectStore(TASKS_STORE);
-        db.createObjectStore(TASK_TAGS_STORE);
-        db.createObjectStore(TASK_DEPENDENCIES_STORE);
-        db.createObjectStore(TASK_COMPLETION_STORE);
-        db.createObjectStore(TASK_REMINDERS_STORE);
-        db.createObjectStore(TASK_HIDDEN_STORE);
-        db.createObjectStore(CATEGORIES_STORE);
-        db.createObjectStore(CATEGORY_TASKS_STORE);
-        db.createObjectStore(CATEGORY_DEPENDENCIES_STORE);
-        db.createObjectStore(TAG_COLORS_STORE);
-        db.createObjectStore(CATEGORY_COLLAPSED_STORE);
+        if (oldVersion < 9) {
+          createStoresIfMissing([TASK_VALUES_STORE]);
+        }
       },
     });
   }
@@ -109,6 +147,7 @@ export const clearDb = async () => {
   const tx = db.transaction(
     [
       TASKS_STORE,
+      TASK_VALUES_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
       TASK_COMPLETION_STORE,
@@ -125,6 +164,7 @@ export const clearDb = async () => {
 
   await Promise.all([
     tx.objectStore(TASKS_STORE).clear(),
+    tx.objectStore(TASK_VALUES_STORE).clear(),
     tx.objectStore(TASK_TAGS_STORE).clear(),
     tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
     tx.objectStore(TASK_COMPLETION_STORE).clear(),
