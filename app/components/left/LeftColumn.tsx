@@ -20,6 +20,7 @@ type LeftColumnProps = {
   completionsWithReminders: Set<TaskId>;
   openTasks: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
+  searchDisabledScrollToken: number;
   selectedTaskId: TaskId | null;
   onRequestTaskSelectionChange: (taskId: TaskId, isNew?: boolean) => void;
   onToggleComplete: (taskId: TaskId) => void;
@@ -31,6 +32,7 @@ export function LeftColumn({
   completionsWithReminders,
   openTasks,
   tasksMatchingSearch,
+  searchDisabledScrollToken,
   selectedTaskId,
   onRequestTaskSelectionChange,
   onToggleComplete,
@@ -39,6 +41,9 @@ export function LeftColumn({
   const [newCategoryName, setNewCategoryName] = useState("");
   const leftPaneScrollRef = useRef<HTMLDivElement | null>(null);
   const previousModeRef = useRef<ChecklistMode>(mode);
+  const previousSearchDisabledScrollTokenRef = useRef(
+    searchDisabledScrollToken,
+  );
 
   const createTaskMutation = useCreateTaskMutation();
   const submitNewCategory = () => {
@@ -79,10 +84,15 @@ export function LeftColumn({
     .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
 
   useEffect(() => {
-    const previousMode = previousModeRef.current;
+    const modeChanged = previousModeRef.current !== mode;
     previousModeRef.current = mode;
 
-    if (previousMode === mode) {
+    const searchDisabledTriggerChanged =
+      previousSearchDisabledScrollTokenRef.current !==
+      searchDisabledScrollToken;
+    previousSearchDisabledScrollTokenRef.current = searchDisabledScrollToken;
+
+    if (!modeChanged && !searchDisabledTriggerChanged) {
       return;
     }
 
@@ -109,7 +119,12 @@ export function LeftColumn({
     return () => {
       window.cancelAnimationFrame(animationFrameId);
     };
-  }, [mode, selectedTaskId, taskBreakout.visibleTasks]);
+  }, [
+    mode,
+    searchDisabledScrollToken,
+    selectedTaskId,
+    taskBreakout.visibleTasks,
+  ]);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col p-4">

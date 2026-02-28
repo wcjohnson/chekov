@@ -63,6 +63,7 @@ export function AppMain() {
   const [mode, setMode] = useState<ChecklistMode>("task");
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [searchDisabledScrollToken, setSearchDisabledScrollToken] = useState(0);
   const [stateSelectedTaskId, setSelectedTaskId] = useState<TaskId | null>(
     null,
   );
@@ -101,6 +102,7 @@ export function AppMain() {
   const importDefinitionInputRef = useRef<HTMLInputElement>(null);
   const importStateInputRef = useRef<HTMLInputElement>(null);
   const mainPaneRef = useRef<HTMLElement>(null);
+  const previousSearchEnabledRef = useRef(searchText.trim().length > 2);
 
   ///////////////////////////////////////// Data slicing
 
@@ -127,6 +129,16 @@ export function AppMain() {
     [collapsedCategories],
   );
   const taskCategoryById = useTaskCategoryById(taskStructure.categoryTasks);
+
+  useEffect(() => {
+    const isSearchEnabled = searchText.trim().length > 2;
+    // AGENT: Trigger selected-task recenter only when search transitions from enabled to disabled.
+    if (previousSearchEnabledRef.current && !isSearchEnabled) {
+      setSearchDisabledScrollToken((previous) => previous + 1);
+    }
+
+    previousSearchEnabledRef.current = isSearchEnabled;
+  }, [searchText]);
 
   ///////////////////////////////////////// Events
 
@@ -480,6 +492,7 @@ export function AppMain() {
               completionsWithReminders={allEffectiveCompletions}
               openTasks={openTasks}
               tasksMatchingSearch={tasksMatchingSearch}
+              searchDisabledScrollToken={searchDisabledScrollToken}
               selectedTaskId={selectedTaskId}
               onRequestTaskSelectionChange={handleSelectTask}
               onToggleComplete={toggleTaskCompletion}
