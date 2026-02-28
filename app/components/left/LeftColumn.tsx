@@ -78,7 +78,7 @@ export function LeftColumn({
       />
 
       {isMultiSelecting && multiSelectContext.state ? (
-        <div className="pointer-events-none absolute inset-x-0 top-16 z-20 px-4">
+        <div className="pointer-events-none absolute inset-x-0 top-1 z-20 px-4">
           <div className="pointer-events-auto">
             {multiSelectContext.state.renderCustomHeader(
               multiSelectContext.state,
