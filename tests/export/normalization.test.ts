@@ -334,4 +334,55 @@ describe("import/export normalization", () => {
       ],
     });
   });
+
+  it("normalizes task values by dropping zero and invalid entries", async () => {
+    const definition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          {
+            id: "t1",
+            category: "Main",
+            title: "Task 1",
+            values: {
+              keep: 42,
+              dropZero: 0,
+              dropNull: null,
+              "": 5,
+            },
+          },
+          {
+            id: "t2",
+            category: "Main",
+            title: "Task 2",
+            values: {
+              allZeroA: 0,
+              allZeroB: 0,
+            },
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    } as unknown as ExportedChecklistDefinition;
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.tasksByCategory.Main).toEqual([
+      {
+        id: "t1",
+        category: "Main",
+        title: "Task 1",
+        values: {
+          keep: 42,
+        },
+      },
+      {
+        id: "t2",
+        category: "Main",
+        title: "Task 2",
+      },
+    ]);
+  });
 });

@@ -38,3 +38,5 @@ export type TaskDependencies = {
   openers?: DependencyExpression | null | undefined;
   closers?: DependencyExpression | null | undefined;
 };
+
+export type TaskValues = Record<string, number>;

@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
-import type { TaskId } from "@/app/lib/data/types";
+import type { TaskId, TaskValues } from "@/app/lib/data/types";
 
 export class DependencyCycleError extends Error {
   readonly cycle: TaskId[];
@@ -133,3 +133,21 @@ export type PolymorphicProps<
     as?: ElementT;
   } & CustomProps
 >;
+export function normalizeTaskValues(
+  taskValues: TaskValues | null | undefined,
+): TaskValues | undefined {
+  // AGENT: Centralize task values normalization so imports/exports and mutations enforce identical persistence rules.
+  const normalizedEntries = Object.entries(taskValues ?? {}).filter(
+    ([key, value]) =>
+      key.length > 0 &&
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value !== 0,
+  );
+
+  if (normalizedEntries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(normalizedEntries);
+}

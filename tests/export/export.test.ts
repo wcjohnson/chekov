@@ -177,6 +177,34 @@ const roundTripFixtures: Array<{
       },
     },
   },
+  {
+    name: "task values round-trip",
+    definition: {
+      categories: ["Metrics"],
+      tasksByCategory: {
+        Metrics: [
+          {
+            id: "m1",
+            category: "Metrics",
+            title: "Track score",
+            values: {
+              score: 10,
+              weight: -2,
+            },
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    },
+    state: {
+      tasks: {},
+      categoryVisibilityByMode: {
+        task: {},
+        edit: {},
+      },
+    },
+  },
 ];
 
 const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

@@ -1,5 +1,10 @@
 import type { TagColorKey } from "../tagColors";
-import type { TaskId, CategoryName, BooleanExpression } from "./types";
+import type {
+  TaskId,
+  CategoryName,
+  BooleanExpression,
+  TaskValues,
+} from "./types";
 
 /**
  * Serialized task definition used in checklist definition import/export payloads.
@@ -69,6 +74,11 @@ export type ExportedTaskDefinition = {
    * Current closer definition for effective-completion semantics.
    */
   closers?: ExportedDependencyExpression;
+
+  /**
+   * Optional numeric task values
+   */
+  values?: TaskValues;
 };
 
 /**

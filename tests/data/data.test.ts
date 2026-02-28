@@ -2,7 +2,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { BooleanOp, type TaskDependencies } from "../../app/lib/data/types";
+import {
+  BooleanOp,
+  type TaskDependencies,
+  type TaskValues,
+} from "../../app/lib/data/types";
 
 import {
   exportChecklistState,
@@ -21,6 +25,7 @@ import {
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskReminderMutation,
+  useTaskValuesMutation,
 } from "../../app/lib/data/mutations";
 import {
   useAllKnownTagsQuery,
@@ -38,6 +43,8 @@ import {
   useTaskReminderQuery,
   useTaskSetQuery,
   useTaskTagsQuery,
+  useTaskValuesQuery,
+  useValuesQuery,
 } from "../../app/lib/data/queries";
 import {
   useEffectiveCompletions,
@@ -69,6 +76,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 function assertMissingPerItemQuerySentinels(result: {
   detail: unknown;
+  values: TaskValues | undefined;
   tags: Set<string> | undefined;
   dependencies: TaskDependencies | null | undefined;
   categoryDependencies: Set<string> | undefined;
@@ -77,6 +85,7 @@ function assertMissingPerItemQuerySentinels(result: {
   hidden: boolean | undefined;
 }) {
   expect(result.detail).toBeNull();
+  expect(result.values).toEqual({});
   expect(result.tags).toEqual(new Set<string>());
   expect(result.dependencies).toBeNull();
   expect(result.categoryDependencies).toEqual(new Set<string>());
@@ -200,6 +209,7 @@ describe("data layer", () => {
     const { result } = renderHook(
       () => ({
         detail: useTaskDetailQuery("missing").data,
+        values: useTaskValuesQuery("missing").data,
         tags: useTaskTagsQuery("missing").data,
         dependencies: useTaskDependenciesQuery("missing").data,
         categoryDependencies:
@@ -246,6 +256,69 @@ describe("data layer", () => {
 
     await waitFor(() => {
       expect(result.current.allKnownTags).toEqual(new Set(["new-tag"]));
+    });
+  });
+
+  it("updates values queries through values mutation and removes all-zero values", async () => {
+    const { result } = renderHook(
+      () => ({
+        createTask: useCreateTaskMutation(),
+        setTaskValues: useTaskValuesMutation(),
+        taskSet: useTaskSetQuery().data ?? new Set<string>(),
+        valuesByTask: useValuesQuery().data ?? new Map<string, TaskValues>(),
+      }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.createTask.mutateAsync("Inbox");
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.size).toBe(1);
+    });
+
+    const [taskId] = Array.from(result.current.taskSet);
+
+    await act(async () => {
+      await result.current.setTaskValues.mutateAsync({
+        taskId,
+        taskValues: {
+          score: 10,
+          zeroValue: 0,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.valuesByTask.get(taskId)).toEqual({
+        score: 10,
+      });
+    });
+
+    await act(async () => {
+      await result.current.setTaskValues.mutateAsync({
+        taskId,
+        taskValues: {
+          score: 0,
+          bonus: 0,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.valuesByTask.has(taskId)).toBe(false);
+    });
+
+    const { result: perTaskValuesResult } = renderHook(
+      () => ({
+        taskValues: useTaskValuesQuery(taskId).data,
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(perTaskValuesResult.current.taskValues).toEqual({});
     });
   });
 
