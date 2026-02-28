@@ -304,6 +304,7 @@ export function useDeleteTasksMutation() {
       queryClient.invalidateQueries({ queryKey: ["categoryTasks"] });
       queryClient.invalidateQueries({ queryKey: ["details"] });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: ["allKnownTags"] });
       queryClient.invalidateQueries({
         queryKey: ["dependencies"],
       });
@@ -738,6 +739,9 @@ export function useTaskTagsMutation() {
       queryClient.invalidateQueries({
         queryKey: ["tags"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["allKnownTags"],
+      });
     },
   });
 }
@@ -762,6 +766,9 @@ export function useTaskAddTagMutation() {
       });
       queryClient.invalidateQueries({
         queryKey: ["tags"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allKnownTags"],
       });
     },
   });
@@ -791,6 +798,9 @@ export function useTaskRemoveTagMutation() {
       });
       queryClient.invalidateQueries({
         queryKey: ["tags"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["allKnownTags"],
       });
     },
   });

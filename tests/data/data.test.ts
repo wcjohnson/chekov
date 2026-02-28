@@ -16,12 +16,14 @@ import {
   useCreateTaskMutation,
   useDeleteTasksMutation,
   useMoveTaskMutation,
+  useTaskAddTagMutation,
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskReminderMutation,
 } from "../../app/lib/data/mutations";
 import {
+  useAllKnownTagsQuery,
   useCategoriesQuery,
   useCategoriesTasksQuery,
   useCategoryDependencyQuery,
@@ -211,6 +213,39 @@ describe("data layer", () => {
 
     await waitFor(() => {
       assertMissingPerItemQuerySentinels(result.current);
+    });
+  });
+
+  it("updates all-known-tags query after adding a task tag", async () => {
+    const { result } = renderHook(
+      () => ({
+        createTask: useCreateTaskMutation(),
+        addTag: useTaskAddTagMutation(),
+        taskSet: useTaskSetQuery().data ?? new Set<string>(),
+        allKnownTags: useAllKnownTagsQuery().data ?? new Set<string>(),
+      }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.createTask.mutateAsync("Inbox");
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.size).toBe(1);
+    });
+
+    const [taskId] = Array.from(result.current.taskSet);
+
+    await act(async () => {
+      await result.current.addTag.mutateAsync({
+        taskId,
+        tag: "new-tag",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.allKnownTags).toEqual(new Set(["new-tag"]));
     });
   });
 
