@@ -14,6 +14,7 @@ import {
   type TaskDependencies,
   type TaskId,
   type TaskDetail,
+  type TaskValues,
 } from "@/app/lib/data/types";
 import { toast } from "react-hot-toast";
 import { buildImplicitAndExpression } from "@/app/lib/booleanExpression";
@@ -39,6 +40,7 @@ import {
   useTaskHiddenQuery,
   useTaskReminderQuery,
   useTaskTagsQuery,
+  useTaskValuesQuery,
 } from "@/app/lib/data/queries";
 import {
   useTagColorMutation,
@@ -48,6 +50,7 @@ import {
   useTaskHiddenMutation,
   useTaskReminderMutation,
   useTaskRemoveTagMutation,
+  useTaskValuesMutation,
 } from "@/app/lib/data/mutations";
 import { DependencyCycleError } from "@/app/lib/utils";
 
@@ -73,11 +76,15 @@ export function TaskDetails({
   onTitleFocused,
 }: TaskDetailsProps) {
   const [tagInput, setTagInput] = useState("");
+  const [valueKeyInput, setValueKeyInput] = useState("");
+  const [valueNumberInput, setValueNumberInput] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
   const multiSelectContext = useContext(MultiSelectContext);
 
   const selectedTaskTags =
     useTaskTagsQuery(selectedTaskId ?? "").data ?? new Set();
+  const selectedTaskValues =
+    useTaskValuesQuery(selectedTaskId ?? "").data ?? {};
   // For openers/closers display
   const selectedTaskDependencies = useTaskDependenciesQuery(
     selectedTaskId ?? "",
@@ -175,6 +182,43 @@ export function TaskDetails({
     taskRemoveTagMutation.mutate({
       taskId: selectedTaskId ?? "",
       tag: tagToRemove,
+    });
+  };
+
+  const taskValuesMutation = useTaskValuesMutation();
+  const addTaskValue = () => {
+    const normalizedKey = valueKeyInput.trim();
+    const normalizedNumber = Number(valueNumberInput);
+    if (!selectedTaskId || normalizedKey.length === 0) {
+      return;
+    }
+
+    if (!Number.isFinite(normalizedNumber)) {
+      return;
+    }
+
+    taskValuesMutation.mutate({
+      taskId: selectedTaskId,
+      taskValues: {
+        ...selectedTaskValues,
+        [normalizedKey]: normalizedNumber,
+      },
+    });
+    setValueKeyInput("");
+    setValueNumberInput("");
+  };
+
+  const removeTaskValue = (valueKey: string) => {
+    if (!selectedTaskId) {
+      return;
+    }
+
+    const nextTaskValues: TaskValues = { ...selectedTaskValues };
+    delete nextTaskValues[valueKey];
+
+    taskValuesMutation.mutate({
+      taskId: selectedTaskId,
+      taskValues: nextTaskValues,
     });
   };
 
@@ -552,6 +596,87 @@ export function TaskDetails({
             </button>
           </div>
         </div>
+
+        <div>
+          <p className="mb-2 text-sm font-medium">Values</p>
+          {/* AGENT: Add edit-mode values UI for key/number pairs persisted via task values mutation. */}
+          {Object.keys(selectedTaskValues).length === 0 ? (
+            <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
+              No values
+            </p>
+          ) : (
+            <div className="mb-2 space-y-2">
+              {Object.entries(selectedTaskValues)
+                .sort(([leftKey], [rightKey]) =>
+                  leftKey.localeCompare(rightKey),
+                )
+                .map(([valueKey, valueNumber]) => (
+                  <div
+                    key={`${selectedTaskId}-value-${valueKey}`}
+                    className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+                  >
+                    <span className="font-medium">{valueKey}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-600 dark:text-zinc-300">
+                        {valueNumber}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeTaskValue(valueKey)}
+                        className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                        title="Remove value"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={valueKeyInput}
+              onChange={(event) => setValueKeyInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addTaskValue();
+                }
+              }}
+              placeholder="Value name"
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+            />
+            <input
+              type="number"
+              value={valueNumberInput}
+              onChange={(event) => setValueNumberInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addTaskValue();
+                }
+              }}
+              placeholder="0"
+              className="w-32 rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+            />
+            <button
+              type="button"
+              onClick={addTaskValue}
+              disabled={
+                valueKeyInput.trim().length === 0 ||
+                !Number.isFinite(Number(valueNumberInput))
+              }
+              className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Add Value
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Add or update a value by key; setting a value to zero removes it.
+          </p>
+        </div>
       </>
     );
   }
@@ -642,6 +767,26 @@ export function TaskDetails({
             dependencyTitleById={closerTitleById}
             completionsWithReminders={completionsWithReminders}
           />
+        )}
+      </div>
+      <div>
+        <p className="mb-1 text-sm font-medium">Values</p>
+        {/* AGENT: Render read-only task values in task mode so details pane includes persisted value pairs. */}
+        {Object.keys(selectedTaskValues).length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">None</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(selectedTaskValues)
+              .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+              .map(([valueKey, valueNumber]) => (
+                <span
+                  key={`${selectedTaskId}-value-view-${valueKey}`}
+                  className="rounded border border-zinc-300 px-2 py-1 text-sm text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+                >
+                  {valueKey}: {valueNumber}
+                </span>
+              ))}
+          </div>
         )}
       </div>
     </>

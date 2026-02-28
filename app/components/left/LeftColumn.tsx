@@ -6,6 +6,7 @@ import type { ChecklistMode, TaskId } from "../../lib/data/types";
 import { Category } from "./Category";
 import { LeftHeader } from "./LeftHeader";
 import { DragDropReorderableGroup } from "../DragDrop";
+import { Badge } from "@/app/components/catalyst/badge";
 import { Button } from "@/app/components/catalyst/button";
 import { useTaskBreakout } from "@/app/lib/data/derivedData";
 import {
@@ -71,6 +72,11 @@ export function LeftColumn({
     openTasks,
     tasksMatchingSearch,
   );
+  const visibleTasksTotalValueEntries = Object.entries(
+    taskBreakout.visibleTasksTotalValue,
+  )
+    .filter(([, valueNumber]) => valueNumber !== 0)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
 
   useEffect(() => {
     const previousMode = previousModeRef.current;
@@ -208,6 +214,30 @@ export function LeftColumn({
           </p>
         )}
       </div>
+
+      {mode === "task" && visibleTasksTotalValueEntries.length > 0 && (
+        <div className="pointer-events-none absolute inset-x-4 bottom-4 z-10">
+          <div className="pointer-events-auto rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 font-medium text-zinc-500 dark:text-zinc-400">
+                Available values:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {visibleTasksTotalValueEntries.map(
+                  ([valueKey, valueNumber]) => (
+                    <Badge
+                      key={`visible-tasks-total-value-${valueKey}`}
+                      color="zinc"
+                    >
+                      {valueKey}: {valueNumber}
+                    </Badge>
+                  ),
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

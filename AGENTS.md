@@ -220,6 +220,7 @@
 ## Notes for Future Agents
 
 - Policy: non-trivial code changes should include very brief, preferably single-line, comments beginning with "AGENT:" to inform the code was written by an agent. The comment should briefly describe what the agent was asked to do and briefly describe the logic of the new or changed code.
+- Prefer Catalyst UI components (for example `Button`, `Badge`, `Dropdown`, `Alert`) over raw HTML controls when appropriate for new or changed UI.
 - The app is intentionally fully client-side with no server APIs.
 - Avoid introducing backend persistence unless explicitly requested.
 - Treat IndexedDB as canonical source of truth on reads; prefer write-time normalization/guardrails in mutations and import normalization.
