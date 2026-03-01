@@ -77,11 +77,20 @@ export function LeftColumn({
     openTasks,
     tasksMatchingSearch,
   );
-  const visibleTasksTotalValueEntries = Object.entries(
-    taskBreakout.visibleTasksTotalValue,
+  const visibleIncompleteTasksTotalValueEntries = Object.entries(
+    taskBreakout.visibleIncompleteTasksTotalValue,
   )
     .filter(([, valueNumber]) => valueNumber !== 0)
     .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  const completedTasksTotalValueEntries = Object.entries(
+    taskBreakout.completedTasksTotalValue,
+  )
+    .filter(([, valueNumber]) => valueNumber !== 0)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  const shouldShowValueOverlay =
+    mode === "task" &&
+    (visibleIncompleteTasksTotalValueEntries.length > 0 ||
+      completedTasksTotalValueEntries.length > 0);
 
   useEffect(() => {
     const modeChanged = previousModeRef.current !== mode;
@@ -146,7 +155,9 @@ export function LeftColumn({
       <div
         ref={leftPaneScrollRef}
         data-left-pane-scroll="true"
-        className="mt-2 min-h-0 flex-1 overflow-y-auto -mx-4 px-4"
+        className={`mt-2 min-h-0 flex-1 overflow-y-auto -mx-4 px-4 ${
+          shouldShowValueOverlay ? "pb-24" : ""
+        }`}
       >
         <DragDropReorderableGroup
           group="categories"
@@ -230,26 +241,47 @@ export function LeftColumn({
         )}
       </div>
 
-      {mode === "task" && visibleTasksTotalValueEntries.length > 0 && (
+      {shouldShowValueOverlay && (
         <div className="pointer-events-none absolute inset-x-4 bottom-4 z-10">
           <div className="pointer-events-auto rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 font-medium text-zinc-500 dark:text-zinc-400">
-                Available values:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {visibleTasksTotalValueEntries.map(
-                  ([valueKey, valueNumber]) => (
-                    <Badge
-                      key={`visible-tasks-total-value-${valueKey}`}
-                      color="zinc"
-                    >
-                      {valueKey}: {valueNumber}
-                    </Badge>
-                  ),
-                )}
+            {completedTasksTotalValueEntries.length > 0 && (
+              <div className="mb-2 flex items-center gap-2">
+                <span className="shrink-0 font-medium text-zinc-500 dark:text-zinc-400">
+                  Completed values:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {completedTasksTotalValueEntries.map(
+                    ([valueKey, valueNumber]) => (
+                      <Badge
+                        key={`completed-tasks-total-value-${valueKey}`}
+                        color="zinc"
+                      >
+                        {valueKey}: {valueNumber}
+                      </Badge>
+                    ),
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+            {visibleIncompleteTasksTotalValueEntries.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 font-medium text-zinc-500 dark:text-zinc-400">
+                  Available values:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {visibleIncompleteTasksTotalValueEntries.map(
+                    ([valueKey, valueNumber]) => (
+                      <Badge
+                        key={`visible-tasks-total-value-${valueKey}`}
+                        color="zinc"
+                      >
+                        {valueKey}: {valueNumber}
+                      </Badge>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
