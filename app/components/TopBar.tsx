@@ -57,6 +57,8 @@ export function TopBar({
   onImportDefinitionFile,
   onImportStateFile,
 }: TopBarProps) {
+  const [isResetCompletedAlertOpen, setIsResetCompletedAlertOpen] =
+    useState(false);
   const [isClearDbAlertOpen, setIsClearDbAlertOpen] = useState(false);
 
   return (
@@ -85,7 +87,7 @@ export function TopBar({
           </Button>
           <Button
             type="button"
-            onClick={onResetCompleted}
+            onClick={() => setIsResetCompletedAlertOpen(true)}
             outline
             className="text-sm"
           >
@@ -156,6 +158,42 @@ export function TopBar({
           />
         </NavbarSection>
       </Navbar>
+
+      <Alert
+        open={isResetCompletedAlertOpen}
+        onClose={setIsResetCompletedAlertOpen}
+        size="sm"
+      >
+        <AlertTitle>Reset completed tasks?</AlertTitle>
+        <AlertDescription>
+          This will clear completion status for all completed tasks.
+        </AlertDescription>
+        <AlertBody>
+          {/* AGENT: Require explicit confirmation before triggering global reset-completed action. */}
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            This action affects all completed tasks and may expand your active
+            task list.
+          </p>
+        </AlertBody>
+        <AlertActions>
+          <Button
+            type="button"
+            outline
+            onClick={() => setIsResetCompletedAlertOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              onResetCompleted();
+              setIsResetCompletedAlertOpen(false);
+            }}
+          >
+            Confirm
+          </Button>
+        </AlertActions>
+      </Alert>
 
       <Alert
         open={isClearDbAlertOpen}
