@@ -185,6 +185,8 @@ export function useTasksMatchingSearch(searchQuery: string) {
  * - `categoryTasks`: map of visible category to its filtered ordered task ids.
  * - `orderedCategoryTasks`: array of visible task-id arrays aligned with `visibleCategories`.
  * - `visibleTasks`: set of all visible task ids across categories.
+ * - `visibleIncompleteTasksTotalValue`: vector-summed values across currently visible tasks that are not effectively complete.
+ * - `completedTasksTotalValue`: vector-summed values across all effectively completed tasks.
  */
 export function useTaskBreakout(
   mode: ChecklistMode,
@@ -204,7 +206,8 @@ export function useTaskBreakout(
     const categoryTasks = new Map<string, TaskId[]>();
     const orderedCategoryTasks: TaskId[][] = [];
     const visibleTasks = new Set<TaskId>();
-    const visibleTasksTotalValue: TaskValues = {};
+    const visibleIncompleteTasksTotalValue: TaskValues = {};
+    const completedTasksTotalValue: TaskValues = {};
     const hiddenTasks = hiddenTasksData ?? new Set<TaskId>();
 
     if (!categories || !categoriesTasks) {
@@ -213,8 +216,28 @@ export function useTaskBreakout(
         categoryTasks,
         orderedCategoryTasks,
         visibleTasks,
-        visibleTasksTotalValue,
+        visibleIncompleteTasksTotalValue,
+        completedTasksTotalValue,
       };
+    }
+
+    // AGENT: Compute completed-value totals in the same memo pass to avoid extra hook passes over task data.
+    for (const categoryTaskIds of categoriesTasks.values()) {
+      for (const taskId of categoryTaskIds) {
+        if (!effectiveCompletions.has(taskId)) {
+          continue;
+        }
+
+        const taskValues = valuesByTask?.get(taskId);
+        if (!taskValues) {
+          continue;
+        }
+
+        for (const [valueKey, valueNumber] of Object.entries(taskValues)) {
+          completedTasksTotalValue[valueKey] =
+            (completedTasksTotalValue[valueKey] ?? 0) + valueNumber;
+        }
+      }
     }
 
     for (const category of categories) {
@@ -258,6 +281,10 @@ export function useTaskBreakout(
         orderedCategoryTasks.push(filtered);
         for (const taskId of filtered) {
           visibleTasks.add(taskId);
+          if (effectiveCompletions.has(taskId)) {
+            continue;
+          }
+
           const taskValues = valuesByTask?.get(taskId);
 
           if (!taskValues) {
@@ -265,8 +292,8 @@ export function useTaskBreakout(
           }
 
           for (const [valueKey, valueNumber] of Object.entries(taskValues)) {
-            visibleTasksTotalValue[valueKey] =
-              (visibleTasksTotalValue[valueKey] ?? 0) + valueNumber;
+            visibleIncompleteTasksTotalValue[valueKey] =
+              (visibleIncompleteTasksTotalValue[valueKey] ?? 0) + valueNumber;
           }
         }
       }
@@ -277,7 +304,8 @@ export function useTaskBreakout(
       categoryTasks,
       orderedCategoryTasks,
       visibleTasks,
-      visibleTasksTotalValue,
+      visibleIncompleteTasksTotalValue,
+      completedTasksTotalValue,
     };
   }, [
     categories,
