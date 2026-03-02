@@ -184,6 +184,7 @@ export function LeftColumn({
               key={category}
               category={category}
               categoryIndex={index}
+              leftPaneScrollRef={leftPaneScrollRef}
               taskBreakout={taskBreakout}
               openTasks={openTasks}
               effectiveCompletions={completionsWithReminders}

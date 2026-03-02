@@ -8,7 +8,14 @@ import {
   type DragDropStateType,
 } from "../DragDrop";
 import { MultiSelectContext } from "@/app/lib/context";
-import { useContext, useRef, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   useDetailsQuery,
   useCategoryDependencyQuery,
@@ -25,10 +32,12 @@ import { Button } from "@/app/components/catalyst/button";
 import { DependencyExpressionView } from "@/app/components/right/DependencyExpressionEditor";
 
 const EMPTY_TASK_ID_SET = new Set<TaskId>();
+const EMPTY_TASK_ID_ARRAY: TaskId[] = [];
 
 type CategoryProps = {
   category: string;
   categoryIndex: number;
+  leftPaneScrollRef: RefObject<HTMLDivElement | null>;
   taskBreakout: TaskBreakout;
   openTasks: Set<TaskId>;
   effectiveCompletions: Set<TaskId>;
@@ -41,6 +50,7 @@ type CategoryProps = {
 export function Category({
   category,
   categoryIndex,
+  leftPaneScrollRef,
   taskBreakout,
   openTasks,
   effectiveCompletions,
@@ -49,11 +59,19 @@ export function Category({
   onRequestTaskSelectionChange,
   onToggleComplete,
 }: CategoryProps) {
-  const visibleTasks = taskBreakout.categoryTasks.get(category);
+  const TASK_ROW_HEIGHT = 38;
+  const TASK_OVERSCAN = 6;
+  const VIRTUALIZE_TASK_THRESHOLD = 40;
+  const visibleTasks = useMemo(
+    () => taskBreakout.categoryTasks.get(category) ?? EMPTY_TASK_ID_ARRAY,
+    [category, taskBreakout.categoryTasks],
+  );
+  const taskListRef = useRef<HTMLDivElement>(null);
   const categoryHandleRef = useRef<HTMLButtonElement>(null);
   const [dragState, setDragState] = useState<DragDropStateType>({
     isDragging: false,
   });
+  const [virtualRange, setVirtualRange] = useState({ start: 0, end: 0 });
   const collapsedCategories = useCollapsedCategoriesQuery().data;
   const categoryCollapsedMutation = useCategoryCollapsedMutation();
   const categoryDependencies = useCategoryDependencyQuery(category).data;
@@ -162,15 +180,118 @@ export function Category({
     });
   };
 
-  if (!visibleTasks || visibleTasks.length === 0) {
-    return null;
-  }
-
   const collapsedTaskCategories = collapsedCategories?.task;
   const collapsedEditCategories = collapsedCategories?.edit;
   const isOpen =
     (mode === "task" && !collapsedTaskCategories?.has(category)) ||
     (mode === "edit" && !collapsedEditCategories?.has(category));
+  const shouldVirtualizeTasks =
+    isOpen && visibleTasks.length > VIRTUALIZE_TASK_THRESHOLD;
+  const selectedTaskIndex = selectedTaskId ? visibleTasks.indexOf(selectedTaskId) : -1;
+
+  useEffect(() => {
+    if (!shouldVirtualizeTasks) {
+      return;
+    }
+
+    const scrollElement = leftPaneScrollRef.current;
+    const taskListElement = taskListRef.current;
+    if (!scrollElement || !taskListElement) {
+      return;
+    }
+
+    let animationFrameId = 0;
+
+    const updateVisibleRange = () => {
+      animationFrameId = 0;
+
+      const scrollRect = scrollElement.getBoundingClientRect();
+      const listRect = taskListElement.getBoundingClientRect();
+      const listTopInScroll =
+        scrollElement.scrollTop + (listRect.top - scrollRect.top);
+      const totalVirtualHeight = visibleTasks.length * TASK_ROW_HEIGHT;
+
+      const viewportTop = scrollElement.scrollTop;
+      const viewportBottom = viewportTop + scrollElement.clientHeight;
+      const relativeViewportTop = viewportTop - listTopInScroll;
+      const relativeViewportBottom = viewportBottom - listTopInScroll;
+
+      let nextStart = 0;
+      let nextEnd = 0;
+
+      const intersectsViewport =
+        relativeViewportBottom > 0 && relativeViewportTop < totalVirtualHeight;
+
+      if (intersectsViewport) {
+        nextStart =
+          Math.floor(relativeViewportTop / TASK_ROW_HEIGHT) - TASK_OVERSCAN;
+        nextEnd = Math.ceil(relativeViewportBottom / TASK_ROW_HEIGHT) + TASK_OVERSCAN;
+      }
+
+      nextStart = Math.max(0, nextStart);
+      nextStart = Math.min(nextStart, visibleTasks.length);
+      nextEnd = Math.max(0, nextEnd);
+      nextEnd = Math.min(nextEnd, visibleTasks.length);
+
+      if (selectedTaskIndex >= 0) {
+        nextStart = Math.min(nextStart, selectedTaskIndex);
+        nextEnd = Math.max(nextEnd, selectedTaskIndex + 1);
+      }
+
+      nextEnd = Math.max(nextEnd, nextStart);
+
+      setVirtualRange((previous) => {
+        if (previous.start === nextStart && previous.end === nextEnd) {
+          return previous;
+        }
+
+        return { start: nextStart, end: nextEnd };
+      });
+    };
+
+    const requestRangeUpdate = () => {
+      if (animationFrameId !== 0) {
+        return;
+      }
+
+      animationFrameId = window.requestAnimationFrame(updateVisibleRange);
+    };
+
+    requestRangeUpdate();
+    scrollElement.addEventListener("scroll", requestRangeUpdate, {
+      passive: true,
+    });
+    window.addEventListener("resize", requestRangeUpdate);
+
+    return () => {
+      if (animationFrameId !== 0) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      scrollElement.removeEventListener("scroll", requestRangeUpdate);
+      window.removeEventListener("resize", requestRangeUpdate);
+    };
+  }, [
+    leftPaneScrollRef,
+    selectedTaskIndex,
+    shouldVirtualizeTasks,
+    visibleTasks,
+  ]);
+
+  const renderStartIndex = shouldVirtualizeTasks ? virtualRange.start : 0;
+  const renderEndIndex = shouldVirtualizeTasks
+    ? virtualRange.end
+    : visibleTasks.length;
+  const visibleTaskSlice = visibleTasks.slice(renderStartIndex, renderEndIndex);
+  const topSpacerHeight = shouldVirtualizeTasks
+    ? renderStartIndex * TASK_ROW_HEIGHT
+    : 0;
+  const bottomSpacerHeight = shouldVirtualizeTasks
+    ? (visibleTasks.length - renderEndIndex) * TASK_ROW_HEIGHT
+    : 0;
+
+  if (visibleTasks.length === 0) {
+    return null;
+  }
 
   return (
     <DragDropReorderable
@@ -241,13 +362,16 @@ export function Category({
             </span>
           )}
         </summary>
-        <div className="px-2 pb-2">
-          {visibleTasks.map((taskId, index) => {
+        <div ref={taskListRef} className="px-2 pb-2">
+          {/* AGENT: Virtualize task rows in both modes against left-pane scroll while preserving row indices and selected-task recentering. */}
+          {topSpacerHeight > 0 && <div style={{ height: topSpacerHeight }} />}
+          {visibleTaskSlice.map((taskId, index) => {
+            const taskIndex = renderStartIndex + index;
             return (
               <Task
                 key={taskId}
                 taskId={taskId}
-                index={index}
+                index={taskIndex}
                 mode={mode}
                 isSelected={selectedTaskId === taskId}
                 openersComplete={openTasks.has(taskId)}
@@ -257,6 +381,7 @@ export function Category({
               />
             );
           })}
+          {bottomSpacerHeight > 0 && <div style={{ height: bottomSpacerHeight }} />}
           {mode === "edit" && (
             <Button
               type="button"
