@@ -6,10 +6,14 @@ import {
   importChecklistDefinition,
   importChecklistState,
 } from "../../app/lib/data/export";
-import { type ExportedChecklistState } from "@/app/lib/data/jsonSchema";
-import { type ExportedChecklistDefinition } from "@/app/lib/data/jsonSchema";
+import {
+  CHECKLIST_DEFINITION_FORMAT_VERSION,
+  type ExportedChecklistState,
+  type ExportedChecklistDefinition,
+} from "@/app/lib/data/jsonSchema";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
+  formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
   categories: [],
   tasksByCategory: {},
   tagColors: {},
@@ -87,6 +91,7 @@ describe("import/export normalization", () => {
     const exportedDefinition = await exportChecklistDefinition();
 
     expect(exportedDefinition).toEqual({
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
       categories: ["A", "B"],
       tasksByCategory: {
         A: [
@@ -132,6 +137,24 @@ describe("import/export normalization", () => {
         B: ["t1"],
       },
     });
+  });
+
+  it("defaults missing definition formatVersion to 1", async () => {
+    const legacyDefinitionWithoutVersion = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [{ id: "t1", category: "Main", title: "Task 1" }],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    } as unknown as ExportedChecklistDefinition;
+
+    await importChecklistDefinition(asJson(legacyDefinitionWithoutVersion));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.formatVersion).toBe(
+      CHECKLIST_DEFINITION_FORMAT_VERSION,
+    );
   });
 
   it("omits invalid dependencyExpression during normalization", async () => {

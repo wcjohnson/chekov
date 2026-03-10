@@ -6,10 +6,14 @@ import {
   importChecklistDefinition,
   importChecklistState,
 } from "../../app/lib/data/export";
-import { type ExportedChecklistState } from "@/app/lib/data/jsonSchema";
-import { type ExportedChecklistDefinition } from "@/app/lib/data/jsonSchema";
+import {
+  CHECKLIST_DEFINITION_FORMAT_VERSION,
+  type ExportedChecklistState,
+  type ExportedChecklistDefinition,
+} from "@/app/lib/data/jsonSchema";
 
 const EMPTY_DEFINITION: ExportedChecklistDefinition = {
+  formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
   categories: [],
   tasksByCategory: {},
   tagColors: {},
@@ -32,6 +36,7 @@ const roundTripFixtures: Array<{
   {
     name: "single normal task",
     definition: {
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
       categories: ["Home"],
       tasksByCategory: {
         Home: [{ id: "t1", category: "Home", title: "Do laundry" }],
@@ -52,6 +57,7 @@ const roundTripFixtures: Array<{
   {
     name: "reminder, dependencies, tags, and category dependencies",
     definition: {
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
       categories: ["Core", "Later"],
       tasksByCategory: {
         Core: [
@@ -103,6 +109,7 @@ const roundTripFixtures: Array<{
   {
     name: "multiple categories and non-empty descriptions",
     definition: {
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
       categories: ["Alpha", "Beta", "Gamma"],
       tasksByCategory: {
         Alpha: [
@@ -150,6 +157,7 @@ const roundTripFixtures: Array<{
   {
     name: "non-simple dependency expression round-trip",
     definition: {
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
       categories: ["Expr"],
       tasksByCategory: {
         Expr: [
@@ -180,6 +188,7 @@ const roundTripFixtures: Array<{
   {
     name: "task values round-trip",
     definition: {
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
       categories: ["Metrics"],
       tasksByCategory: {
         Metrics: [

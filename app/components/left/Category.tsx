@@ -187,7 +187,9 @@ export function Category({
     (mode === "edit" && !collapsedEditCategories?.has(category));
   const shouldVirtualizeTasks =
     isOpen && visibleTasks.length > VIRTUALIZE_TASK_THRESHOLD;
-  const selectedTaskIndex = selectedTaskId ? visibleTasks.indexOf(selectedTaskId) : -1;
+  const selectedTaskIndex = selectedTaskId
+    ? visibleTasks.indexOf(selectedTaskId)
+    : -1;
 
   useEffect(() => {
     if (!shouldVirtualizeTasks) {
@@ -225,7 +227,8 @@ export function Category({
       if (intersectsViewport) {
         nextStart =
           Math.floor(relativeViewportTop / TASK_ROW_HEIGHT) - TASK_OVERSCAN;
-        nextEnd = Math.ceil(relativeViewportBottom / TASK_ROW_HEIGHT) + TASK_OVERSCAN;
+        nextEnd =
+          Math.ceil(relativeViewportBottom / TASK_ROW_HEIGHT) + TASK_OVERSCAN;
       }
 
       nextStart = Math.max(0, nextStart);
@@ -306,6 +309,10 @@ export function Category({
         as="details"
         group={category}
         onMoveItem={(fromGroup, fromIndex, toGroup, toIndex) => {
+          if (mode !== "edit") {
+            return;
+          }
+
           if (!fromGroup || !toGroup) {
             return;
           }
@@ -381,7 +388,9 @@ export function Category({
               />
             );
           })}
-          {bottomSpacerHeight > 0 && <div style={{ height: bottomSpacerHeight }} />}
+          {bottomSpacerHeight > 0 && (
+            <div style={{ height: bottomSpacerHeight }} />
+          )}
           {mode === "edit" && (
             <Button
               type="button"

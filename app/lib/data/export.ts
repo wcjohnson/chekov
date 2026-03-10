@@ -34,6 +34,7 @@ import type {
   ExportedChecklistTaskState,
   ExportedTaskDefinition,
 } from "./jsonSchema";
+import { CHECKLIST_DEFINITION_FORMAT_VERSION } from "./jsonSchema";
 
 const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
   type === "warning" || type === "reminder";
@@ -91,6 +92,13 @@ function normalizeTaskDependencies(
 function normalizeChecklistDefinition(
   definition: ExportedChecklistDefinition,
 ): ExportedChecklistDefinition {
+  // AGENT: Add definition format versioning, defaulting legacy payloads with no version to v1.
+  const normalizedFormatVersion =
+    Number.isInteger(definition.formatVersion) &&
+    (definition.formatVersion ?? 0) > 0
+      ? (definition.formatVersion as number)
+      : CHECKLIST_DEFINITION_FORMAT_VERSION;
+
   // Remove tags for tasks that don't exist
   // Remove dependencies for tasks that don't exist
   // Remove empty categories.
@@ -254,6 +262,7 @@ function normalizeChecklistDefinition(
   }
 
   return {
+    formatVersion: normalizedFormatVersion,
     categories,
     tasksByCategory: mapToRecord(filteredTasksByCategory),
     tagColors: mapToRecord(normalizedTagColors),
