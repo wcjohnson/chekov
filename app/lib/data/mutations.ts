@@ -405,7 +405,12 @@ export function useMoveTaskMutation() {
 
       if (isSameCategory) {
         const withoutTask = toTaskIds.filter((id) => id !== taskId);
-        const clampedIndex = Math.max(0, Math.min(toIndex, withoutTask.length));
+        // AGENT: Keep same-category drop alignment with the closest-edge indicator by compensating for index shift after removing the source item.
+        const adjustedToIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+        const clampedIndex = Math.max(
+          0,
+          Math.min(adjustedToIndex, withoutTask.length),
+        );
         withoutTask.splice(clampedIndex, 0, taskId);
         await categoryTasksStore.put(withoutTask, toCategory);
       } else {

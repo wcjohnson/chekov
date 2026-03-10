@@ -824,6 +824,61 @@ describe("data layer", () => {
     });
   });
 
+  it("moves task within same category to match downward drop indicator", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "a", category: "Main", title: "A" },
+          { id: "b", category: "Main", title: "B" },
+          { id: "c", category: "Main", title: "C" },
+          { id: "d", category: "Main", title: "D" },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => ({
+        moveTask: useMoveTaskMutation(),
+        categoryTasks:
+          useCategoriesTasksQuery().data ?? new Map<string, string[]>(),
+      }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.categoryTasks.get("Main")).toEqual([
+        "a",
+        "b",
+        "c",
+        "d",
+      ]);
+    });
+
+    await act(async () => {
+      await result.current.moveTask.mutateAsync({
+        fromCategory: "Main",
+        fromIndex: 1,
+        toCategory: "Main",
+        toIndex: 3,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.categoryTasks.get("Main")).toEqual([
+        "a",
+        "c",
+        "b",
+        "d",
+      ]);
+    });
+  });
+
   it("prevents dependency cycles and keeps previous dependency graph", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["C"],
