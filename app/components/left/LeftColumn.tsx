@@ -87,6 +87,15 @@ export function LeftColumn({
   )
     .filter(([, valueNumber]) => valueNumber !== 0)
     .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
+  const completedTasksTotal = completedTasksTotalValueEntries.reduce(
+    (sum, [, valueNumber]) => sum + valueNumber,
+    0,
+  );
+  const visibleIncompleteTasksTotal =
+    visibleIncompleteTasksTotalValueEntries.reduce(
+      (sum, [, valueNumber]) => sum + valueNumber,
+      0,
+    );
   const shouldShowValueOverlay =
     mode === "task" &&
     (visibleIncompleteTasksTotalValueEntries.length > 0 ||
@@ -251,6 +260,9 @@ export function LeftColumn({
                   Completed values:
                 </span>
                 <div className="flex flex-wrap gap-2">
+                  {completedTasksTotal !== 0 && (
+                    <Badge color="amber">Total: {completedTasksTotal}</Badge>
+                  )}
                   {completedTasksTotalValueEntries.map(
                     ([valueKey, valueNumber]) => (
                       <Badge
@@ -270,6 +282,11 @@ export function LeftColumn({
                   Available values:
                 </span>
                 <div className="flex flex-wrap gap-2">
+                  {visibleIncompleteTasksTotal !== 0 && (
+                    <Badge color="emerald">
+                      Total: {visibleIncompleteTasksTotal}
+                    </Badge>
+                  )}
                   {visibleIncompleteTasksTotalValueEntries.map(
                     ([valueKey, valueNumber]) => (
                       <Badge
