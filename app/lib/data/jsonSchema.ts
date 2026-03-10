@@ -6,6 +6,8 @@ import type {
   TaskValues,
 } from "./types";
 
+export const CHECKLIST_DEFINITION_FORMAT_VERSION = 1;
+
 /**
  * Serialized task definition used in checklist definition import/export payloads.
  *
@@ -85,6 +87,13 @@ export type ExportedTaskDefinition = {
  * Serialized checklist definition payload used for definition import/export.
  */
 export type ExportedChecklistDefinition = {
+  /**
+   * Definition JSON format version.
+   *
+   * The current format version is `CHECKLIST_DEFINITION_FORMAT_VERSION`.
+   */
+  formatVersion?: number;
+
   /**
    * Ordered category list that defines checklist category order.
    */
