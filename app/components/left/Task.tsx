@@ -76,6 +76,7 @@ export function Task({
   return (
     <DragDropReorderable
       index={index}
+      dragDisabled={!canDrag}
       dragHandleRef={handleRef}
       setDragDropState={setDragState}
       className="py-0.5 w-full"
