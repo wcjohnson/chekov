@@ -432,22 +432,26 @@ export function TaskDetails({
             Logical tasks cannot be completed directly and are treated as
             completed when all dependencies are completed.
           </p>
-          <label className="mt-2 inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isInvisibleTask}
-              onChange={(event) =>
-                taskInvisibleMutation.mutate({
-                  taskId: selectedTaskId ?? "",
-                  isInvisibleTask: event.target.checked,
-                })
-              }
-            />
-            <span className="font-medium">Invisible task</span>
-          </label>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Invisible tasks are only shown in Edit Mode.
-          </p>
+          {isLogicalTask && (
+            <>
+              <label className="mt-2 inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isInvisibleTask}
+                  onChange={(event) =>
+                    taskInvisibleMutation.mutate({
+                      taskId: selectedTaskId ?? "",
+                      isInvisibleTask: event.target.checked,
+                    })
+                  }
+                />
+                <span className="font-medium">Invisible task</span>
+              </label>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Invisible tasks are only shown in Edit Mode.
+              </p>
+            </>
+          )}
 
           <div className="mt-3">
             <span className="mb-1 block font-medium">Task color</span>
