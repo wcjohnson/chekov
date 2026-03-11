@@ -14,7 +14,8 @@ import {
   TASK_COMPLETION_STORE,
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
-  TASK_REMINDERS_STORE,
+  TASK_INVISIBLE_STORE,
+  TASK_LOGICAL_STORE,
   TASK_TAGS_STORE,
   TASK_VALUES_STORE,
   TASKS_STORE,
@@ -130,25 +131,46 @@ export function useCompletionsQuery() {
   return useQuery(getQueryArgs_completions());
 }
 
-function getQueryArgs_reminders() {
+function getQueryArgs_logicalTasks() {
   return {
-    queryKey: ["reminders"],
+    queryKey: ["logicalTasks"],
     queryFn: async () => {
-      console.log("Fetching ALL task reminders");
+      console.log("Fetching ALL logical tasks");
       const db = await getDb();
-      const allReminderTasks = new Set<string>(
-        await db.getAllKeys(TASK_REMINDERS_STORE),
+      const allLogicalTasks = new Set<string>(
+        await db.getAllKeys(TASK_LOGICAL_STORE),
       );
-      for (const taskId of allReminderTasks) {
-        queryClient.setQueryData(["task", "reminder", taskId], true);
+      for (const taskId of allLogicalTasks) {
+        queryClient.setQueryData(["task", "logical", taskId], true);
       }
-      return allReminderTasks;
+      return allLogicalTasks;
     },
   };
 }
 
-export function useRemindersQuery() {
-  return useQuery(getQueryArgs_reminders());
+export function useLogicalTasksQuery() {
+  return useQuery(getQueryArgs_logicalTasks());
+}
+
+function getQueryArgs_invisibleTasks() {
+  return {
+    queryKey: ["invisibleTasks"],
+    queryFn: async () => {
+      console.log("Fetching ALL invisible tasks");
+      const db = await getDb();
+      const allInvisibleTasks = new Set<string>(
+        await db.getAllKeys(TASK_INVISIBLE_STORE),
+      );
+      for (const taskId of allInvisibleTasks) {
+        queryClient.setQueryData(["task", "invisible", taskId], true);
+      }
+      return allInvisibleTasks;
+    },
+  };
+}
+
+export function useInvisibleTasksQuery() {
+  return useQuery(getQueryArgs_invisibleTasks());
 }
 
 function getQueryArgs_details(enabled?: boolean) {
@@ -320,13 +342,24 @@ export function useTaskCompletionQuery(taskId: TaskId) {
   });
 }
 
-export function useTaskReminderQuery(taskId: TaskId) {
+export function useTaskLogicalQuery(taskId: TaskId) {
   return useQuery({
-    queryKey: ["task", "reminder", taskId],
+    queryKey: ["task", "logical", taskId],
     queryFn: async () => {
       const db = await getDb();
-      const isReminder = await db.get(TASK_REMINDERS_STORE, taskId);
-      return !!isReminder;
+      const isLogicalTask = await db.get(TASK_LOGICAL_STORE, taskId);
+      return !!isLogicalTask;
+    },
+  });
+}
+
+export function useTaskInvisibleQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "invisible", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isInvisibleTask = await db.get(TASK_INVISIBLE_STORE, taskId);
+      return !!isInvisibleTask;
     },
   });
 }

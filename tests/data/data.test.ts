@@ -24,7 +24,8 @@ import {
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
   useTaskDetailMutation,
-  useTaskReminderMutation,
+  useTaskInvisibleMutation,
+  useTaskLogicalMutation,
   useTaskValuesMutation,
 } from "../../app/lib/data/mutations";
 import {
@@ -35,12 +36,14 @@ import {
   useCompletionsQuery,
   useDependenciesQuery,
   useDetailsQuery,
-  useRemindersQuery,
+  useInvisibleTasksQuery,
+  useLogicalTasksQuery,
   useTaskCompletionQuery,
   useTaskDependenciesQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
-  useTaskReminderQuery,
+  useTaskInvisibleQuery,
+  useTaskLogicalQuery,
   useTaskSetQuery,
   useTaskTagsQuery,
   useTaskValuesQuery,
@@ -81,7 +84,8 @@ function assertMissingPerItemQuerySentinels(result: {
   dependencies: TaskDependencies | null | undefined;
   categoryDependencies: Set<string> | undefined;
   completion: boolean | undefined;
-  reminder: boolean | undefined;
+  logicalTask: boolean | undefined;
+  invisibleTask: boolean | undefined;
   hidden: boolean | undefined;
 }) {
   expect(result.detail).toBeNull();
@@ -90,7 +94,8 @@ function assertMissingPerItemQuerySentinels(result: {
   expect(result.dependencies).toBeNull();
   expect(result.categoryDependencies).toEqual(new Set<string>());
   expect(result.completion).toBe(false);
-  expect(result.reminder).toBe(false);
+  expect(result.logicalTask).toBe(false);
+  expect(result.invisibleTask).toBe(false);
   expect(result.hidden).toBe(false);
 }
 
@@ -155,6 +160,7 @@ describe("data layer", () => {
         taskId,
         title: "Renamed",
         description: "Updated description",
+        color: "teal",
       });
     });
 
@@ -162,6 +168,19 @@ describe("data layer", () => {
       const detail = result.current.details.get(taskId);
       expect(detail?.title).toBe("Renamed");
       expect(detail?.description).toBe("Updated description");
+      expect(detail?.color).toBe("teal");
+    });
+
+    await act(async () => {
+      await result.current.updateTaskDetail.mutateAsync({
+        taskId,
+        color: null,
+      });
+    });
+
+    await waitFor(() => {
+      const detail = result.current.details.get(taskId);
+      expect(detail?.color).toBeUndefined();
     });
   });
 
@@ -215,7 +234,8 @@ describe("data layer", () => {
         categoryDependencies:
           useCategoryDependencyQuery("missing-category").data,
         completion: useTaskCompletionQuery("missing").data,
-        reminder: useTaskReminderQuery("missing").data,
+        logicalTask: useTaskLogicalQuery("missing").data,
+        invisibleTask: useTaskInvisibleQuery("missing").data,
         hidden: useTaskHiddenQuery("missing").data,
       }),
       { wrapper },
@@ -568,7 +588,7 @@ describe("data layer", () => {
     });
   });
 
-  it("applies reminder mutation semantics across completion and dependencies", async () => {
+  it("applies logical-task mutation semantics across completion and dependencies", async () => {
     const { result } = renderHook(
       () => {
         const categoriesTasks =
@@ -576,7 +596,7 @@ describe("data layer", () => {
         const dependencies =
           useDependenciesQuery().data ?? new Map<string, TaskDependencies>();
         const completions = useCompletionsQuery().data ?? new Set<string>();
-        const reminders = useRemindersQuery().data ?? new Set<string>();
+        const logicalTasks = useLogicalTasksQuery().data ?? new Set<string>();
         const taskStructure = useTaskStructure();
         const effectiveCompletions = useEffectiveCompletions(
           taskStructure.taskSet,
@@ -593,11 +613,11 @@ describe("data layer", () => {
           createTask: useCreateTaskMutation(),
           setDependencies: useTaskDependenciesMutation(),
           setCompletion: useTaskCompletionMutation(),
-          setReminder: useTaskReminderMutation(),
+          setLogicalTask: useTaskLogicalMutation(),
           categoriesTasks,
           dependencies,
           completions,
-          reminders,
+          logicalTasks,
           openTasks: tasksWithCompleteOpeners,
         };
       },
@@ -649,14 +669,14 @@ describe("data layer", () => {
     });
 
     await act(async () => {
-      await result.current.setReminder.mutateAsync({
+      await result.current.setLogicalTask.mutateAsync({
         taskId: dependencyId,
-        isReminder: true,
+        isLogicalTask: true,
       });
     });
 
     await waitFor(() => {
-      expect(result.current.reminders.has(dependencyId)).toBe(true);
+      expect(result.current.logicalTasks.has(dependencyId)).toBe(true);
       expect(result.current.completions.has(dependencyId)).toBe(false);
 
       const dependencyExpressionData =
@@ -665,6 +685,153 @@ describe("data layer", () => {
         true,
       );
       expect(result.current.openTasks.has(dependentTaskId)).toBe(false);
+    });
+  });
+
+  it("applies invisible-task mutation semantics and keeps logical-task invariant", async () => {
+    const { result } = renderHook(
+      () => {
+        const taskSet = useTaskSetQuery().data ?? new Set<string>();
+        const logicalTasks = useLogicalTasksQuery().data ?? new Set<string>();
+        const invisibleTasks =
+          useInvisibleTasksQuery().data ?? new Set<string>();
+        const completions = useCompletionsQuery().data ?? new Set<string>();
+
+        return {
+          createTask: useCreateTaskMutation(),
+          setCompletion: useTaskCompletionMutation(),
+          setInvisibleTask: useTaskInvisibleMutation(),
+          taskSet,
+          logicalTasks,
+          invisibleTasks,
+          completions,
+        };
+      },
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.createTask.mutateAsync("Inbox");
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.size).toBe(1);
+    });
+
+    const [taskId] = Array.from(result.current.taskSet);
+
+    await act(async () => {
+      await result.current.setCompletion.mutateAsync({
+        taskId,
+        isCompleted: true,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.completions.has(taskId)).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.setInvisibleTask.mutateAsync({
+        taskId,
+        isInvisibleTask: true,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.invisibleTasks.has(taskId)).toBe(true);
+      expect(result.current.logicalTasks.has(taskId)).toBe(true);
+      expect(result.current.completions.has(taskId)).toBe(false);
+    });
+  });
+
+  it("keeps invisible logical effects for visible tasks via openers and closers", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "base", category: "Main", title: "Base" },
+          {
+            id: "inv",
+            category: "Main",
+            title: "Invisible logical",
+            type: "logical",
+            invisible: true,
+            closers: { tasks: ["base"] },
+          },
+          {
+            id: "open-target",
+            category: "Main",
+            title: "Opener target",
+            openers: { tasks: ["inv"] },
+          },
+          {
+            id: "close-target",
+            category: "Main",
+            title: "Closer target",
+            closers: { tasks: ["inv"] },
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => {
+        const taskStructure = useTaskStructure();
+        const dependencies =
+          useDependenciesQuery().data ?? new Map<string, TaskDependencies>();
+        const completions = useCompletionsQuery().data ?? new Set<string>();
+        const effectiveCompletions = useEffectiveCompletions(
+          taskStructure.taskSet,
+          completions,
+          dependencies,
+        );
+        const openTasks = useOpenTasks(
+          taskStructure.taskSet,
+          dependencies,
+          effectiveCompletions,
+        );
+        const invisibleTasks =
+          useInvisibleTasksQuery().data ?? new Set<string>();
+
+        return {
+          setCompletion: useTaskCompletionMutation(),
+          effectiveCompletions,
+          openTasks,
+          invisibleTasks,
+        };
+      },
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.invisibleTasks.has("inv")).toBe(true);
+      expect(result.current.effectiveCompletions.has("inv")).toBe(false);
+      expect(result.current.openTasks.has("open-target")).toBe(false);
+      expect(result.current.effectiveCompletions.has("close-target")).toBe(
+        false,
+      );
+    });
+
+    await act(async () => {
+      await result.current.setCompletion.mutateAsync({
+        taskId: "base",
+        isCompleted: true,
+      });
+    });
+
+    await waitFor(() => {
+      // AGENT: Invisible tasks must still contribute dependency semantics for visible tasks.
+      expect(result.current.effectiveCompletions.has("inv")).toBe(true);
+      expect(result.current.openTasks.has("open-target")).toBe(true);
+      expect(result.current.effectiveCompletions.has("close-target")).toBe(
+        true,
+      );
     });
   });
 

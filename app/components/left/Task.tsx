@@ -6,12 +6,14 @@ import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
 import { Badge } from "@/app/components/catalyst/badge";
 import { getEffectiveTagColorKey } from "@/app/lib/tagColors";
+import { getTaskRowColorClasses } from "@/app/lib/taskColors";
 import {
   useTagColorsQuery,
   useTaskCompletionQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
-  useTaskReminderQuery,
+  useTaskInvisibleQuery,
+  useTaskLogicalQuery,
   useTaskTagsQuery,
 } from "@/app/lib/data/queries";
 
@@ -39,7 +41,8 @@ export function Task({
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
-  const isReminder = useTaskReminderQuery(taskId).data ?? false;
+  const isLogicalTask = useTaskLogicalQuery(taskId).data ?? false;
+  const isInvisibleTask = useTaskInvisibleQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
   const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
@@ -60,18 +63,22 @@ export function Task({
 
   const canDrag = mode === "edit" && !isMultiSelecting;
   const showTaskModeCheckbox =
-    mode === "task" && openersComplete && !isReminder;
+    mode === "task" && openersComplete && !isLogicalTask;
   const isImplicitlyComplete = isEffectivelyComplete && !isComplete;
   const showEditSelectionCheckbox =
     mode === "edit" && isMultiSelecting && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
-  const rowInteractionClasses = isReminder
-    ? isSelected
-      ? "border-amber-400 bg-amber-100 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900/40 dark:hover:bg-amber-900/40"
-      : "border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/25 dark:hover:bg-amber-900/35"
-    : isSelected
-      ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-      : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
+  const taskRowColorClasses = getTaskRowColorClasses(detail?.color);
+  const rowInteractionClasses = isSelected
+    ? `border-zinc-900 dark:border-zinc-100 ring-1 ring-zinc-900/20 dark:ring-zinc-100/25 ${
+        taskRowColorClasses || "bg-zinc-100 dark:bg-zinc-900"
+      } shadow-[inset_0_0_0_9999px_rgba(24,24,27,0.06)] dark:shadow-[inset_0_0_0_9999px_rgba(244,244,245,0.08)]`
+    : `border-zinc-200 dark:border-zinc-800 ${taskRowColorClasses || "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`;
+  const rowVisibilityClasses =
+    mode === "edit" && isInvisibleTask ? "opacity-70" : "";
+  const shouldStrikeTitle =
+    (mode === "task" && isEffectivelyComplete) ||
+    (mode === "edit" && isInvisibleTask && isEffectivelyComplete);
 
   return (
     <DragDropReorderable
@@ -96,7 +103,7 @@ export function Task({
           event.preventDefault();
           onRequestTaskSelectionChange(taskId);
         }}
-        className={`flex h-[34px] w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
+        className={`flex h-[34px] w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${rowVisibilityClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
       >
         {canDrag && (
           <button
@@ -139,7 +146,7 @@ export function Task({
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <p
             className={`min-w-0 flex-1 truncate text-sm font-medium ${
-              mode === "task" && isEffectivelyComplete ? "line-through" : ""
+              shouldStrikeTitle ? "line-through" : ""
             }`}
           >
             {detail?.title || "Untitled Task"}

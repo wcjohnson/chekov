@@ -12,14 +12,15 @@ import type { TagColorKey } from "../tagColors";
 import { QueryClient } from "@tanstack/react-query";
 
 const DB_NAME = "chekov-db";
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 export const TASKS_STORE = "tasks";
 export const TASK_VALUES_STORE = "taskValues";
 export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
 export const TASK_COMPLETION_STORE = "taskCompletion";
-export const TASK_REMINDERS_STORE = "taskWarnings";
+export const TASK_LOGICAL_STORE = "taskLogical";
+export const TASK_INVISIBLE_STORE = "taskInvisible";
 export const TASK_HIDDEN_STORE = "taskHidden";
 export const CATEGORIES_STORE = "categories";
 export const CATEGORY_TASKS_STORE = "categoryTasks";
@@ -27,22 +28,22 @@ export const CATEGORY_DEPENDENCIES_STORE = "categoryDependencies";
 export const TAG_COLORS_STORE = "tagColors";
 export const CATEGORY_COLLAPSED_STORE = "categoryCollapsed";
 
-const STORE_NAMES = [
-  TASKS_STORE,
-  TASK_VALUES_STORE,
-  TASK_TAGS_STORE,
-  TASK_DEPENDENCIES_STORE,
-  TASK_COMPLETION_STORE,
-  TASK_REMINDERS_STORE,
-  TASK_HIDDEN_STORE,
-  CATEGORIES_STORE,
-  CATEGORY_TASKS_STORE,
-  CATEGORY_DEPENDENCIES_STORE,
-  TAG_COLORS_STORE,
-  CATEGORY_COLLAPSED_STORE,
-] as const;
+const LEGACY_TASK_WARNINGS_STORE = "taskWarnings";
 
-type StoreName = (typeof STORE_NAMES)[number];
+type StoreName =
+  | typeof TASKS_STORE
+  | typeof TASK_VALUES_STORE
+  | typeof TASK_TAGS_STORE
+  | typeof TASK_DEPENDENCIES_STORE
+  | typeof TASK_COMPLETION_STORE
+  | typeof TASK_LOGICAL_STORE
+  | typeof TASK_INVISIBLE_STORE
+  | typeof TASK_HIDDEN_STORE
+  | typeof CATEGORIES_STORE
+  | typeof CATEGORY_TASKS_STORE
+  | typeof CATEGORY_DEPENDENCIES_STORE
+  | typeof TAG_COLORS_STORE
+  | typeof CATEGORY_COLLAPSED_STORE;
 
 export interface ChekovDB extends DBSchema {
   [TASKS_STORE]: {
@@ -65,7 +66,11 @@ export interface ChekovDB extends DBSchema {
     key: TaskId;
     value: true;
   };
-  [TASK_REMINDERS_STORE]: {
+  [TASK_LOGICAL_STORE]: {
+    key: TaskId;
+    value: true;
+  };
+  [TASK_INVISIBLE_STORE]: {
     key: TaskId;
     value: true;
   };
@@ -104,7 +109,7 @@ export const getDb = async () => {
 
   if (!dbPromise) {
     dbPromise = openDB<ChekovDB>(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
+      async upgrade(db, oldVersion, _newVersion, transaction) {
         // AGENT: Add v9 migration without destructive resets; existing tasks implicitly have no values.
         const createStoresIfMissing = (
           storeNames: ReadonlyArray<StoreName>,
@@ -122,7 +127,8 @@ export const getDb = async () => {
             TASK_TAGS_STORE,
             TASK_DEPENDENCIES_STORE,
             TASK_COMPLETION_STORE,
-            TASK_REMINDERS_STORE,
+            TASK_LOGICAL_STORE,
+            TASK_INVISIBLE_STORE,
             TASK_HIDDEN_STORE,
             CATEGORIES_STORE,
             CATEGORY_TASKS_STORE,
@@ -134,6 +140,51 @@ export const getDb = async () => {
 
         if (oldVersion < 9) {
           createStoresIfMissing([TASK_VALUES_STORE]);
+        }
+
+        if (oldVersion < 10) {
+          createStoresIfMissing([TASK_LOGICAL_STORE, TASK_INVISIBLE_STORE]);
+
+          const hasLegacyWarningsStore = (
+            db.objectStoreNames as unknown as DOMStringList
+          ).contains(LEGACY_TASK_WARNINGS_STORE);
+
+          if (hasLegacyWarningsStore) {
+            // AGENT: Migrate legacy logical-task flags from taskWarnings to taskLogical and restore amber warning tint before deleting the old store.
+            const legacyStore = (
+              transaction as unknown as {
+                objectStore: (storeName: string) => {
+                  getAllKeys: () => Promise<IDBValidKey[]>;
+                  getAll: () => Promise<unknown[]>;
+                };
+              }
+            ).objectStore(LEGACY_TASK_WARNINGS_STORE);
+            const logicalStore = transaction.objectStore(TASK_LOGICAL_STORE);
+            const tasksStore = transaction.objectStore(TASKS_STORE);
+
+            const [legacyTaskIds, legacyValues] = await Promise.all([
+              legacyStore.getAllKeys(),
+              legacyStore.getAll(),
+            ]);
+
+            for (let index = 0; index < legacyTaskIds.length; index += 1) {
+              if (legacyValues[index]) {
+                const taskId = legacyTaskIds[index] as TaskId;
+                await logicalStore.put(true, taskId);
+
+                const task = await tasksStore.get(taskId);
+                if (task) {
+                  await tasksStore.put({ ...task, color: "amber" }, taskId);
+                }
+              }
+            }
+
+            (
+              db as unknown as {
+                deleteObjectStore: (storeName: string) => void;
+              }
+            ).deleteObjectStore(LEGACY_TASK_WARNINGS_STORE);
+          }
         }
       },
     });
@@ -151,7 +202,8 @@ export const clearDb = async () => {
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
       TASK_COMPLETION_STORE,
-      TASK_REMINDERS_STORE,
+      TASK_LOGICAL_STORE,
+      TASK_INVISIBLE_STORE,
       TASK_HIDDEN_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
@@ -168,7 +220,8 @@ export const clearDb = async () => {
     tx.objectStore(TASK_TAGS_STORE).clear(),
     tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
     tx.objectStore(TASK_COMPLETION_STORE).clear(),
-    tx.objectStore(TASK_REMINDERS_STORE).clear(),
+    tx.objectStore(TASK_LOGICAL_STORE).clear(),
+    tx.objectStore(TASK_INVISIBLE_STORE).clear(),
     tx.objectStore(TASK_HIDDEN_STORE).clear(),
     tx.objectStore(CATEGORIES_STORE).clear(),
     tx.objectStore(CATEGORY_TASKS_STORE).clear(),

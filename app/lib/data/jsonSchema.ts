@@ -6,13 +6,13 @@ import type {
   TaskValues,
 } from "./types";
 
-export const CHECKLIST_DEFINITION_FORMAT_VERSION = 1;
+export const CHECKLIST_DEFINITION_FORMAT_VERSION = 2;
 
 /**
  * Serialized task definition used in checklist definition import/export payloads.
  *
  * This shape supports both current fields (`openers`/`closers`) and legacy
- * compatibility fields (`dependencies`/`dependencyExpression`, `type: "warning"`).
+ * compatibility fields (`dependencies`/`dependencyExpression`, legacy `type` aliases).
  */
 export type ExportedTaskDefinition = {
   /**
@@ -41,10 +41,11 @@ export type ExportedTaskDefinition = {
    * Optional task type discriminator.
    *
    * - `"task"`: regular task
-   * - `"reminder"`: reminder task
-   * - `"warning"`: LEGACY alias of `"reminder"` kept for backward compatibility
+   * - `"logical"`: logical task
+   * - `"reminder"`: LEGACY alias of `"logical"` kept for backward compatibility
+   * - `"warning"`: LEGACY alias of `"logical"` kept for backward compatibility
    */
-  type?: "task" | "warning" | "reminder";
+  type?: "task" | "logical" | "warning" | "reminder";
 
   /**
    * LEGACY opener task list.
@@ -81,6 +82,21 @@ export type ExportedTaskDefinition = {
    * Optional numeric task values
    */
   values?: TaskValues;
+
+  /**
+   * Optional task color key.
+   *
+   * When omitted, no task color is applied.
+   */
+  color?: string;
+
+  /**
+   * Optional invisible flag.
+   *
+   * When true, the task is only shown in Edit Mode.
+   * When omitted, defaults to false.
+   */
+  invisible?: boolean;
 };
 
 /**

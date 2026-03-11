@@ -6,6 +6,7 @@ import {
   useCategoryDependenciesQuery,
   useDetailsQuery,
   useTagsQuery,
+  useInvisibleTasksQuery,
   useTaskHiddensQuery,
   useTaskSetQuery,
   useValuesQuery,
@@ -199,6 +200,7 @@ export function useTaskBreakout(
   const categoriesTasks = useCategoriesTasksQuery().data;
   const categoryDependencies = useCategoryDependenciesQuery().data;
   const hiddenTasksData = useTaskHiddensQuery().data;
+  const invisibleTasksData = useInvisibleTasksQuery().data;
   const valuesByTask = useValuesQuery().data;
 
   return useMemo(() => {
@@ -209,6 +211,7 @@ export function useTaskBreakout(
     const visibleIncompleteTasksTotalValue: TaskValues = {};
     const completedTasksTotalValue: TaskValues = {};
     const hiddenTasks = hiddenTasksData ?? new Set<TaskId>();
+    const invisibleTasks = invisibleTasksData ?? new Set<TaskId>();
 
     if (!categories || !categoriesTasks) {
       return {
@@ -263,10 +266,12 @@ export function useTaskBreakout(
         const matchesSearch = tasksMatchingSearch.has(taskId);
         if (mode === "task") {
           const isHidden = hiddenTasks.has(taskId);
+          const isInvisibleTask = invisibleTasks.has(taskId);
           const hasCompleteOpeners = openTasks.has(taskId);
           const isCompleted = effectiveCompletions.has(taskId);
           const shouldShow =
             !isHidden &&
+            !isInvisibleTask &&
             hasCompleteOpeners &&
             (showCompletedTasks || !isCompleted);
           return shouldShow && matchesSearch;
@@ -313,6 +318,7 @@ export function useTaskBreakout(
     categoryDependencies,
     effectiveCompletions,
     hiddenTasksData,
+    invisibleTasksData,
     mode,
     openTasks,
     showCompletedTasks,

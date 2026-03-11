@@ -489,7 +489,7 @@ export function AppMain() {
             <LeftColumn
               mode={mode}
               showCompletedTasks={showCompletedTasks}
-              completionsWithReminders={allEffectiveCompletions}
+              effectiveCompletions={allEffectiveCompletions}
               openTasks={openTasks}
               tasksMatchingSearch={tasksMatchingSearch}
               searchDisabledScrollToken={searchDisabledScrollToken}
@@ -502,7 +502,7 @@ export function AppMain() {
             <RightColumn
               mode={mode}
               selectedTaskId={selectedTaskId}
-              completionsWithReminders={allEffectiveCompletions}
+              effectiveCompletions={allEffectiveCompletions}
               openTasks={openTasks}
               errorMessage={errorMessage}
               titleFocusTaskId={titleFocusTaskId}

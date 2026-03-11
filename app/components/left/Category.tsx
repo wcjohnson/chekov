@@ -124,7 +124,7 @@ export function Category({
                   mode="edit"
                   expression={expression}
                   dependencyTitleById={dependencyTitleById}
-                  completionsWithReminders={EMPTY_TASK_ID_SET}
+                  effectiveCompletions={EMPTY_TASK_ID_SET}
                 />
               );
             })()}

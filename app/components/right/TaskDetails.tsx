@@ -9,6 +9,10 @@ import {
   TAG_COLOR_OPTIONS,
 } from "../../lib/tagColors";
 import {
+  getTaskSwatchClasses,
+  TASK_COLOR_OPTIONS as TASK_ROW_COLOR_OPTIONS,
+} from "../../lib/taskColors";
+import {
   type ChecklistMode,
   type DependencyExpression,
   type TaskDependencies,
@@ -38,7 +42,8 @@ import {
   useTagColorsQuery,
   useTaskDependenciesQuery,
   useTaskHiddenQuery,
-  useTaskReminderQuery,
+  useTaskInvisibleQuery,
+  useTaskLogicalQuery,
   useTaskTagsQuery,
   useTaskValuesQuery,
 } from "@/app/lib/data/queries";
@@ -48,7 +53,8 @@ import {
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskHiddenMutation,
-  useTaskReminderMutation,
+  useTaskInvisibleMutation,
+  useTaskLogicalMutation,
   useTaskRemoveTagMutation,
   useTaskValuesMutation,
 } from "@/app/lib/data/mutations";
@@ -60,7 +66,7 @@ type TaskDetailsProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
   selectedTaskDetail: TaskDetail | null | undefined;
-  completionsWithReminders: Set<TaskId>;
+  effectiveCompletions: Set<TaskId>;
   openTasks: Set<TaskId>;
   shouldFocusTitle: boolean;
   onTitleFocused: () => void;
@@ -70,7 +76,7 @@ export function TaskDetails({
   mode,
   selectedTaskId,
   selectedTaskDetail,
-  completionsWithReminders,
+  effectiveCompletions,
   openTasks,
   shouldFocusTitle,
   onTitleFocused,
@@ -101,12 +107,14 @@ export function TaskDetails({
   );
   const selectedTaskOpenersExpression = selectedTaskOpeners?.expression ?? null;
   const selectedTaskClosersExpression = selectedTaskClosers?.expression ?? null;
-  const isReminderTask =
-    useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
+  const isLogicalTask = useTaskLogicalQuery(selectedTaskId ?? "").data ?? false;
+  const isInvisibleTask =
+    useTaskInvisibleQuery(selectedTaskId ?? "").data ?? false;
+  const taskColor = selectedTaskDetail?.color;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
-  const isEffectivelyCompleted = isReminderTask
+  const isEffectivelyCompleted = isLogicalTask
     ? openTasks.has(selectedTaskId ?? "")
-    : completionsWithReminders.has(selectedTaskId ?? "");
+    : effectiveCompletions.has(selectedTaskId ?? "");
 
   const knownTagSet = useAllKnownTagsQuery().data;
   const details = useDetailsQuery().data;
@@ -223,7 +231,8 @@ export function TaskDetails({
   };
 
   const taskDetailMutation = useTaskDetailMutation();
-  const taskReminderMutation = useTaskReminderMutation();
+  const taskLogicalMutation = useTaskLogicalMutation();
+  const taskInvisibleMutation = useTaskInvisibleMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
@@ -409,20 +418,114 @@ export function TaskDetails({
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
-              checked={isReminderTask}
+              checked={isLogicalTask}
               onChange={(event) =>
-                taskReminderMutation.mutate({
+                taskLogicalMutation.mutate({
                   taskId: selectedTaskId ?? "",
-                  isReminder: event.target.checked,
+                  isLogicalTask: event.target.checked,
                 })
               }
             />
-            <span className="font-medium">Reminder task</span>
+            <span className="font-medium">Logical task</span>
           </label>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Reminders cannot be completed directly and are treated as completed
-            when all dependencies are completed.
+            Logical tasks cannot be completed directly and are treated as
+            completed when all dependencies are completed.
           </p>
+          {isLogicalTask && (
+            <>
+              <label className="mt-2 inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isInvisibleTask}
+                  onChange={(event) =>
+                    taskInvisibleMutation.mutate({
+                      taskId: selectedTaskId ?? "",
+                      isInvisibleTask: event.target.checked,
+                    })
+                  }
+                />
+                <span className="font-medium">Invisible task</span>
+              </label>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Invisible tasks are only shown in Edit Mode.
+              </p>
+            </>
+          )}
+
+          <div className="mt-3">
+            <span className="mb-1 block font-medium">Task color</span>
+            <Dropdown>
+              <DropdownButton as={Button} plain>
+                <span
+                  aria-hidden="true"
+                  className={`mr-2 inline-block h-3 w-3 rounded border border-zinc-300 align-middle dark:border-zinc-700 ${
+                    taskColor
+                      ? getTaskSwatchClasses(taskColor)
+                      : "bg-transparent"
+                  }`}
+                />
+                {taskColor
+                  ? (TASK_ROW_COLOR_OPTIONS.find(
+                      (option) => option.key === taskColor,
+                    )?.label ?? "Color")
+                  : "No color"}
+              </DropdownButton>
+              <DropdownMenu anchor="bottom start" className="w-52">
+                <DropdownItem
+                  onClick={() => {
+                    if (!selectedTaskId || taskColor === undefined) {
+                      return;
+                    }
+
+                    taskDetailMutation.mutate({
+                      taskId: selectedTaskId,
+                      color: null,
+                    });
+                  }}
+                >
+                  <span
+                    data-slot="icon"
+                    aria-hidden="true"
+                    className="rounded border border-zinc-300 bg-transparent dark:border-zinc-700"
+                  />
+                  <DropdownLabel>No color</DropdownLabel>
+                </DropdownItem>
+                {TASK_ROW_COLOR_OPTIONS.map((colorOption) => {
+                  const isSelected = taskColor === colorOption.key;
+
+                  return (
+                    <DropdownItem
+                      key={`task-color-${selectedTaskId ?? "none"}-${colorOption.key}`}
+                      onClick={() => {
+                        if (!selectedTaskId || isSelected) {
+                          return;
+                        }
+
+                        taskDetailMutation.mutate({
+                          taskId: selectedTaskId,
+                          color: colorOption.key,
+                        });
+                      }}
+                    >
+                      <span
+                        data-slot="icon"
+                        aria-hidden="true"
+                        className={`rounded border border-zinc-300 dark:border-zinc-700 ${getTaskSwatchClasses(
+                          colorOption.key,
+                        )} ${
+                          isSelected
+                            ? "ring-2 ring-zinc-500 ring-offset-1 dark:ring-zinc-300 dark:ring-offset-zinc-950"
+                            : ""
+                        }`}
+                      />
+                      <DropdownLabel>{colorOption.label}</DropdownLabel>
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownMenu>
+            </Dropdown>
+          </div>
         </div>
 
         <DependencyExpressionEditor
@@ -437,7 +540,7 @@ export function TaskDetails({
           dependencyExpression={selectedTaskOpenersExpression}
           editorDependencyExpression={openerEditorDependencyExpression}
           dependencyTitleById={openerTitleById}
-          completionsWithReminders={completionsWithReminders}
+          effectiveCompletions={effectiveCompletions}
           onConfirmSelection={handleSetOpeners}
           onClearSelection={handleClearOpeners}
           onApplySelection={handleApplyOpeners}
@@ -456,7 +559,7 @@ export function TaskDetails({
           dependencyExpression={selectedTaskClosersExpression}
           editorDependencyExpression={closerEditorDependencyExpression}
           dependencyTitleById={closerTitleById}
-          completionsWithReminders={completionsWithReminders}
+          effectiveCompletions={effectiveCompletions}
           onConfirmSelection={handleSetClosers}
           onClearSelection={handleClearClosers}
           onApplySelection={handleApplyClosers}
@@ -752,7 +855,7 @@ export function TaskDetails({
             mode={mode}
             expression={taskModeOpenersExpression}
             dependencyTitleById={openerTitleById}
-            completionsWithReminders={completionsWithReminders}
+            effectiveCompletions={effectiveCompletions}
           />
         )}
       </div>
@@ -765,7 +868,7 @@ export function TaskDetails({
             mode={mode}
             expression={taskModeCloserExpression}
             dependencyTitleById={closerTitleById}
-            completionsWithReminders={completionsWithReminders}
+            effectiveCompletions={effectiveCompletions}
           />
         )}
       </div>

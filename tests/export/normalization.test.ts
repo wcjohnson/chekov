@@ -54,7 +54,7 @@ describe("import/export normalization", () => {
             id: "t3",
             category: "A",
             title: "Reminder",
-            type: "reminder",
+            type: "logical",
             tags: ["keep"],
           },
         ],
@@ -106,7 +106,7 @@ describe("import/export normalization", () => {
             id: "t3",
             category: "A",
             title: "Reminder",
-            type: "reminder",
+            type: "logical",
             tags: ["keep"],
           },
         ],
@@ -228,7 +228,7 @@ describe("import/export normalization", () => {
     ]);
   });
 
-  it("maps legacy reminder dependencies to closers", async () => {
+  it("maps legacy logical-task dependencies to closers", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["Main"],
       tasksByCategory: {
@@ -257,7 +257,7 @@ describe("import/export normalization", () => {
         id: "rem",
         category: "Main",
         title: "Reminder",
-        type: "reminder",
+        type: "logical",
         closers: {
           tasks: ["a"],
           expression: [BooleanOp.Not, "a"],
@@ -266,7 +266,7 @@ describe("import/export normalization", () => {
     ]);
   });
 
-  it("normalizes imported state by dropping unknown and reminder completion", async () => {
+  it("normalizes imported state by dropping unknown and logical-task completion", async () => {
     const definition: ExportedChecklistDefinition = {
       categories: ["Main"],
       tasksByCategory: {
@@ -280,7 +280,7 @@ describe("import/export normalization", () => {
             id: "rem",
             category: "Main",
             title: "Reminder",
-            type: "reminder",
+            type: "logical",
           },
         ],
       },
@@ -326,7 +326,7 @@ describe("import/export normalization", () => {
     });
   });
 
-  it("accepts legacy warning type and normalizes to reminder on export", async () => {
+  it("accepts legacy warning type and normalizes to logical on export", async () => {
     const legacyDefinition: ExportedChecklistDefinition = {
       categories: ["Legacy"],
       tasksByCategory: {
@@ -352,7 +352,7 @@ describe("import/export normalization", () => {
           id: "w1",
           category: "Legacy",
           title: "Legacy warning",
-          type: "reminder",
+          type: "logical",
         },
       ],
     });
@@ -405,6 +405,79 @@ describe("import/export normalization", () => {
         id: "t2",
         category: "Main",
         title: "Task 2",
+      },
+    ]);
+  });
+
+  it("normalizes invisible tasks as logical and preserves invisible flag", async () => {
+    const definition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          {
+            id: "t1",
+            category: "Main",
+            title: "Invisible helper",
+            type: "task",
+            invisible: true,
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    } as unknown as ExportedChecklistDefinition;
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.tasksByCategory.Main).toEqual([
+      {
+        id: "t1",
+        category: "Main",
+        title: "Invisible helper",
+        type: "logical",
+        invisible: true,
+      },
+    ]);
+  });
+
+  it("normalizes task colors by dropping invalid color keys", async () => {
+    const definition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          {
+            id: "t1",
+            category: "Main",
+            title: "Valid color",
+            color: "blue",
+          },
+          {
+            id: "t2",
+            category: "Main",
+            title: "Invalid color",
+            color: "not-a-color",
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    } as unknown as ExportedChecklistDefinition;
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.tasksByCategory.Main).toEqual([
+      {
+        id: "t1",
+        category: "Main",
+        title: "Valid color",
+        color: "blue",
+      },
+      {
+        id: "t2",
+        category: "Main",
+        title: "Invalid color",
       },
     ]);
   });
