@@ -150,7 +150,7 @@ export const getDb = async () => {
           ).contains(LEGACY_TASK_WARNINGS_STORE);
 
           if (hasLegacyWarningsStore) {
-            // AGENT: Migrate legacy logical-task flags from taskWarnings to taskLogical before deleting the old store.
+            // AGENT: Migrate legacy logical-task flags from taskWarnings to taskLogical and restore amber warning tint before deleting the old store.
             const legacyStore = (
               transaction as unknown as {
                 objectStore: (storeName: string) => {
@@ -160,6 +160,7 @@ export const getDb = async () => {
               }
             ).objectStore(LEGACY_TASK_WARNINGS_STORE);
             const logicalStore = transaction.objectStore(TASK_LOGICAL_STORE);
+            const tasksStore = transaction.objectStore(TASKS_STORE);
 
             const [legacyTaskIds, legacyValues] = await Promise.all([
               legacyStore.getAllKeys(),
@@ -168,7 +169,13 @@ export const getDb = async () => {
 
             for (let index = 0; index < legacyTaskIds.length; index += 1) {
               if (legacyValues[index]) {
-                await logicalStore.put(true, legacyTaskIds[index] as TaskId);
+                const taskId = legacyTaskIds[index] as TaskId;
+                await logicalStore.put(true, taskId);
+
+                const task = await tasksStore.get(taskId);
+                if (task) {
+                  await tasksStore.put({ ...task, color: "amber" }, taskId);
+                }
               }
             }
 
