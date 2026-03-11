@@ -68,9 +68,12 @@ export function Task({
   const showEditSelectionCheckbox =
     mode === "edit" && isMultiSelecting && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
+  const taskRowColorClasses = getTaskRowColorClasses(detail?.color);
   const rowInteractionClasses = isSelected
-    ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-    : `border-zinc-200 dark:border-zinc-800 ${getTaskRowColorClasses(detail?.color) || "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`;
+    ? `border-zinc-900 dark:border-zinc-100 ring-1 ring-zinc-900/20 dark:ring-zinc-100/25 ${
+        taskRowColorClasses || "bg-zinc-100 dark:bg-zinc-900"
+      } shadow-[inset_0_0_0_9999px_rgba(24,24,27,0.06)] dark:shadow-[inset_0_0_0_9999px_rgba(244,244,245,0.08)]`
+    : `border-zinc-200 dark:border-zinc-800 ${taskRowColorClasses || "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`;
   const rowVisibilityClasses =
     mode === "edit" && isInvisibleTask ? "opacity-70" : "";
   const shouldStrikeTitle =
