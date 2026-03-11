@@ -214,6 +214,33 @@ const roundTripFixtures: Array<{
       },
     },
   },
+  {
+    name: "invisible logical task round-trip",
+    definition: {
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
+      categories: ["Ops"],
+      tasksByCategory: {
+        Ops: [
+          {
+            id: "l1",
+            category: "Ops",
+            title: "Hidden helper",
+            type: "logical",
+            invisible: true,
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    },
+    state: {
+      tasks: {},
+      categoryVisibilityByMode: {
+        task: {},
+        edit: {},
+      },
+    },
+  },
 ];
 
 const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

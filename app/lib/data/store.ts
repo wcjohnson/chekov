@@ -20,6 +20,7 @@ export const TASK_TAGS_STORE = "taskTags";
 export const TASK_DEPENDENCIES_STORE = "taskDependencies";
 export const TASK_COMPLETION_STORE = "taskCompletion";
 export const TASK_LOGICAL_STORE = "taskLogical";
+export const TASK_INVISIBLE_STORE = "taskInvisible";
 export const TASK_HIDDEN_STORE = "taskHidden";
 export const CATEGORIES_STORE = "categories";
 export const CATEGORY_TASKS_STORE = "categoryTasks";
@@ -36,6 +37,7 @@ type StoreName =
   | typeof TASK_DEPENDENCIES_STORE
   | typeof TASK_COMPLETION_STORE
   | typeof TASK_LOGICAL_STORE
+  | typeof TASK_INVISIBLE_STORE
   | typeof TASK_HIDDEN_STORE
   | typeof CATEGORIES_STORE
   | typeof CATEGORY_TASKS_STORE
@@ -65,6 +67,10 @@ export interface ChekovDB extends DBSchema {
     value: true;
   };
   [TASK_LOGICAL_STORE]: {
+    key: TaskId;
+    value: true;
+  };
+  [TASK_INVISIBLE_STORE]: {
     key: TaskId;
     value: true;
   };
@@ -122,6 +128,7 @@ export const getDb = async () => {
             TASK_DEPENDENCIES_STORE,
             TASK_COMPLETION_STORE,
             TASK_LOGICAL_STORE,
+            TASK_INVISIBLE_STORE,
             TASK_HIDDEN_STORE,
             CATEGORIES_STORE,
             CATEGORY_TASKS_STORE,
@@ -136,7 +143,7 @@ export const getDb = async () => {
         }
 
         if (oldVersion < 10) {
-          createStoresIfMissing([TASK_LOGICAL_STORE]);
+          createStoresIfMissing([TASK_LOGICAL_STORE, TASK_INVISIBLE_STORE]);
 
           const hasLegacyWarningsStore = (
             db.objectStoreNames as unknown as DOMStringList
@@ -189,6 +196,7 @@ export const clearDb = async () => {
       TASK_DEPENDENCIES_STORE,
       TASK_COMPLETION_STORE,
       TASK_LOGICAL_STORE,
+      TASK_INVISIBLE_STORE,
       TASK_HIDDEN_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
@@ -206,6 +214,7 @@ export const clearDb = async () => {
     tx.objectStore(TASK_DEPENDENCIES_STORE).clear(),
     tx.objectStore(TASK_COMPLETION_STORE).clear(),
     tx.objectStore(TASK_LOGICAL_STORE).clear(),
+    tx.objectStore(TASK_INVISIBLE_STORE).clear(),
     tx.objectStore(TASK_HIDDEN_STORE).clear(),
     tx.objectStore(CATEGORIES_STORE).clear(),
     tx.objectStore(CATEGORY_TASKS_STORE).clear(),

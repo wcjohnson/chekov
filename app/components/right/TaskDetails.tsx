@@ -38,6 +38,7 @@ import {
   useTagColorsQuery,
   useTaskDependenciesQuery,
   useTaskHiddenQuery,
+  useTaskInvisibleQuery,
   useTaskLogicalQuery,
   useTaskTagsQuery,
   useTaskValuesQuery,
@@ -48,6 +49,7 @@ import {
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskHiddenMutation,
+  useTaskInvisibleMutation,
   useTaskLogicalMutation,
   useTaskRemoveTagMutation,
   useTaskValuesMutation,
@@ -102,6 +104,8 @@ export function TaskDetails({
   const selectedTaskOpenersExpression = selectedTaskOpeners?.expression ?? null;
   const selectedTaskClosersExpression = selectedTaskClosers?.expression ?? null;
   const isLogicalTask = useTaskLogicalQuery(selectedTaskId ?? "").data ?? false;
+  const isInvisibleTask =
+    useTaskInvisibleQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
   const isEffectivelyCompleted = isLogicalTask
     ? openTasks.has(selectedTaskId ?? "")
@@ -223,6 +227,7 @@ export function TaskDetails({
 
   const taskDetailMutation = useTaskDetailMutation();
   const taskLogicalMutation = useTaskLogicalMutation();
+  const taskInvisibleMutation = useTaskInvisibleMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
@@ -421,6 +426,22 @@ export function TaskDetails({
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Logical tasks cannot be completed directly and are treated as
             completed when all dependencies are completed.
+          </p>
+          <label className="mt-2 inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isInvisibleTask}
+              onChange={(event) =>
+                taskInvisibleMutation.mutate({
+                  taskId: selectedTaskId ?? "",
+                  isInvisibleTask: event.target.checked,
+                })
+              }
+            />
+            <span className="font-medium">Invisible task</span>
+          </label>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Invisible tasks are only shown in Edit Mode.
           </p>
         </div>
 

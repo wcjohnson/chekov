@@ -13,6 +13,7 @@ import {
   TASK_COMPLETION_STORE,
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
+  TASK_INVISIBLE_STORE,
   TASK_LOGICAL_STORE,
   TASK_TAGS_STORE,
   TASK_VALUES_STORE,
@@ -148,6 +149,7 @@ export function useDeleteTasksMutation() {
           TASK_DEPENDENCIES_STORE,
           TASK_COMPLETION_STORE,
           TASK_LOGICAL_STORE,
+          TASK_INVISIBLE_STORE,
           TASK_HIDDEN_STORE,
           CATEGORIES_STORE,
           CATEGORY_TASKS_STORE,
@@ -161,6 +163,7 @@ export function useDeleteTasksMutation() {
       const taskDependenciesStore = tx.objectStore(TASK_DEPENDENCIES_STORE);
       const taskCompletionStore = tx.objectStore(TASK_COMPLETION_STORE);
       const taskLogicalStore = tx.objectStore(TASK_LOGICAL_STORE);
+      const taskInvisibleStore = tx.objectStore(TASK_INVISIBLE_STORE);
       const taskHiddenStore = tx.objectStore(TASK_HIDDEN_STORE);
       const categoriesStore = tx.objectStore(CATEGORIES_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
@@ -208,6 +211,7 @@ export function useDeleteTasksMutation() {
           taskDependenciesStore.delete(taskId),
           taskCompletionStore.delete(taskId),
           taskLogicalStore.delete(taskId),
+          taskInvisibleStore.delete(taskId),
           taskHiddenStore.delete(taskId),
         ]),
       );
@@ -317,6 +321,7 @@ export function useDeleteTasksMutation() {
       });
       queryClient.invalidateQueries({ queryKey: ["completions"] });
       queryClient.invalidateQueries({ queryKey: ["logicalTasks"] });
+      queryClient.invalidateQueries({ queryKey: ["invisibleTasks"] });
       queryClient.invalidateQueries({ queryKey: ["hiddens"] });
 
       for (const [taskId, dependencyExpression] of updatedDependencyEntries) {
@@ -339,6 +344,9 @@ export function useDeleteTasksMutation() {
         queryClient.invalidateQueries({ queryKey: ["task", "hidden", taskId] });
         queryClient.invalidateQueries({
           queryKey: ["task", "logical", taskId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["task", "invisible", taskId],
         });
       }
     },
@@ -563,9 +571,64 @@ export function useTaskLogicalMutation() {
         return;
       }
 
-      await db.delete(TASK_LOGICAL_STORE, taskId);
+      const tx = db.transaction(
+        [TASK_LOGICAL_STORE, TASK_INVISIBLE_STORE],
+        "readwrite",
+      );
+      await tx.objectStore(TASK_LOGICAL_STORE).delete(taskId);
+      // AGENT: Clearing logical status also clears invisible status because invisibles are a logical-task subset.
+      await tx.objectStore(TASK_INVISIBLE_STORE).delete(taskId);
+      await tx.done;
     },
     onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["task", "logical", variables.taskId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["logicalTasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["task", "invisible", variables.taskId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["invisibleTasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["task", "completion", variables.taskId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["completions"] });
+      queryClient.invalidateQueries({ queryKey: ["dependencies"] });
+    },
+  });
+}
+
+export function useTaskInvisibleMutation() {
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      isInvisibleTask,
+    }: {
+      taskId: TaskId;
+      isInvisibleTask: boolean;
+    }) => {
+      const db = await getDb();
+
+      if (isInvisibleTask) {
+        const tx = db.transaction(
+          [TASK_INVISIBLE_STORE, TASK_LOGICAL_STORE, TASK_COMPLETION_STORE],
+          "readwrite",
+        );
+        await tx.objectStore(TASK_INVISIBLE_STORE).put(true, taskId);
+        // AGENT: Enforce invisible-task invariant by ensuring invisible tasks are always logical and not explicitly completed.
+        await tx.objectStore(TASK_LOGICAL_STORE).put(true, taskId);
+        await tx.objectStore(TASK_COMPLETION_STORE).delete(taskId);
+        await tx.done;
+        return;
+      }
+
+      await db.delete(TASK_INVISIBLE_STORE, taskId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["task", "invisible", variables.taskId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["invisibleTasks"] });
       queryClient.invalidateQueries({
         queryKey: ["task", "logical", variables.taskId],
       });
@@ -906,6 +969,7 @@ export function useTaskCompletionMutation() {
         [
           TASK_COMPLETION_STORE,
           TASK_LOGICAL_STORE,
+          TASK_INVISIBLE_STORE,
           TASKS_STORE,
           CATEGORY_TASKS_STORE,
           CATEGORY_COLLAPSED_STORE,
@@ -915,6 +979,7 @@ export function useTaskCompletionMutation() {
 
       const completionStore = tx.objectStore(TASK_COMPLETION_STORE);
       const logicalTasksStore = tx.objectStore(TASK_LOGICAL_STORE);
+      const invisibleTasksStore = tx.objectStore(TASK_INVISIBLE_STORE);
       const tasksStore = tx.objectStore(TASKS_STORE);
       const categoryTasksStore = tx.objectStore(CATEGORY_TASKS_STORE);
       const categoryHiddenStore = tx.objectStore(CATEGORY_COLLAPSED_STORE);
@@ -940,9 +1005,13 @@ export function useTaskCompletionMutation() {
       const logicalTaskIds = new Set<string>(
         await logicalTasksStore.getAllKeys(),
       );
+      const invisibleTaskIds = new Set<string>(
+        await invisibleTasksStore.getAllKeys(),
+      );
       const allCategoryTasksComplete = categoryTaskIds.every(
         (categoryTaskId) =>
           logicalTaskIds.has(categoryTaskId) ||
+          invisibleTaskIds.has(categoryTaskId) ||
           completedTaskIds.has(categoryTaskId),
       );
 

@@ -14,6 +14,7 @@ import {
   TASK_COMPLETION_STORE,
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
+  TASK_INVISIBLE_STORE,
   TASK_LOGICAL_STORE,
   TASK_TAGS_STORE,
   TASK_VALUES_STORE,
@@ -149,6 +150,27 @@ function getQueryArgs_logicalTasks() {
 
 export function useLogicalTasksQuery() {
   return useQuery(getQueryArgs_logicalTasks());
+}
+
+function getQueryArgs_invisibleTasks() {
+  return {
+    queryKey: ["invisibleTasks"],
+    queryFn: async () => {
+      console.log("Fetching ALL invisible tasks");
+      const db = await getDb();
+      const allInvisibleTasks = new Set<string>(
+        await db.getAllKeys(TASK_INVISIBLE_STORE),
+      );
+      for (const taskId of allInvisibleTasks) {
+        queryClient.setQueryData(["task", "invisible", taskId], true);
+      }
+      return allInvisibleTasks;
+    },
+  };
+}
+
+export function useInvisibleTasksQuery() {
+  return useQuery(getQueryArgs_invisibleTasks());
 }
 
 function getQueryArgs_details(enabled?: boolean) {
@@ -327,6 +349,17 @@ export function useTaskLogicalQuery(taskId: TaskId) {
       const db = await getDb();
       const isLogicalTask = await db.get(TASK_LOGICAL_STORE, taskId);
       return !!isLogicalTask;
+    },
+  });
+}
+
+export function useTaskInvisibleQuery(taskId: TaskId) {
+  return useQuery({
+    queryKey: ["task", "invisible", taskId],
+    queryFn: async () => {
+      const db = await getDb();
+      const isInvisibleTask = await db.get(TASK_INVISIBLE_STORE, taskId);
+      return !!isInvisibleTask;
     },
   });
 }

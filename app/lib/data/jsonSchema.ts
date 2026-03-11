@@ -82,6 +82,14 @@ export type ExportedTaskDefinition = {
    * Optional numeric task values
    */
   values?: TaskValues;
+
+  /**
+   * Optional invisible flag.
+   *
+   * When true, the task is only shown in Edit Mode.
+   * When omitted, defaults to false.
+   */
+  invisible?: boolean;
 };
 
 /**

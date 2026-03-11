@@ -24,6 +24,7 @@ import {
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
   useTaskDetailMutation,
+  useTaskInvisibleMutation,
   useTaskLogicalMutation,
   useTaskValuesMutation,
 } from "../../app/lib/data/mutations";
@@ -35,11 +36,13 @@ import {
   useCompletionsQuery,
   useDependenciesQuery,
   useDetailsQuery,
+  useInvisibleTasksQuery,
   useLogicalTasksQuery,
   useTaskCompletionQuery,
   useTaskDependenciesQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
+  useTaskInvisibleQuery,
   useTaskLogicalQuery,
   useTaskSetQuery,
   useTaskTagsQuery,
@@ -82,6 +85,7 @@ function assertMissingPerItemQuerySentinels(result: {
   categoryDependencies: Set<string> | undefined;
   completion: boolean | undefined;
   logicalTask: boolean | undefined;
+  invisibleTask: boolean | undefined;
   hidden: boolean | undefined;
 }) {
   expect(result.detail).toBeNull();
@@ -91,6 +95,7 @@ function assertMissingPerItemQuerySentinels(result: {
   expect(result.categoryDependencies).toEqual(new Set<string>());
   expect(result.completion).toBe(false);
   expect(result.logicalTask).toBe(false);
+  expect(result.invisibleTask).toBe(false);
   expect(result.hidden).toBe(false);
 }
 
@@ -216,6 +221,7 @@ describe("data layer", () => {
           useCategoryDependencyQuery("missing-category").data,
         completion: useTaskCompletionQuery("missing").data,
         logicalTask: useTaskLogicalQuery("missing").data,
+        invisibleTask: useTaskInvisibleQuery("missing").data,
         hidden: useTaskHiddenQuery("missing").data,
       }),
       { wrapper },
@@ -665,6 +671,153 @@ describe("data layer", () => {
         true,
       );
       expect(result.current.openTasks.has(dependentTaskId)).toBe(false);
+    });
+  });
+
+  it("applies invisible-task mutation semantics and keeps logical-task invariant", async () => {
+    const { result } = renderHook(
+      () => {
+        const taskSet = useTaskSetQuery().data ?? new Set<string>();
+        const logicalTasks = useLogicalTasksQuery().data ?? new Set<string>();
+        const invisibleTasks =
+          useInvisibleTasksQuery().data ?? new Set<string>();
+        const completions = useCompletionsQuery().data ?? new Set<string>();
+
+        return {
+          createTask: useCreateTaskMutation(),
+          setCompletion: useTaskCompletionMutation(),
+          setInvisibleTask: useTaskInvisibleMutation(),
+          taskSet,
+          logicalTasks,
+          invisibleTasks,
+          completions,
+        };
+      },
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.createTask.mutateAsync("Inbox");
+    });
+
+    await waitFor(() => {
+      expect(result.current.taskSet.size).toBe(1);
+    });
+
+    const [taskId] = Array.from(result.current.taskSet);
+
+    await act(async () => {
+      await result.current.setCompletion.mutateAsync({
+        taskId,
+        isCompleted: true,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.completions.has(taskId)).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.setInvisibleTask.mutateAsync({
+        taskId,
+        isInvisibleTask: true,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.invisibleTasks.has(taskId)).toBe(true);
+      expect(result.current.logicalTasks.has(taskId)).toBe(true);
+      expect(result.current.completions.has(taskId)).toBe(false);
+    });
+  });
+
+  it("keeps invisible logical effects for visible tasks via openers and closers", async () => {
+    const definition: ExportedChecklistDefinition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          { id: "base", category: "Main", title: "Base" },
+          {
+            id: "inv",
+            category: "Main",
+            title: "Invisible logical",
+            type: "logical",
+            invisible: true,
+            closers: { tasks: ["base"] },
+          },
+          {
+            id: "open-target",
+            category: "Main",
+            title: "Opener target",
+            openers: { tasks: ["inv"] },
+          },
+          {
+            id: "close-target",
+            category: "Main",
+            title: "Closer target",
+            closers: { tasks: ["inv"] },
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    };
+
+    await importChecklistDefinition(asJson(definition));
+    queryClient.clear();
+
+    const { result } = renderHook(
+      () => {
+        const taskStructure = useTaskStructure();
+        const dependencies =
+          useDependenciesQuery().data ?? new Map<string, TaskDependencies>();
+        const completions = useCompletionsQuery().data ?? new Set<string>();
+        const effectiveCompletions = useEffectiveCompletions(
+          taskStructure.taskSet,
+          completions,
+          dependencies,
+        );
+        const openTasks = useOpenTasks(
+          taskStructure.taskSet,
+          dependencies,
+          effectiveCompletions,
+        );
+        const invisibleTasks =
+          useInvisibleTasksQuery().data ?? new Set<string>();
+
+        return {
+          setCompletion: useTaskCompletionMutation(),
+          effectiveCompletions,
+          openTasks,
+          invisibleTasks,
+        };
+      },
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.invisibleTasks.has("inv")).toBe(true);
+      expect(result.current.effectiveCompletions.has("inv")).toBe(false);
+      expect(result.current.openTasks.has("open-target")).toBe(false);
+      expect(result.current.effectiveCompletions.has("close-target")).toBe(
+        false,
+      );
+    });
+
+    await act(async () => {
+      await result.current.setCompletion.mutateAsync({
+        taskId: "base",
+        isCompleted: true,
+      });
+    });
+
+    await waitFor(() => {
+      // AGENT: Invisible tasks must still contribute dependency semantics for visible tasks.
+      expect(result.current.effectiveCompletions.has("inv")).toBe(true);
+      expect(result.current.openTasks.has("open-target")).toBe(true);
+      expect(result.current.effectiveCompletions.has("close-target")).toBe(
+        true,
+      );
     });
   });
 

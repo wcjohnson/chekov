@@ -408,4 +408,36 @@ describe("import/export normalization", () => {
       },
     ]);
   });
+
+  it("normalizes invisible tasks as logical and preserves invisible flag", async () => {
+    const definition = {
+      categories: ["Main"],
+      tasksByCategory: {
+        Main: [
+          {
+            id: "t1",
+            category: "Main",
+            title: "Invisible helper",
+            type: "task",
+            invisible: true,
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    } as unknown as ExportedChecklistDefinition;
+
+    await importChecklistDefinition(asJson(definition));
+    const exportedDefinition = await exportChecklistDefinition();
+
+    expect(exportedDefinition.tasksByCategory.Main).toEqual([
+      {
+        id: "t1",
+        category: "Main",
+        title: "Invisible helper",
+        type: "logical",
+        invisible: true,
+      },
+    ]);
+  });
 });

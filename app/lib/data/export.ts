@@ -10,6 +10,7 @@ import {
   TASK_COMPLETION_STORE,
   TASK_DEPENDENCIES_STORE,
   TASK_HIDDEN_STORE,
+  TASK_INVISIBLE_STORE,
   TASK_TAGS_STORE,
   TASK_VALUES_STORE,
   TASK_LOGICAL_STORE,
@@ -120,6 +121,9 @@ function normalizeChecklistDefinition(
         const normalizedType = isLogicalTaskType(task.type)
           ? "logical"
           : "task";
+        const normalizedInvisible = Boolean(task.invisible);
+        const normalizedIsLogicalTask =
+          normalizedType === "logical" || normalizedInvisible;
         const normalizedDescription = task.description ?? "";
         const normalizedDependencies = Array.from(
           new Set<TaskId>(
@@ -140,16 +144,16 @@ function normalizeChecklistDefinition(
           task.id,
         );
 
-        const normalizedLegacyClosers =
-          normalizedType === "logical" ? normalizedLegacyOpeners : undefined;
+        const normalizedLegacyClosers = normalizedIsLogicalTask
+          ? normalizedLegacyOpeners
+          : undefined;
 
         const normalizedOpeners =
           normalizeExportedDependencyExpression(
             task.openers,
             allTaskIds,
             task.id,
-          ) ??
-          (normalizedType === "logical" ? undefined : normalizedLegacyOpeners);
+          ) ?? (normalizedIsLogicalTask ? undefined : normalizedLegacyOpeners);
         const normalizedClosers =
           normalizeExportedDependencyExpression(
             task.closers,
@@ -179,7 +183,8 @@ function normalizeChecklistDefinition(
           ...(normalizedDescription.length > 0
             ? { description: normalizedDescription }
             : {}),
-          ...(normalizedType === "logical" ? { type: "logical" as const } : {}),
+          ...(normalizedIsLogicalTask ? { type: "logical" as const } : {}),
+          ...(normalizedInvisible ? { invisible: true } : {}),
           ...(normalizedTaskOpeners?.taskSet.size
             ? {
                 openers: {
@@ -344,6 +349,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskDependencyExpressionValues,
     logicalTaskKeys,
     logicalTaskValues,
+    invisibleTaskKeys,
+    invisibleTaskValues,
     maybeCategories,
     categoryTaskKeys,
     categoryTaskValues,
@@ -362,6 +369,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.getAll(TASK_DEPENDENCIES_STORE),
     db.getAllKeys(TASK_LOGICAL_STORE),
     db.getAll(TASK_LOGICAL_STORE),
+    db.getAllKeys(TASK_INVISIBLE_STORE),
+    db.getAll(TASK_INVISIBLE_STORE),
     db.get(CATEGORIES_STORE, "categories"),
     db.getAllKeys(CATEGORY_TASKS_STORE),
     db.getAll(CATEGORY_TASKS_STORE),
@@ -380,6 +389,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskDependencyExpressionValues,
   );
   const logicalTasksMap = fromKvPairsToMap(logicalTaskKeys, logicalTaskValues);
+  const invisibleTasksMap = fromKvPairsToMap(
+    invisibleTaskKeys,
+    invisibleTaskValues,
+  );
   const categoryTasksMap = fromKvPairsToMap(
     categoryTaskKeys,
     categoryTaskValues,
@@ -415,6 +428,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
           ? { description: task.description }
           : {}),
         ...(logicalTasksMap.has(taskId) ? { type: "logical" as const } : {}),
+        ...(invisibleTasksMap.has(taskId) ? { invisible: true } : {}),
         ...(taskOpeners?.taskSet.size
           ? {
               openers: {
@@ -548,6 +562,7 @@ export async function importChecklistDefinition(
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
       TASK_LOGICAL_STORE,
+      TASK_INVISIBLE_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
       CATEGORY_DEPENDENCIES_STORE,
@@ -566,6 +581,7 @@ export async function importChecklistDefinition(
     TASK_DEPENDENCIES_STORE,
   );
   const taskLogicalStore = transaction.objectStore(TASK_LOGICAL_STORE);
+  const taskInvisibleStore = transaction.objectStore(TASK_INVISIBLE_STORE);
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
   const categoryDependenciesStore = transaction.objectStore(
@@ -582,6 +598,7 @@ export async function importChecklistDefinition(
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
     taskLogicalStore.clear(),
+    taskInvisibleStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
     categoryDependenciesStore.clear(),
@@ -635,6 +652,10 @@ export async function importChecklistDefinition(
 
       if (isLogicalTaskType(task.type)) {
         await taskLogicalStore.put(true, task.id);
+      }
+
+      if (task.invisible) {
+        await taskInvisibleStore.put(true, task.id);
       }
 
       const normalizedLegacyOpeners = normalizeExportedDependencyExpression(

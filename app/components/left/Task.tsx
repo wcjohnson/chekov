@@ -11,6 +11,7 @@ import {
   useTaskCompletionQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
+  useTaskInvisibleQuery,
   useTaskLogicalQuery,
   useTaskTagsQuery,
 } from "@/app/lib/data/queries";
@@ -40,6 +41,7 @@ export function Task({
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
   const isLogicalTask = useTaskLogicalQuery(taskId).data ?? false;
+  const isInvisibleTask = useTaskInvisibleQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
   const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
@@ -68,6 +70,11 @@ export function Task({
   const rowInteractionClasses = isSelected
     ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
     : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
+  const rowVisibilityClasses =
+    mode === "edit" && isInvisibleTask ? "opacity-70" : "";
+  const shouldStrikeTitle =
+    (mode === "task" && isEffectivelyComplete) ||
+    (mode === "edit" && isInvisibleTask && isEffectivelyComplete);
 
   return (
     <DragDropReorderable
@@ -92,7 +99,7 @@ export function Task({
           event.preventDefault();
           onRequestTaskSelectionChange(taskId);
         }}
-        className={`flex h-[34px] w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
+        className={`flex h-[34px] w-full px-2 py-1.5 items-center gap-2 rounded-md border text-left ${rowInteractionClasses} ${rowVisibilityClasses} ${dragState.isDragging ? "opacity-60" : ""}`}
       >
         {canDrag && (
           <button
@@ -135,7 +142,7 @@ export function Task({
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <p
             className={`min-w-0 flex-1 truncate text-sm font-medium ${
-              mode === "task" && isEffectivelyComplete ? "line-through" : ""
+              shouldStrikeTitle ? "line-through" : ""
             }`}
           >
             {detail?.title || "Untitled Task"}
