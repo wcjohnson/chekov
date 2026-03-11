@@ -1,3 +1,5 @@
+import type { TaskColorKey } from "../taskColors";
+
 export type TaskId = string;
 export type CategoryName = string;
 
@@ -29,6 +31,7 @@ export type TaskDetail = {
   title: string;
   description: string;
   category: CategoryName;
+  color?: TaskColorKey;
 };
 
 export type DependencyExpression = {

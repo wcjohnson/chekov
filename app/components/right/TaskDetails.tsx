@@ -9,6 +9,10 @@ import {
   TAG_COLOR_OPTIONS,
 } from "../../lib/tagColors";
 import {
+  getTaskSwatchClasses,
+  TASK_COLOR_OPTIONS as TASK_ROW_COLOR_OPTIONS,
+} from "../../lib/taskColors";
+import {
   type ChecklistMode,
   type DependencyExpression,
   type TaskDependencies,
@@ -106,6 +110,7 @@ export function TaskDetails({
   const isLogicalTask = useTaskLogicalQuery(selectedTaskId ?? "").data ?? false;
   const isInvisibleTask =
     useTaskInvisibleQuery(selectedTaskId ?? "").data ?? false;
+  const taskColor = selectedTaskDetail?.color;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
   const isEffectivelyCompleted = isLogicalTask
     ? openTasks.has(selectedTaskId ?? "")
@@ -443,6 +448,80 @@ export function TaskDetails({
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Invisible tasks are only shown in Edit Mode.
           </p>
+
+          <div className="mt-3">
+            <span className="mb-1 block font-medium">Task color</span>
+            <Dropdown>
+              <DropdownButton as={Button} plain>
+                <span
+                  aria-hidden="true"
+                  className={`mr-2 inline-block h-3 w-3 rounded border border-zinc-300 align-middle dark:border-zinc-700 ${
+                    taskColor
+                      ? getTaskSwatchClasses(taskColor)
+                      : "bg-transparent"
+                  }`}
+                />
+                {taskColor
+                  ? (TASK_ROW_COLOR_OPTIONS.find(
+                      (option) => option.key === taskColor,
+                    )?.label ?? "Color")
+                  : "No color"}
+              </DropdownButton>
+              <DropdownMenu anchor="bottom start" className="w-52">
+                <DropdownItem
+                  onClick={() => {
+                    if (!selectedTaskId || taskColor === undefined) {
+                      return;
+                    }
+
+                    taskDetailMutation.mutate({
+                      taskId: selectedTaskId,
+                      color: null,
+                    });
+                  }}
+                >
+                  <span
+                    data-slot="icon"
+                    aria-hidden="true"
+                    className="rounded border border-zinc-300 bg-transparent dark:border-zinc-700"
+                  />
+                  <DropdownLabel>No color</DropdownLabel>
+                </DropdownItem>
+                {TASK_ROW_COLOR_OPTIONS.map((colorOption) => {
+                  const isSelected = taskColor === colorOption.key;
+
+                  return (
+                    <DropdownItem
+                      key={`task-color-${selectedTaskId ?? "none"}-${colorOption.key}`}
+                      onClick={() => {
+                        if (!selectedTaskId || isSelected) {
+                          return;
+                        }
+
+                        taskDetailMutation.mutate({
+                          taskId: selectedTaskId,
+                          color: colorOption.key,
+                        });
+                      }}
+                    >
+                      <span
+                        data-slot="icon"
+                        aria-hidden="true"
+                        className={`rounded border border-zinc-300 dark:border-zinc-700 ${getTaskSwatchClasses(
+                          colorOption.key,
+                        )} ${
+                          isSelected
+                            ? "ring-2 ring-zinc-500 ring-offset-1 dark:ring-zinc-300 dark:ring-offset-zinc-950"
+                            : ""
+                        }`}
+                      />
+                      <DropdownLabel>{colorOption.label}</DropdownLabel>
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownMenu>
+            </Dropdown>
+          </div>
         </div>
 
         <DependencyExpressionEditor

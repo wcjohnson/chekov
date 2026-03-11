@@ -160,6 +160,7 @@ describe("data layer", () => {
         taskId,
         title: "Renamed",
         description: "Updated description",
+        color: "teal",
       });
     });
 
@@ -167,6 +168,19 @@ describe("data layer", () => {
       const detail = result.current.details.get(taskId);
       expect(detail?.title).toBe("Renamed");
       expect(detail?.description).toBe("Updated description");
+      expect(detail?.color).toBe("teal");
+    });
+
+    await act(async () => {
+      await result.current.updateTaskDetail.mutateAsync({
+        taskId,
+        color: null,
+      });
+    });
+
+    await waitFor(() => {
+      const detail = result.current.details.get(taskId);
+      expect(detail?.color).toBeUndefined();
     });
   });
 

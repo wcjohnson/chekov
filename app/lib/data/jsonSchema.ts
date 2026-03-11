@@ -84,6 +84,13 @@ export type ExportedTaskDefinition = {
   values?: TaskValues;
 
   /**
+   * Optional task color key.
+   *
+   * When omitted, no task color is applied.
+   */
+  color?: string;
+
+  /**
    * Optional invisible flag.
    *
    * When true, the task is only shown in Edit Mode.

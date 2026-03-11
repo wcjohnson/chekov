@@ -241,6 +241,37 @@ const roundTripFixtures: Array<{
       },
     },
   },
+  {
+    name: "task color round-trip",
+    definition: {
+      formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
+      categories: ["Color"],
+      tasksByCategory: {
+        Color: [
+          {
+            id: "c1",
+            category: "Color",
+            title: "Tinted task",
+            color: "teal",
+          },
+          {
+            id: "c2",
+            category: "Color",
+            title: "Untinted task",
+          },
+        ],
+      },
+      tagColors: {},
+      categoryDependencies: {},
+    },
+    state: {
+      tasks: {},
+      categoryVisibilityByMode: {
+        task: {},
+        edit: {},
+      },
+    },
+  },
 ];
 
 const asJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

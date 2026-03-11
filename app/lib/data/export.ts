@@ -17,6 +17,7 @@ import {
   TASKS_STORE,
 } from "@/app/lib/data/store";
 import { getStoredTagColorKey, type TagColorKey } from "@/app/lib/tagColors";
+import { isTaskColorKey } from "@/app/lib/taskColors";
 import {
   type CategoryName,
   type DependencyExpression,
@@ -174,6 +175,10 @@ function normalizeChecklistDefinition(
             ),
           ),
         );
+        const normalizedColor =
+          typeof task.color === "string" && isTaskColorKey(task.color)
+            ? task.color
+            : undefined;
         const normalizedValues = normalizeTaskValues(task.values);
 
         return {
@@ -209,6 +214,7 @@ function normalizeChecklistDefinition(
                 },
               }
             : {}),
+          ...(normalizedColor ? { color: normalizedColor } : {}),
           ...(normalizedTags.length > 0 ? { tags: normalizedTags } : {}),
           ...(normalizedValues ? { values: normalizedValues } : {}),
         };
@@ -419,6 +425,10 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
       const taskTags = taskTagsMap.get(taskId) ?? new Set<string>();
       const taskOpeners = taskDependencies?.openers;
       const taskClosers = taskDependencies?.closers;
+      const taskColor =
+        typeof task.color === "string" && isTaskColorKey(task.color)
+          ? task.color
+          : undefined;
 
       categoryTasks.push({
         id: taskId,
@@ -449,6 +459,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
               },
             }
           : {}),
+        ...(taskColor ? { color: taskColor } : {}),
         ...(Array.from(taskTags).length > 0
           ? { tags: Array.from(taskTags) }
           : {}),
@@ -640,12 +651,18 @@ export async function importChecklistDefinition(
     }
 
     for (const task of tasks) {
+      const normalizedTaskColor =
+        typeof task.color === "string" && isTaskColorKey(task.color)
+          ? task.color
+          : undefined;
+
       await tasksStore.put(
         {
           id: task.id,
           title: task.title,
           description: task.description ?? "",
           category,
+          ...(normalizedTaskColor ? { color: normalizedTaskColor } : {}),
         },
         task.id,
       );

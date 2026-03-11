@@ -522,8 +522,9 @@ export function useTaskDetailMutation() {
       taskId: TaskId;
       title?: string | undefined;
       description?: string | undefined;
+      color?: TaskDetail["color"] | null;
     }) => {
-      const { taskId, title, description } = variables;
+      const { taskId, title, description, color } = variables;
       const db = await getDb();
       const task = await db.get(TASKS_STORE, taskId);
       if (!task) {
@@ -531,6 +532,13 @@ export function useTaskDetailMutation() {
       }
       if (title !== undefined) task.title = title;
       if (description !== undefined) task.description = description;
+      if (color !== undefined) {
+        if (color === null) {
+          delete task.color;
+        } else {
+          task.color = color;
+        }
+      }
 
       await db.put(TASKS_STORE, task, taskId);
     },

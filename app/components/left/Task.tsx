@@ -6,6 +6,7 @@ import { useContext, useRef, useState } from "react";
 import { MultiSelectContext } from "@/app/lib/context";
 import { Badge } from "@/app/components/catalyst/badge";
 import { getEffectiveTagColorKey } from "@/app/lib/tagColors";
+import { getTaskRowColorClasses } from "@/app/lib/taskColors";
 import {
   useTagColorsQuery,
   useTaskCompletionQuery,
@@ -69,7 +70,7 @@ export function Task({
   const hasDescription = (detail?.description?.length ?? 0) > 0;
   const rowInteractionClasses = isSelected
     ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-    : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
+    : `border-zinc-200 dark:border-zinc-800 ${getTaskRowColorClasses(detail?.color) || "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`;
   const rowVisibilityClasses =
     mode === "edit" && isInvisibleTask ? "opacity-70" : "";
   const shouldStrikeTitle =
