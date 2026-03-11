@@ -123,16 +123,35 @@ export function LeftColumn({
       return;
     }
 
-    const animationFrameId = window.requestAnimationFrame(() => {
-      const taskRow = Array.from(
-        scrollElement.querySelectorAll<HTMLElement>("[data-task-id]"),
-      ).find((element) => element.dataset.taskId === selectedTaskId);
+    let animationFrameId = 0;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 8;
+    const escapedTaskId =
+      typeof CSS !== "undefined" && typeof CSS.escape === "function"
+        ? CSS.escape(selectedTaskId)
+        : selectedTaskId.replace(/["\\]/g, "\\$&");
+    const selectedTaskSelector = `[data-task-id="${escapedTaskId}"]`;
 
-      taskRow?.scrollIntoView({
-        block: "center",
-        behavior: "auto",
-      });
-    });
+    // AGENT: Retry a few frames so recentering still works when rows mount asynchronously (for example, task virtualization updates).
+    const recenterSelectedTask = () => {
+      const taskRow =
+        scrollElement.querySelector<HTMLElement>(selectedTaskSelector);
+
+      if (taskRow) {
+        taskRow.scrollIntoView({
+          block: "center",
+          behavior: "auto",
+        });
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < MAX_ATTEMPTS) {
+        animationFrameId = window.requestAnimationFrame(recenterSelectedTask);
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(recenterSelectedTask);
 
     return () => {
       window.cancelAnimationFrame(animationFrameId);
