@@ -12,7 +12,7 @@ import {
   TASK_HIDDEN_STORE,
   TASK_TAGS_STORE,
   TASK_VALUES_STORE,
-  TASK_REMINDERS_STORE,
+  TASK_LOGICAL_STORE,
   TASKS_STORE,
 } from "@/app/lib/data/store";
 import { getStoredTagColorKey, type TagColorKey } from "@/app/lib/tagColors";
@@ -36,8 +36,8 @@ import type {
 } from "./jsonSchema";
 import { CHECKLIST_DEFINITION_FORMAT_VERSION } from "./jsonSchema";
 
-const isReminderType = (type: ExportedTaskDefinition["type"]): boolean =>
-  type === "warning" || type === "reminder";
+const isLogicalTaskType = (type: ExportedTaskDefinition["type"]): boolean =>
+  type === "warning" || type === "reminder" || type === "logical";
 
 function normalizeExportedDependencyExpression(
   exportedDependencyExpression: ExportedDependencyExpression | undefined,
@@ -92,7 +92,7 @@ function normalizeTaskDependencies(
 function normalizeChecklistDefinition(
   definition: ExportedChecklistDefinition,
 ): ExportedChecklistDefinition {
-  // AGENT: Add definition format versioning, defaulting legacy payloads with no version to v1.
+  // AGENT: Keep definition format versioning explicit while normalizing legacy payloads with no version.
   const normalizedFormatVersion =
     Number.isInteger(definition.formatVersion) &&
     (definition.formatVersion ?? 0) > 0
@@ -117,7 +117,9 @@ function normalizeChecklistDefinition(
     normalizedTasksByCategory.set(
       category,
       (tasks ?? []).map((task) => {
-        const normalizedType = isReminderType(task.type) ? "reminder" : "task";
+        const normalizedType = isLogicalTaskType(task.type)
+          ? "logical"
+          : "task";
         const normalizedDescription = task.description ?? "";
         const normalizedDependencies = Array.from(
           new Set<TaskId>(
@@ -139,7 +141,7 @@ function normalizeChecklistDefinition(
         );
 
         const normalizedLegacyClosers =
-          normalizedType === "reminder" ? normalizedLegacyOpeners : undefined;
+          normalizedType === "logical" ? normalizedLegacyOpeners : undefined;
 
         const normalizedOpeners =
           normalizeExportedDependencyExpression(
@@ -147,7 +149,7 @@ function normalizeChecklistDefinition(
             allTaskIds,
             task.id,
           ) ??
-          (normalizedType === "reminder" ? undefined : normalizedLegacyOpeners);
+          (normalizedType === "logical" ? undefined : normalizedLegacyOpeners);
         const normalizedClosers =
           normalizeExportedDependencyExpression(
             task.closers,
@@ -177,9 +179,7 @@ function normalizeChecklistDefinition(
           ...(normalizedDescription.length > 0
             ? { description: normalizedDescription }
             : {}),
-          ...(normalizedType === "reminder"
-            ? { type: "reminder" as const }
-            : {}),
+          ...(normalizedType === "logical" ? { type: "logical" as const } : {}),
           ...(normalizedTaskOpeners?.taskSet.size
             ? {
                 openers: {
@@ -342,8 +342,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskTagValues,
     taskDependencyKeys,
     taskDependencyExpressionValues,
-    reminderTaskKeys,
-    reminderTaskValues,
+    logicalTaskKeys,
+    logicalTaskValues,
     maybeCategories,
     categoryTaskKeys,
     categoryTaskValues,
@@ -360,8 +360,8 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     db.getAll(TASK_TAGS_STORE),
     db.getAllKeys(TASK_DEPENDENCIES_STORE),
     db.getAll(TASK_DEPENDENCIES_STORE),
-    db.getAllKeys(TASK_REMINDERS_STORE),
-    db.getAll(TASK_REMINDERS_STORE),
+    db.getAllKeys(TASK_LOGICAL_STORE),
+    db.getAll(TASK_LOGICAL_STORE),
     db.get(CATEGORIES_STORE, "categories"),
     db.getAllKeys(CATEGORY_TASKS_STORE),
     db.getAll(CATEGORY_TASKS_STORE),
@@ -379,10 +379,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
     taskDependencyKeys,
     taskDependencyExpressionValues,
   );
-  const reminderTasksMap = fromKvPairsToMap(
-    reminderTaskKeys,
-    reminderTaskValues,
-  );
+  const logicalTasksMap = fromKvPairsToMap(logicalTaskKeys, logicalTaskValues);
   const categoryTasksMap = fromKvPairsToMap(
     categoryTaskKeys,
     categoryTaskValues,
@@ -417,7 +414,7 @@ export async function exportChecklistDefinition(): Promise<ExportedChecklistDefi
         ...(task.description.length > 0
           ? { description: task.description }
           : {}),
-        ...(reminderTasksMap.has(taskId) ? { type: "reminder" as const } : {}),
+        ...(logicalTasksMap.has(taskId) ? { type: "logical" as const } : {}),
         ...(taskOpeners?.taskSet.size
           ? {
               openers: {
@@ -493,18 +490,18 @@ export async function exportChecklistState(): Promise<ExportedChecklistState> {
   );
   const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
 
-  const reminderTaskIds = new Set<TaskId>();
+  const logicalTaskIds = new Set<TaskId>();
   for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
-      if (isReminderType(task.type)) {
-        reminderTaskIds.add(task.id);
+      if (isLogicalTaskType(task.type)) {
+        logicalTaskIds.add(task.id);
       }
     }
   }
 
   const tasks = new Map<TaskId, ExportedChecklistTaskState>();
   taskCompletionKeys.forEach((taskId) => {
-    if (reminderTaskIds.has(taskId)) {
+    if (logicalTaskIds.has(taskId)) {
       return;
     }
 
@@ -550,7 +547,7 @@ export async function importChecklistDefinition(
       TASK_VALUES_STORE,
       TASK_TAGS_STORE,
       TASK_DEPENDENCIES_STORE,
-      TASK_REMINDERS_STORE,
+      TASK_LOGICAL_STORE,
       CATEGORIES_STORE,
       CATEGORY_TASKS_STORE,
       CATEGORY_DEPENDENCIES_STORE,
@@ -568,7 +565,7 @@ export async function importChecklistDefinition(
   const taskDependenciesStore = transaction.objectStore(
     TASK_DEPENDENCIES_STORE,
   );
-  const taskRemindersStore = transaction.objectStore(TASK_REMINDERS_STORE);
+  const taskLogicalStore = transaction.objectStore(TASK_LOGICAL_STORE);
   const categoriesStore = transaction.objectStore(CATEGORIES_STORE);
   const categoryTasksStore = transaction.objectStore(CATEGORY_TASKS_STORE);
   const categoryDependenciesStore = transaction.objectStore(
@@ -584,7 +581,7 @@ export async function importChecklistDefinition(
     taskValuesStore.clear(),
     taskTagsStore.clear(),
     taskDependenciesStore.clear(),
-    taskRemindersStore.clear(),
+    taskLogicalStore.clear(),
     categoriesStore.clear(),
     categoryTasksStore.clear(),
     categoryDependenciesStore.clear(),
@@ -636,8 +633,8 @@ export async function importChecklistDefinition(
         task.id,
       );
 
-      if (isReminderType(task.type)) {
-        await taskRemindersStore.put(true, task.id);
+      if (isLogicalTaskType(task.type)) {
+        await taskLogicalStore.put(true, task.id);
       }
 
       const normalizedLegacyOpeners = normalizeExportedDependencyExpression(
@@ -694,11 +691,11 @@ export async function importChecklistState(state: ExportedChecklistState) {
   const definition = await exportChecklistDefinition();
   const definitionTasksByCategory = recordToMap(definition.tasksByCategory);
 
-  const reminderTaskIds = new Set<TaskId>();
+  const logicalTaskIds = new Set<TaskId>();
   for (const tasks of definitionTasksByCategory.values()) {
     for (const task of tasks ?? []) {
-      if (isReminderType(task.type)) {
-        reminderTaskIds.add(task.id);
+      if (isLogicalTaskType(task.type)) {
+        logicalTaskIds.add(task.id);
       }
     }
   }
@@ -726,7 +723,7 @@ export async function importChecklistState(state: ExportedChecklistState) {
   const stateTaskMap = recordToMap(normalizedState.tasks);
 
   for (const [taskId, taskState] of stateTaskMap.entries()) {
-    if (taskState.completed && !reminderTaskIds.has(taskId)) {
+    if (taskState.completed && !logicalTaskIds.has(taskId)) {
       await taskCompletionStore.put(true, taskId);
     }
 

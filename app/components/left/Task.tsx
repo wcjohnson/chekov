@@ -11,7 +11,7 @@ import {
   useTaskCompletionQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
-  useTaskReminderQuery,
+  useTaskLogicalQuery,
   useTaskTagsQuery,
 } from "@/app/lib/data/queries";
 
@@ -39,7 +39,7 @@ export function Task({
   const detail = useTaskDetailQuery(taskId).data;
   const tags = Array.from(useTaskTagsQuery(taskId).data ?? []);
   const isComplete = useTaskCompletionQuery(taskId).data ?? false;
-  const isReminder = useTaskReminderQuery(taskId).data ?? false;
+  const isLogicalTask = useTaskLogicalQuery(taskId).data ?? false;
   const isHidden = useTaskHiddenQuery(taskId).data ?? false;
   const tagColors = useTagColorsQuery().data ?? new Map();
   const handleRef = useRef(null);
@@ -60,18 +60,14 @@ export function Task({
 
   const canDrag = mode === "edit" && !isMultiSelecting;
   const showTaskModeCheckbox =
-    mode === "task" && openersComplete && !isReminder;
+    mode === "task" && openersComplete && !isLogicalTask;
   const isImplicitlyComplete = isEffectivelyComplete && !isComplete;
   const showEditSelectionCheckbox =
     mode === "edit" && isMultiSelecting && isVisibleInMultiSelect;
   const hasDescription = (detail?.description?.length ?? 0) > 0;
-  const rowInteractionClasses = isReminder
-    ? isSelected
-      ? "border-amber-400 bg-amber-100 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900/40 dark:hover:bg-amber-900/40"
-      : "border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/25 dark:hover:bg-amber-900/35"
-    : isSelected
-      ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
-      : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
+  const rowInteractionClasses = isSelected
+    ? "border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-900"
+    : "border-zinc-200 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900";
 
   return (
     <DragDropReorderable

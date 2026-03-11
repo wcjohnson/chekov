@@ -9,7 +9,7 @@ import { useDeleteTasksMutation } from "@/app/lib/data/mutations";
 type RightColumnProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
-  completionsWithReminders: Set<TaskId>;
+  effectiveCompletions: Set<TaskId>;
   openTasks: Set<TaskId>;
   errorMessage: string | null;
   titleFocusTaskId: TaskId | null;
@@ -19,7 +19,7 @@ type RightColumnProps = {
 export function RightColumn({
   mode,
   selectedTaskId,
-  completionsWithReminders,
+  effectiveCompletions,
   openTasks,
   errorMessage,
   titleFocusTaskId,
@@ -58,7 +58,7 @@ export function RightColumn({
               mode={mode}
               selectedTaskId={selectedTaskId}
               selectedTaskDetail={detail}
-              completionsWithReminders={completionsWithReminders}
+              effectiveCompletions={effectiveCompletions}
               openTasks={openTasks}
               shouldFocusTitle={titleFocusTaskId === selectedTaskId}
               onTitleFocused={onTitleFocused}

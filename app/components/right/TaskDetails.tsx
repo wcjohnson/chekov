@@ -38,7 +38,7 @@ import {
   useTagColorsQuery,
   useTaskDependenciesQuery,
   useTaskHiddenQuery,
-  useTaskReminderQuery,
+  useTaskLogicalQuery,
   useTaskTagsQuery,
   useTaskValuesQuery,
 } from "@/app/lib/data/queries";
@@ -48,7 +48,7 @@ import {
   useTaskDependenciesMutation,
   useTaskDetailMutation,
   useTaskHiddenMutation,
-  useTaskReminderMutation,
+  useTaskLogicalMutation,
   useTaskRemoveTagMutation,
   useTaskValuesMutation,
 } from "@/app/lib/data/mutations";
@@ -60,7 +60,7 @@ type TaskDetailsProps = {
   mode: ChecklistMode;
   selectedTaskId: TaskId | null;
   selectedTaskDetail: TaskDetail | null | undefined;
-  completionsWithReminders: Set<TaskId>;
+  effectiveCompletions: Set<TaskId>;
   openTasks: Set<TaskId>;
   shouldFocusTitle: boolean;
   onTitleFocused: () => void;
@@ -70,7 +70,7 @@ export function TaskDetails({
   mode,
   selectedTaskId,
   selectedTaskDetail,
-  completionsWithReminders,
+  effectiveCompletions,
   openTasks,
   shouldFocusTitle,
   onTitleFocused,
@@ -101,12 +101,11 @@ export function TaskDetails({
   );
   const selectedTaskOpenersExpression = selectedTaskOpeners?.expression ?? null;
   const selectedTaskClosersExpression = selectedTaskClosers?.expression ?? null;
-  const isReminderTask =
-    useTaskReminderQuery(selectedTaskId ?? "").data ?? false;
+  const isLogicalTask = useTaskLogicalQuery(selectedTaskId ?? "").data ?? false;
   const isTaskHidden = useTaskHiddenQuery(selectedTaskId ?? "").data ?? false;
-  const isEffectivelyCompleted = isReminderTask
+  const isEffectivelyCompleted = isLogicalTask
     ? openTasks.has(selectedTaskId ?? "")
-    : completionsWithReminders.has(selectedTaskId ?? "");
+    : effectiveCompletions.has(selectedTaskId ?? "");
 
   const knownTagSet = useAllKnownTagsQuery().data;
   const details = useDetailsQuery().data;
@@ -223,7 +222,7 @@ export function TaskDetails({
   };
 
   const taskDetailMutation = useTaskDetailMutation();
-  const taskReminderMutation = useTaskReminderMutation();
+  const taskLogicalMutation = useTaskLogicalMutation();
   const taskHiddenMutation = useTaskHiddenMutation();
   const taskDependenciesMutation = useTaskDependenciesMutation();
 
@@ -409,19 +408,19 @@ export function TaskDetails({
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
-              checked={isReminderTask}
+              checked={isLogicalTask}
               onChange={(event) =>
-                taskReminderMutation.mutate({
+                taskLogicalMutation.mutate({
                   taskId: selectedTaskId ?? "",
-                  isReminder: event.target.checked,
+                  isLogicalTask: event.target.checked,
                 })
               }
             />
-            <span className="font-medium">Reminder task</span>
+            <span className="font-medium">Logical task</span>
           </label>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Reminders cannot be completed directly and are treated as completed
-            when all dependencies are completed.
+            Logical tasks cannot be completed directly and are treated as
+            completed when all dependencies are completed.
           </p>
         </div>
 
@@ -437,7 +436,7 @@ export function TaskDetails({
           dependencyExpression={selectedTaskOpenersExpression}
           editorDependencyExpression={openerEditorDependencyExpression}
           dependencyTitleById={openerTitleById}
-          completionsWithReminders={completionsWithReminders}
+          effectiveCompletions={effectiveCompletions}
           onConfirmSelection={handleSetOpeners}
           onClearSelection={handleClearOpeners}
           onApplySelection={handleApplyOpeners}
@@ -456,7 +455,7 @@ export function TaskDetails({
           dependencyExpression={selectedTaskClosersExpression}
           editorDependencyExpression={closerEditorDependencyExpression}
           dependencyTitleById={closerTitleById}
-          completionsWithReminders={completionsWithReminders}
+          effectiveCompletions={effectiveCompletions}
           onConfirmSelection={handleSetClosers}
           onClearSelection={handleClearClosers}
           onApplySelection={handleApplyClosers}
@@ -752,7 +751,7 @@ export function TaskDetails({
             mode={mode}
             expression={taskModeOpenersExpression}
             dependencyTitleById={openerTitleById}
-            completionsWithReminders={completionsWithReminders}
+            effectiveCompletions={effectiveCompletions}
           />
         )}
       </div>
@@ -765,7 +764,7 @@ export function TaskDetails({
             mode={mode}
             expression={taskModeCloserExpression}
             dependencyTitleById={closerTitleById}
-            completionsWithReminders={completionsWithReminders}
+            effectiveCompletions={effectiveCompletions}
           />
         )}
       </div>

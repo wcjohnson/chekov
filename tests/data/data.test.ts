@@ -24,7 +24,7 @@ import {
   useTaskCompletionMutation,
   useTaskDependenciesMutation,
   useTaskDetailMutation,
-  useTaskReminderMutation,
+  useTaskLogicalMutation,
   useTaskValuesMutation,
 } from "../../app/lib/data/mutations";
 import {
@@ -35,12 +35,12 @@ import {
   useCompletionsQuery,
   useDependenciesQuery,
   useDetailsQuery,
-  useRemindersQuery,
+  useLogicalTasksQuery,
   useTaskCompletionQuery,
   useTaskDependenciesQuery,
   useTaskDetailQuery,
   useTaskHiddenQuery,
-  useTaskReminderQuery,
+  useTaskLogicalQuery,
   useTaskSetQuery,
   useTaskTagsQuery,
   useTaskValuesQuery,
@@ -81,7 +81,7 @@ function assertMissingPerItemQuerySentinels(result: {
   dependencies: TaskDependencies | null | undefined;
   categoryDependencies: Set<string> | undefined;
   completion: boolean | undefined;
-  reminder: boolean | undefined;
+  logicalTask: boolean | undefined;
   hidden: boolean | undefined;
 }) {
   expect(result.detail).toBeNull();
@@ -90,7 +90,7 @@ function assertMissingPerItemQuerySentinels(result: {
   expect(result.dependencies).toBeNull();
   expect(result.categoryDependencies).toEqual(new Set<string>());
   expect(result.completion).toBe(false);
-  expect(result.reminder).toBe(false);
+  expect(result.logicalTask).toBe(false);
   expect(result.hidden).toBe(false);
 }
 
@@ -215,7 +215,7 @@ describe("data layer", () => {
         categoryDependencies:
           useCategoryDependencyQuery("missing-category").data,
         completion: useTaskCompletionQuery("missing").data,
-        reminder: useTaskReminderQuery("missing").data,
+        logicalTask: useTaskLogicalQuery("missing").data,
         hidden: useTaskHiddenQuery("missing").data,
       }),
       { wrapper },
@@ -568,7 +568,7 @@ describe("data layer", () => {
     });
   });
 
-  it("applies reminder mutation semantics across completion and dependencies", async () => {
+  it("applies logical-task mutation semantics across completion and dependencies", async () => {
     const { result } = renderHook(
       () => {
         const categoriesTasks =
@@ -576,7 +576,7 @@ describe("data layer", () => {
         const dependencies =
           useDependenciesQuery().data ?? new Map<string, TaskDependencies>();
         const completions = useCompletionsQuery().data ?? new Set<string>();
-        const reminders = useRemindersQuery().data ?? new Set<string>();
+        const logicalTasks = useLogicalTasksQuery().data ?? new Set<string>();
         const taskStructure = useTaskStructure();
         const effectiveCompletions = useEffectiveCompletions(
           taskStructure.taskSet,
@@ -593,11 +593,11 @@ describe("data layer", () => {
           createTask: useCreateTaskMutation(),
           setDependencies: useTaskDependenciesMutation(),
           setCompletion: useTaskCompletionMutation(),
-          setReminder: useTaskReminderMutation(),
+          setLogicalTask: useTaskLogicalMutation(),
           categoriesTasks,
           dependencies,
           completions,
-          reminders,
+          logicalTasks,
           openTasks: tasksWithCompleteOpeners,
         };
       },
@@ -649,14 +649,14 @@ describe("data layer", () => {
     });
 
     await act(async () => {
-      await result.current.setReminder.mutateAsync({
+      await result.current.setLogicalTask.mutateAsync({
         taskId: dependencyId,
-        isReminder: true,
+        isLogicalTask: true,
       });
     });
 
     await waitFor(() => {
-      expect(result.current.reminders.has(dependencyId)).toBe(true);
+      expect(result.current.logicalTasks.has(dependencyId)).toBe(true);
       expect(result.current.completions.has(dependencyId)).toBe(false);
 
       const dependencyExpressionData =

@@ -17,7 +17,7 @@ import {
 type LeftColumnProps = {
   mode: ChecklistMode;
   showCompletedTasks: boolean;
-  completionsWithReminders: Set<TaskId>;
+  effectiveCompletions: Set<TaskId>;
   openTasks: Set<TaskId>;
   tasksMatchingSearch: Set<TaskId>;
   searchDisabledScrollToken: number;
@@ -29,7 +29,7 @@ type LeftColumnProps = {
 export function LeftColumn({
   mode,
   showCompletedTasks,
-  completionsWithReminders,
+  effectiveCompletions,
   openTasks,
   tasksMatchingSearch,
   searchDisabledScrollToken,
@@ -73,7 +73,7 @@ export function LeftColumn({
   const taskBreakout = useTaskBreakout(
     mode,
     showCompletedTasks,
-    completionsWithReminders,
+    effectiveCompletions,
     openTasks,
     tasksMatchingSearch,
   );
@@ -196,7 +196,7 @@ export function LeftColumn({
               leftPaneScrollRef={leftPaneScrollRef}
               taskBreakout={taskBreakout}
               openTasks={openTasks}
-              effectiveCompletions={completionsWithReminders}
+              effectiveCompletions={effectiveCompletions}
               mode={mode}
               selectedTaskId={selectedTaskId}
               onRequestTaskSelectionChange={onRequestTaskSelectionChange}

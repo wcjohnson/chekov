@@ -55,7 +55,7 @@ const roundTripFixtures: Array<{
     },
   },
   {
-    name: "reminder, dependencies, tags, and category dependencies",
+    name: "logical task, dependencies, tags, and category dependencies",
     definition: {
       formatVersion: CHECKLIST_DEFINITION_FORMAT_VERSION,
       categories: ["Core", "Later"],
@@ -72,7 +72,7 @@ const roundTripFixtures: Array<{
             id: "b",
             category: "Core",
             title: "Check status",
-            type: "reminder",
+            type: "logical",
             openers: { tasks: ["a"] },
             tags: ["critical"],
           },
@@ -133,7 +133,7 @@ const roundTripFixtures: Array<{
             id: "z",
             category: "Gamma",
             title: "Notify",
-            type: "reminder",
+            type: "logical",
             openers: { tasks: ["y"] },
             description: "Ping when done",
           },
@@ -249,7 +249,7 @@ describe("import/export", () => {
     },
   );
 
-  it("imports legacy warning type and exports it as reminder", async () => {
+  it("imports legacy warning type and exports it as logical", async () => {
     const legacyDefinition: ExportedChecklistDefinition = {
       categories: ["Legacy"],
       tasksByCategory: {
@@ -274,12 +274,12 @@ describe("import/export", () => {
         id: "legacy-warning",
         category: "Legacy",
         title: "Legacy warning task",
-        type: "reminder",
+        type: "logical",
       },
     ]);
   });
 
-  it("drops reminder task completion from imported state for legacy warning definitions", async () => {
+  it("drops logical task completion from imported state for legacy warning definitions", async () => {
     const legacyDefinition: ExportedChecklistDefinition = {
       categories: ["Legacy"],
       tasksByCategory: {

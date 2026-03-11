@@ -45,12 +45,12 @@ export function DependencyExpressionView({
   mode,
   expression,
   dependencyTitleById,
-  completionsWithReminders,
+  effectiveCompletions,
 }: {
   mode: ChecklistMode;
   expression: BooleanExpression;
   dependencyTitleById: Map<TaskId, string>;
-  completionsWithReminders: Set<TaskId>;
+  effectiveCompletions: Set<TaskId>;
 }) {
   const renderExpression = (
     current: BooleanExpression,
@@ -58,7 +58,7 @@ export function DependencyExpressionView({
     keyPrefix: string,
   ): ReactNode => {
     if (typeof current === "string") {
-      const isCompleted = completionsWithReminders.has(current);
+      const isCompleted = effectiveCompletions.has(current);
       return (
         <span
           key={`${keyPrefix}-task`}
@@ -132,7 +132,7 @@ export function DependencyExpressionEditor({
   dependencyExpression,
   editorDependencyExpression,
   dependencyTitleById,
-  completionsWithReminders,
+  effectiveCompletions,
   onConfirmSelection,
   onClearSelection,
   onApplySelection,
@@ -148,7 +148,7 @@ export function DependencyExpressionEditor({
   dependencyExpression: BooleanExpression | null;
   editorDependencyExpression: DependencyExpression | null;
   dependencyTitleById: Map<TaskId, string>;
-  completionsWithReminders: Set<TaskId>;
+  effectiveCompletions: Set<TaskId>;
   onConfirmSelection: (taskIds: Set<TaskId>) => void;
   onClearSelection: () => void;
   onApplySelection: () => void;
@@ -252,7 +252,7 @@ export function DependencyExpressionEditor({
               mode={mode}
               expression={effectiveDependencyExpression}
               dependencyTitleById={dependencyTitleById}
-              completionsWithReminders={completionsWithReminders}
+              effectiveCompletions={effectiveCompletions}
             />
           )}
         </div>
